@@ -135,12 +135,12 @@ void main() {
         final rec = Recording(FakeProcess(exit: 0), codec: kGsr, out: out);
         expect(
           await recorder().finish(rec, const <Marker>[], 1700000000.5),
-          9.75,
+          closeTo(9.75 - kGsrStampLagS, 1e-6),
         );
         final remux = fake.of('ffmpeg').single.args;
         expect(
           remux,
-          containsAllInOrder(['-itsoffset', '0.250000', '-i', out]),
+          containsAllInOrder(['-itsoffset', '0.130000', '-i', out]),
         );
         expect(File(out).readAsStringSync(), 'shifted');
       },

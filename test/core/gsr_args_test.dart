@@ -74,6 +74,12 @@ void main() {
     expect(a, containsAllInOrder(['-w', 'region', '-region', '100x50+3+4']));
   });
 
+  test('gsr stamps its first frame 0.12 s after capture', () {
+    // Measured 2026-11-11 on kuhy's RTX 3090, 4K30, tool/marker_lag.py:
+    // 0.112 and 0.134 s between a flash's draw time and its frame.
+    expect(kGsrStampLagS, 0.12);
+  });
+
   test('the first-frame file sits beside the video', () {
     expect(gsrTsPath('/d/recording.mkv'), '/d/recording.mkv.ts');
   });

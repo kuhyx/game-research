@@ -160,7 +160,7 @@ class Recorder {
           ? parseFirstFrameTs(ts.readAsStringSync())
           : null;
       if (first == null) throw StateError('gsr wrote no first-frame time');
-      shift = first - t0;
+      shift = first - kGsrStampLagS - t0;
     }
     return await embedChapters(rec.out, markers, shiftS: shift);
   }

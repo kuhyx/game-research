@@ -33,6 +33,12 @@ bool gsrLists(String listing, Output output) {
       : names.contains(output.name);
 }
 
+/// How much later than its capture gsr stamps the first frame's wall
+/// clock (encode latency). Measured 2026-11-11 on kuhy's RTX 3090 at 4K30
+/// with `tool/marker_lag.py`: 0.112 and 0.134 s from a flash's draw time to
+/// its frame. Re-measure there after a gsr or driver upgrade.
+const kGsrStampLagS = 0.12;
+
 /// The first-frame timestamp file gsr writes beside [video].
 String gsrTsPath(String video) => '$video.ts';
 
