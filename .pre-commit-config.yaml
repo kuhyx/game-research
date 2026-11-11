@@ -1,0 +1,61 @@
+# pre-commit for game-research. Install: ./install.sh --step hooks
+# Run all: pre-commit run --all-files
+default_install_hook_types: [pre-commit]
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck --severity=warning -x
+        language: system
+        types: [shell]
+      - id: line-cap
+        name: source files stay at 250 lines or fewer
+        entry: scripts/check_line_cap.sh
+        language: system
+        files: \.(dart|sh|py)$
+      - id: dart-format
+        name: dart format
+        entry: dart format --output=none --set-exit-if-changed
+        language: system
+        types: [dart]
+      - id: flutter-analyze
+        name: flutter analyze (very_good_analysis)
+        entry: flutter analyze --no-pub
+        language: system
+        pass_filenames: false
+        types: [dart]
+      # Shared gate in ~/src/utils owns the namespaces and the exemption list.
+      - id: md-naming
+        name: markdown naming convention
+        entry: scripts/check_md_naming.sh
+        language: system
+        files: \.(md|markdown)$
+      # Every dependency on its ecosystem's newest STABLE release, exact-pinned.
+      - id: dependency-freshness
+        name: dependencies on newest stable
+        entry: scripts/check_dependency_freshness.sh
+        language: system
+        pass_filenames: true
+        files: (pubspec\.(yaml|lock)|\.fvmrc|\.pre-commit-config\.yaml)$

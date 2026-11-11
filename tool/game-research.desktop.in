@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=PlayStudy
+GenericName=Game research recorder
+Comment=Record a reference game session, drop markers, analyse it
+Exec=@LAUNCHER@
+Icon=game-research
+Terminal=false
+Categories=Utility;
+StartupNotify=true
+StartupWMClass=game-research

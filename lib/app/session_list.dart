@@ -1,0 +1,174 @@
+/// Past sessions: capsule, start date and length as numbers, marker counts,
+/// the analysis ring, rerun and open-draft buttons. No words.
+library;
+
+import 'package:design_system/design_system.dart';
+import 'package:flutter/material.dart';
+import 'package:game_research/app/game_picker.dart';
+import 'package:game_research/app/marker_style.dart';
+import 'package:game_research/app/models.dart';
+
+/// The list.
+class SessionList extends StatelessWidget {
+  /// Creates the list.
+  const new({
+    required this.sessions,
+    required this.capsuleUrl,
+    required this.onRerun,
+    required this.onOpenDraft,
+    super.key,
+  });
+
+  /// Rows, newest first.
+  final List<SessionRow> sessions;
+
+  /// Capsule URL of an app id.
+  final String Function(int appid) capsuleUrl;
+
+  /// Rerun pressed for a session id.
+  final ValueChanged<String> onRerun;
+
+  /// Open draft pressed for a session id.
+  final ValueChanged<String> onOpenDraft;
+
+  @override
+  Widget build(BuildContext context) => ListView.separated(
+    itemCount: sessions.length,
+    separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+    itemBuilder: (context, i) => _Row(
+      row: sessions[i],
+      capsuleUrl: capsuleUrl,
+      onRerun: onRerun,
+      onOpenDraft: onOpenDraft,
+    ),
+  );
+}
+
+/// `MM-DD HH:MM` of a unix time, local.
+String stamp(double unix) {
+  final d = DateTime.fromMillisecondsSinceEpoch((unix * 1000).round());
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${two(d.month)}-${two(d.day)} ${two(d.hour)}:${two(d.minute)}';
+}
+
+class _Row extends StatelessWidget {
+  const new({
+    required this.row,
+    required this.capsuleUrl,
+    required this.onRerun,
+    required this.onOpenDraft,
+  });
+
+  final SessionRow row;
+  final String Function(int) capsuleUrl;
+  final ValueChanged<String> onRerun;
+  final ValueChanged<String> onOpenDraft;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final ring = switch (row.state) {
+      'done' => AppPalette.success,
+      'failed' => AppPalette.danger,
+      _ => AppPalette.accent,
+    };
+    final rerunSemantic = 'rerun ${row.id}';
+    final draftSemantic = 'draft ${row.id}';
+    final ringSemantic = 'analysis ${row.state}';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: SizedBox(
+                width: 48,
+                height: 72,
+                child: Image.network(
+                  capsuleUrl(row.appid),
+                  fit: BoxFit.cover,
+                  semanticLabel: row.game,
+                  errorBuilder: (_, _, _) =>
+                      ProceduralCapsule(appid: row.appid),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(stamp(row.startedUnix), style: text.titleMedium),
+                  Text(
+                    clock(row.durationS),
+                    style: text.bodyMedium?.copyWith(
+                      color: AppPalette.mutedOnDark,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    children: [
+                      for (final s in kMarkerStyles)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(s.icon, size: 20, color: s.color),
+                            Text('${row.counts[s.tag] ?? 0}'),
+                          ],
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Semantics(
+              label: ringSemantic,
+              value: '${(row.progress * 100).round()}',
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      value: row.progress,
+                      strokeWidth: 5,
+                      color: ring,
+                      backgroundColor: AppPalette.lineDark,
+                    ),
+                    if (row.state == 'failed')
+                      const Icon(
+                        Icons.priority_high_rounded,
+                        color: AppPalette.danger,
+                      ),
+                    if (row.state == 'done')
+                      const Icon(
+                        Icons.check_rounded,
+                        color: AppPalette.success,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            IconButton(
+              onPressed: row.recording ? null : () => onRerun(row.id),
+              icon: Icon(Icons.refresh_rounded, semanticLabel: rerunSemantic),
+              iconSize: 32,
+            ),
+            IconButton(
+              onPressed: row.draft == null ? null : () => onOpenDraft(row.id),
+              icon: Icon(
+                Icons.description_rounded,
+                semanticLabel: draftSemantic,
+              ),
+              iconSize: 32,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

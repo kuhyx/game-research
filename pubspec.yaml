@@ -1,0 +1,45 @@
+name: game_research
+description: "Record a reference game session, drop markers, analyse it."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.7
+
+# Exact pins, newest stable (dependency-freshness gate).
+dependencies:
+  # The frozen family palette, spacing and type scale (unified-design-system).
+  design_system:
+    git:
+      url: https://github.com/kuhyx/utils
+      ref: design_system-v0.3.1
+      path: design_system
+  flutter:
+    sdk: flutter
+  # The page talks to the wrapper; the wrapper talks to OmniRoute and ollama.
+  http: 1.6.0
+  path: 1.9.1
+
+dev_dependencies:
+  flutter_launcher_icons: 0.14.4
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^11.0.0
+
+flutter:
+  uses-material-design: true
+
+# The shared icon family (python_pkg/app_icons in testsAndMisc, key
+# game_research): charcoal field, glyph in the family accent. The desktop
+# build is web-in-Chrome, so the favicon and manifest icons are what the
+# app window and the taskbar show.
+flutter_launcher_icons:
+  android: false
+  ios: false
+  image_path: "assets/icon/icon.png"
+  web:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    background_color: "#211D1B"
+    theme_color: "#211D1B"
