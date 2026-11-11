@@ -6,6 +6,8 @@
 #   e2e/run.sh F1         session through GUI + hotkeys, stop by hotkey
 #   e2e/run.sh F1-check   wait for the analysis job, assert every artefact
 #   e2e/run.sh F2         session that stops itself when the game exits
+#   e2e/run.sh F4         records the monitor the game window is on (needs
+#                         E2E_LAYOUT=dual at `up`: DP-0 + HDMI-0 like kuhy's)
 #   e2e/run.sh down       stop units, the dummy game and the browser
 #
 # Artefacts: ~/data/claude-scratch/e2e/game-research/<run>/ (latest -> newest).
@@ -33,20 +35,21 @@ fixtures() {
 }
 
 wrapper_env() {
-	local e
+	local e shim=""
+	[[ ! -f "${ART}/monitors" ]] || shim="${E2E_REPO}/e2e/shim:"
 	for e in \
 		GAME_RESEARCH_TEST=1 "GAME_RESEARCH_PORT=${E2E_PORT}" \
 		"GAME_RESEARCH_DATA=${ART}/data" "GAME_RESEARCH_STEAM_ROOT=${ART}/steam" \
 		"GAME_RESEARCH_STEAM_CMD=${E2E_REPO}/e2e/fake_steam.sh" \
 		"GAME_RESEARCH_STEAM_PID=${ART}/steam.pid" \
 		"GAME_RESEARCH_STEAM_ENV=GAME_RESEARCH_E2E_ART=${ART}" \
-		"GAME_RESEARCH_DISPLAY=${E2E_DISPLAY}" GAME_RESEARCH_OUTPUT=screen \
+		"GAME_RESEARCH_DISPLAY=${E2E_DISPLAY}" \
 		GAME_RESEARCH_AUDIO=lavfi GAME_RESEARCH_FPS=30 GAME_RESEARCH_STILL_S=4 \
 		"GAME_RESEARCH_SRC=${ART}" "GAME_RESEARCH_TARGET=${ART}/target" \
 		"GAME_RESEARCH_TICK_CMD=${E2E_REPO}/e2e/fake_tick.sh" \
 		"GAME_RESEARCH_FAKE_LLM=${E2E_REPO}/e2e/fake_llm.sh" \
 		"GAME_RESEARCH_TODO_CMD=${E2E_REPO}/e2e/fake_todo.sh" \
-		"GAME_RESEARCH_E2E_ART=${ART}" "PATH=${HOME}/.local/bin:/usr/local/bin:/usr/bin" \
+		"GAME_RESEARCH_E2E_ART=${ART}" "PATH=${shim}${HOME}/.local/bin:/usr/local/bin:/usr/bin" \
 		"HOME=${HOME}"; do
 		printf -- '--setenv=%s\n' "$e"
 	done
@@ -59,12 +62,15 @@ up() {
 	ln -sfn "$ART" "${E2E_ROOT}/latest"
 	step "fixtures in ${ART}"
 	fixtures
+	[[ ${E2E_LAYOUT:-} != dual ]] || dual_monitors
 	step "Xvfb ${E2E_DISPLAY}"
 	# A server already on this display would make every check run against
 	# something we did not start: refuse it.
 	! DISPLAY="$E2E_DISPLAY" xdpyinfo >/dev/null 2>&1 || fail "${E2E_DISPLAY} is already taken"
+	local size=1280x720
+	[[ ${E2E_LAYOUT:-} != dual ]] || size=6400x2160
 	systemd-run --user --collect --quiet --unit gr-e2e-xvfb \
-		Xvfb "$E2E_DISPLAY" -screen 0 1280x720x24 -nolisten tcp
+		Xvfb "$E2E_DISPLAY" -screen 0 "${size}x24" -nolisten tcp
 	wait_for "DISPLAY=${E2E_DISPLAY} xdpyinfo >/dev/null 2>&1" 10 || fail "Xvfb did not start"
 	systemctl --user is-active --quiet gr-e2e-xvfb || fail "gr-e2e-xvfb unit is not active"
 	step "wrapper on :${E2E_PORT}"
@@ -80,6 +86,15 @@ up() {
 		--cdp-port "$E2E_CDP" --size 2560x1440 >/dev/null
 	fwd wait "$E2E_GAME" --timeout 30 >/dev/null || fail "game tile never showed"
 	echo "UP ${ART}"
+}
+
+# kuhy's two monitors (2026-11-11) on one 6400x2160 Xvfb. Xvfb ignores
+# `xrandr --setmonitor`, so e2e/shim/xrandr (first on the wrapper's PATH)
+# lists them from this file; the window and the ffmpeg grab stay real.
+dual_monitors() {
+	printf '%s\n' 'Monitors: 2' \
+		' 0: +*DP-0 3840/620x2160/340+0+0  DP-0' \
+		' 1: +HDMI-0 2560/698x1440/393+3840+0  HDMI-0' >"${ART}/monitors"
 }
 
 down() {
@@ -103,7 +118,8 @@ main() {
 	F1) FLOW=F1 ART="$(art_dir)" bash "${E2E_REPO}/e2e/f1_session.sh" ;;
 	F1-check) FLOW=F1 ART="$(art_dir)" bash "${E2E_REPO}/e2e/f1_check.sh" ;;
 	F2) FLOW=F2 ART="$(art_dir)" bash "${E2E_REPO}/e2e/f2_autostop.sh" ;;
-	*) die "usage: e2e/run.sh build|up|F1|F1-check|F2|down" ;;
+	F4) FLOW=F4 ART="$(art_dir)" bash "${E2E_REPO}/e2e/f4_monitor.sh" ;;
+	*) die "usage: e2e/run.sh build|up|F1|F1-check|F2|F4|down" ;;
 	esac
 }
 

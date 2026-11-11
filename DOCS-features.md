@@ -8,7 +8,7 @@
 - **Driver:** flutter-web-drive (headless chromium) + private `Xvfb :147`
   (xdotool hotkeys, dmenu, flash, x11grab) + fake Steam / models / todo
 - **Run one flow:** `e2e/run.sh build`, `e2e/run.sh up`, then `e2e/run.sh F1`,
-  `e2e/run.sh F1-check`, `e2e/run.sh F2`, `e2e/run.sh down`
+  `e2e/run.sh F1-check`, `e2e/run.sh F2`, `E2E_LAYOUT=dual e2e/run.sh up` + `e2e/run.sh F4`, `e2e/run.sh down`
 - **Artefacts:** `~/data/claude-scratch/e2e/game-research/<run>/`
 
 ## Feature map
@@ -23,7 +23,7 @@
 | Note by button | note button -> one-line field -> Enter (Esc = empty) | marker stamped at the button press, note text added on Enter |
 | Hotkeys | Mod+F1 good, Mod+F2 bad, Mod+F3 confusing, Mod+F4 note (dmenu line), Mod+Shift+F4 stop | same as the buttons; keys exist only while a session records (sxhkd unit `game-research-keys-<port>`) |
 | Auto stop | quit the game | session ends when no process carries `AppId=<id>` any more (after it was seen once); `ended_by: game-exit` |
-| Recording | any session | `~/data/game-research/<stamp>-<game>/recording.mkv`: x11grab of DP-2, default-sink monitor audio (never a mic), HEVC NVENC cq 14, FLAC, one chapter per marker |
+| Recording | any session | `~/data/game-research/<stamp>-<game>/recording.mkv`: x11grab of the monitor the game window is on (`xrandr --listmonitors` x window rect, else the primary; `record_start` logs `output` + `output_why`), default-sink monitor audio (never a mic), HEVC NVENC cq 14, FLAC, one chapter per marker |
 | Analysis job | starts after Stop (`systemd-run --user`) | `analysis/status.json` drives the ring; stages resume from their own outputs |
 | Stage 1 | automatic | `scenes.json`, `still.jsonl` (no motion >= 20 s), `frames/` (every marker + scene cuts at most one per 10 s, <= 1280 px), `clips/` (10 s per marker, stream copy, up to +1 s at the start keyframe), `contact/sheet_*.png` |
 | Stage 2 | automatic | `captions.jsonl`: one line per frame with `tier`, `model`, `skipped`; chain haiku -> OmniRoute `agnes/agnes-2.5-flash` -> ollama `qwen3-vl:30b-a3b-instruct`; a frame no tier captions fails the stage (rerun resumes) |
@@ -40,6 +40,7 @@
 | F1 | GUI start, 4 hotkey + 4 button markers, stop by Mod+Shift+F4, full analysis with stub models | `e2e/run.sh F1 && e2e/run.sh F1-check` | 2026-11-11 (68 checks) |
 | F2 | session stops by itself when the game exits | `e2e/run.sh F2` | 2026-11-11 |
 | F3 | real Steam + Librarian off-screen: open, ring, Steam starts, game window, recording, CLI markers, game exit stops it | manual, CLAUDE.md "Driving the app" | 2026-11-11 (Xvfb :148) |
+| F4 | the recording grabs the monitor the game window is on (DP-0 + HDMI-0 layout, game on HDMI-0 -> 2560x1440 video) | `E2E_LAYOUT=dual e2e/run.sh up`, `e2e/run.sh F4` | 2026-11-11 (Xvfb :147, monitors listed by `e2e/shim/xrandr`) |
 
 F1-check asserts: 8 chapters at the marker offsets, each marker offset within
 0.5 s of the moment the input was sent, the border flash visible in the

@@ -142,15 +142,6 @@ void main() {
     expect(h.fake.of('systemd-run'), hasLength(1));
   });
 
-  test('a recorder failure after the window shows as the error', () async {
-    h.failRuns.add('xrandr');
-    await flow.start(librarian);
-    h.gameRuns(librarian);
-    await until(() => flow.state()['error'] != '');
-    expect(flow.state()['error'], contains('output'));
-    expect(flow.phase, Phase.idle);
-  });
-
   test('autostart arms, drains and launches the last game', () async {
     expect(flow.arm(), isTrue);
     expect(flow.phase, Phase.armed);

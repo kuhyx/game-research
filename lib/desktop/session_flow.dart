@@ -11,9 +11,11 @@ library;
 import 'dart:async';
 
 import 'package:game_research/core/steam.dart';
+import 'package:game_research/core/xrandr.dart';
 import 'package:game_research/desktop/recorder.dart';
 import 'package:game_research/desktop/session_controller.dart';
 import 'package:game_research/desktop/session_parts.dart';
+import 'package:game_research/desktop/steam_launch.dart';
 import 'package:game_research/desktop/steam_library.dart';
 
 /// Where the flow is.
@@ -166,31 +168,47 @@ class SessionFlow {
         scan.running(appid) == false;
   }
 
+  /// Starts recording on [hit]; on a [StartError] keeps the error (the
+  /// GUI's red glyph) and goes back to waiting. True when it records.
+  Future<bool> _record(SteamGame game, WindowHit hit) async {
+    _parts.log.event('window', {
+      'pid': hit.pid,
+      'window': hit.window,
+      'rect': rectText(hit.rect),
+    });
+    _phase = Phase.idle;
+    try {
+      await controller.start(game, window: hit.rect);
+      error = '';
+      return true;
+    } on StartError catch (e) {
+      error = e.message;
+      return false;
+    }
+  }
+
+  /// Polls for the game window, then records. A start that fails waits for
+  /// the next window (the failed one is skipped) and tries once more; it
+  /// gives up when that fails too, when the game quits or at the timeout.
   Future<void> _await(SteamGame game, int gen) async {
     final until = _parts.sys.nowUnix() + _parts.config.windowTimeoutS;
     var handed = _parts.sys.nowUnix();
+    final failed = <String>{};
     while (gen == _gen) {
-      final hit = await _parts.window.find(game.appid);
+      final hit = await _parts.window.find(game.appid, skip: failed);
       if (gen != _gen) return;
       if (hit != null) {
-        _parts.log.event('window', {'pid': hit.pid, 'window': hit.window});
-        _phase = Phase.idle;
-        try {
-          await controller.start(game);
-        } on StartError catch (e) {
-          error = e.message;
+        if (await _record(game, hit) || failed.isNotEmpty) return;
+        failed.add(hit.window);
+        _phase = Phase.waiting;
+        _parts.log.event('retry_wait', {'appid': game.appid});
+      } else if (failed.isNotEmpty) {
+        if (_parts.launcher.scan.running(game.appid) == false) {
+          return _giveUp('game_exit', error);
         }
-        return;
-      }
-      final now = _parts.sys.nowUnix();
-      if (now > until) {
-        error = 'the game window never appeared';
-        _phase = Phase.idle;
-        _parts.log.event('error', {'step': 'window', 'message': error});
-        return;
-      }
-      if (now - handed >= _parts.config.relaunchS && _stalled(game.appid)) {
-        handed = now;
+      } else if (_parts.sys.nowUnix() - handed >= _parts.config.relaunchS &&
+          _stalled(game.appid)) {
+        handed = _parts.sys.nowUnix();
         _parts.log.event('relaunch', {'appid': game.appid});
         try {
           await _parts.launcher.launch(game.appid);
@@ -198,7 +216,18 @@ class SessionFlow {
           // logged by the launcher; the next round tries again
         }
       }
+      if (_parts.sys.nowUnix() > until) {
+        return _giveUp('window', failed.isEmpty ? _never : error);
+      }
       await Future<void>.delayed(every);
     }
+  }
+
+  static const _never = 'the game window never appeared';
+
+  void _giveUp(String step, String message) {
+    error = message;
+    _phase = Phase.idle;
+    _parts.log.event('error', {'step': step, 'message': message});
   }
 }

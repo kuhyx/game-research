@@ -21,8 +21,12 @@ import 'package:path/path.dart' as p;
 
 import 'fakes.dart';
 
-/// One xrandr screen with DP-2.
-const kXrandr = 'DP-2 connected 3840x2160+0+0 (normal) 1mm x 1mm\n';
+/// kuhy's `xrandr --listmonitors` (2026-11-11): DP-0 primary, HDMI-0.
+const kXrandr = '''
+Monitors: 2
+ 0: +*DP-0 3840/620x2160/340+0+0  DP-0
+ 1: +HDMI-0 2560/698x1440/393+3840+0  HDMI-0
+''';
 
 /// Everything a controller test needs.
 class Harness {
@@ -118,12 +122,12 @@ class Harness {
   ProcessResult? _run(Call c) {
     if (failRuns.contains(c.exe)) return bad('${c.exe} failed');
     switch (c.exe) {
-      case 'xdotool' when c.args.contains('--class'):
-        return bad();
+      case 'xdotool' when !c.args.contains('--pid'):
+        return bad(); // no Proton steam_app_<id> window
       case 'xdotool':
-        final pid = c.args[3];
+        final pid = c.args[c.args.indexOf('--pid') + 1];
         return Directory(p.join(proc.path, pid)).existsSync()
-            ? ok('WINDOW=$windowId\nWIDTH=1920\nHEIGHT=1080\n')
+            ? ok('WINDOW=$windowId\nX=$windowX\nY=0\nWIDTH=1920\nHEIGHT=1080\n')
             : bad();
       case 'xrandr':
         return ok(kXrandr);
@@ -156,6 +160,9 @@ class Harness {
 
   /// The X window id `xdotool` reports for a game process.
   String windowId = '81788929';
+
+  /// The game window's left edge: on HDMI-0 (x >= 3840) by default.
+  int windowX = 3900;
 
   /// Marks a fake process of [appid] as running (reaper cmdline + Steam's
   /// `SteamAppId` environment), which also gives it a window.

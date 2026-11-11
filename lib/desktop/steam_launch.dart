@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:game_research/core/steam.dart';
+import 'package:game_research/core/xrandr.dart';
 import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/event_log.dart';
 import 'package:game_research/desktop/proc_scan.dart';
@@ -94,8 +95,8 @@ class GameLauncher {
   }
 }
 
-/// One game window: its X id and the pid that owns it.
-typedef WindowHit = ({int pid, String window});
+/// One game window: its X id, the pid that owns it and its rect.
+typedef WindowHit = ({int pid, String window, Rect rect});
 
 /// Finds a visible X window owned by a process of the game.
 class GameWindow {
@@ -115,23 +116,29 @@ class GameWindow {
   /// 111x1, DXGI 113x2, Proton's "Steam" 400x300) are smaller.
   static const minSide = 480;
 
-  Future<String?> _search(List<String> by) async {
+  Future<BigWindow?> _search(List<String> by, Set<String> skip) async {
     final r = await sys.run(
       'xdotool',
-      ['search', '--onlyvisible', ...by, 'getwindowgeometry', '--shell', '%@'],
+      ['search', ...by, 'getwindowgeometry', '--shell', '%@'],
       environment: {'DISPLAY': config.display},
     );
-    return r.exitCode == 0 ? bigWindow('${r.stdout}') : null;
+    return r.exitCode == 0 ? bigWindow('${r.stdout}', skip: skip) : null;
   }
 
-  /// The first visible, game-sized window of [appid], or null. Proton
-  /// names every window's class `steam_app_<id>` (its `_NET_WM_PID` is a
-  /// Wine thread id, not a process); a native game is found by the pids of
-  /// its tree (pid 0 = found by class). Walks the window tree, so it needs
-  /// no window manager.
-  Future<WindowHit?> find(int appid) async {
-    final byClass = await _search(['--class', '^steam_app_$appid\$']);
-    if (byClass != null) return (pid: 0, window: byClass);
+  /// The first visible, game-sized window of [appid] not in [skip], or
+  /// null. Proton names every window's class `steam_app_<id>` (its
+  /// `_NET_WM_PID` is a Wine thread id, not a process); a native game is
+  /// found by the pids of its tree (pid 0 = found by class). Walks the
+  /// window tree, so it needs no window manager.
+  Future<WindowHit?> find(int appid, {Set<String> skip = const {}}) async {
+    final byClass = await _search([
+      '--onlyvisible',
+      '--class',
+      '^steam_app_$appid\$',
+    ], skip);
+    if (byClass != null) {
+      return (pid: 0, window: byClass.id, rect: byClass.rect);
+    }
     final List<int> pids;
     try {
       pids = scan.gamePids(appid);
@@ -139,30 +146,53 @@ class GameWindow {
       return null; // /proc unreadable this tick; the next poll retries
     }
     for (final pid in pids) {
-      // xdotool takes the next word as the pattern. '' also matches the
-      // root window (no _NET_WM_PID filter there); '.' needs a name or
-      // class, which every game window has and root has not.
-      final id = await _search(['--pid', '$pid', '.']);
-      if (id != null) return (pid: pid, window: id);
+      // xdotool ORs its conditions by default (--any): `--pid P .` matched
+      // every named window and on 2026-11-11 returned an i3 frame. With
+      // --all the pid must match and '' (needed: xdotool takes the next
+      // word as the pattern) matches anything; root has no pid.
+      final hit = await _search([
+        '--all',
+        '--onlyvisible',
+        '--pid',
+        '$pid',
+        '',
+      ], skip);
+      if (hit != null) return (pid: pid, window: hit.id, rect: hit.rect);
     }
     return null;
   }
 }
 
+/// A game-sized window: X id and rect.
+typedef BigWindow = ({String id, Rect rect});
+
 /// The first window in `xdotool getwindowgeometry --shell` [output] whose
-/// sides are both at least [GameWindow.minSide], or null.
-String? bigWindow(String output) {
+/// sides are both at least [GameWindow.minSide] and whose id is not in
+/// [skip], or null.
+BigWindow? bigWindow(String output, {Set<String> skip = const {}}) {
   String? id;
-  int? width;
+  var x = 0;
+  var y = 0;
+  var width = 0;
   for (final line in output.split('\n')) {
     final [key, value] = [...line.split('='), '', ''].take(2).toList();
-    if (key == 'WINDOW') id = value;
-    if (key == 'WIDTH') width = int.tryParse(value);
-    if (key == 'HEIGHT') {
-      final height = int.tryParse(value) ?? 0;
-      if ((width ?? 0) >= GameWindow.minSide && height >= GameWindow.minSide) {
-        return id;
-      }
+    final n = int.tryParse(value) ?? 0;
+    switch (key) {
+      case 'WINDOW':
+        (id, x, y, width) = (value, 0, 0, 0);
+      case 'X':
+        x = n;
+      case 'Y':
+        y = n;
+      case 'WIDTH':
+        width = n;
+      case 'HEIGHT':
+        if (id != null &&
+            width >= GameWindow.minSide &&
+            n >= GameWindow.minSide &&
+            !skip.contains(id)) {
+          return (id: id, rect: (x: x, y: y, width: width, height: n));
+        }
     }
   }
   return null;

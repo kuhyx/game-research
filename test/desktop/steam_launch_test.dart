@@ -105,9 +105,14 @@ void main() {
     test("Proton's steam_app class finds the game window", () async {
       // 2026-11-11 real run: Librarian's window carried a Wine thread id
       // as _NET_WM_PID, so only the class matched.
-      fake.onRun = (c) => c.args.contains('--class') ? ok(geometry) : bad();
+      fake.onRun = (c) =>
+          c.args.contains(r'^steam_app_7$') ? ok(geometry) : bad();
       final w = GameWindow(testConfig(root), fake.sys, ProcScan(proc.path));
-      expect(await w.find(7), (pid: 0, window: '100'));
+      final hit = await w.find(7);
+      expect((hit?.pid, hit?.window), (0, '100'));
+      expect(hit?.rect, (x: 0, y: 0, width: 1920, height: 1080));
+      // A window whose recording failed is skipped: wait for the next one.
+      expect(await w.find(7, skip: {'100'}), isNull);
     });
 
     test('the first process with a visible window wins', () async {
@@ -119,13 +124,15 @@ void main() {
       fake.onRun = (c) => c.args.contains('11') ? ok(geometry) : bad();
       // (the class query comes first and finds nothing here)
       final w = GameWindow(testConfig(root), fake.sys, ProcScan(proc.path));
-      expect(await w.find(7), (pid: 11, window: '100'));
+      final hit = await w.find(7);
+      expect((hit?.pid, hit?.window), (11, '100'));
       expect(fake.calls.last.args, [
         'search',
+        '--all',
         '--onlyvisible',
         '--pid',
         '11',
-        '.',
+        '',
         'getwindowgeometry',
         '--shell',
         '%@',

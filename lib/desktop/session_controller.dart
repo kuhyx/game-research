@@ -15,6 +15,7 @@ import 'package:game_research/core/markers.dart';
 import 'package:game_research/core/recorder_args.dart';
 import 'package:game_research/core/slug.dart';
 import 'package:game_research/core/steam.dart';
+import 'package:game_research/core/xrandr.dart';
 import 'package:game_research/desktop/recorder.dart';
 import 'package:game_research/desktop/session_parts.dart';
 import 'package:path/path.dart' as p;
@@ -73,11 +74,12 @@ class SessionController {
 
   /// Starts a session of [game]. Throws [StartError] (also kept in
   /// [lastError]) when anything needed is missing; nothing is left running.
-  Future<void> start(SteamGame game) async {
+  /// [window] is the game window's rect: its monitor is recorded.
+  Future<void> start(SteamGame game, {Rect? window}) async {
     if (_active != null) throw const StartError('a session is recording');
     lastError = '';
     try {
-      await _start(game);
+      await _start(game, window);
     } on StartError catch (e) {
       lastError = e.message;
       parts.log.event('error', {'step': 'record_start', 'message': e.message});
@@ -85,11 +87,10 @@ class SessionController {
     }
   }
 
-  Future<void> _start(SteamGame game) async {
-    final output = await parts.recorder.resolveOutput();
-    if (output == null) {
-      throw StartError('output ${parts.config.output} missing');
-    }
+  Future<void> _start(SteamGame game, Rect? window) async {
+    final pick = await parts.recorder.resolveOutput(window: window);
+    if (pick == null) throw const StartError('no monitor found');
+    final output = pick.output;
     final codec = await parts.recorder.probeEncoder();
     if (codec == null) throw const StartError('no working video encoder');
     final now = DateTime.fromMicrosecondsSinceEpoch(
@@ -128,6 +129,7 @@ class SessionController {
       'state': 'recording',
       'encoder': codec,
       'output': output.name,
+      'output_why': pick.why,
       'video': 'recording.mkv',
       'target': parts.targets.current(),
       'display': parts.config.display,
@@ -152,6 +154,9 @@ class SessionController {
       'appid': game.appid,
       'encoder': codec,
       'output': output.name,
+      'output_why': pick.why,
+      'geometry': output.geometry,
+      if (window != null) 'window': rectText(window),
     });
   }
 

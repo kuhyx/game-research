@@ -13,7 +13,7 @@ void main() {
     expect(c.steamRoot, '/h/.local/share/Steam');
     expect(c.steamCmd, 'steam');
     expect(c.display, ':7');
-    expect(c.output, 'DP-2');
+    expect(c.output, '', reason: 'auto: the game window decides');
     expect(c.audio, 'default');
     expect(c.fps, 60);
     expect(c.srcRoot, '/h/src');

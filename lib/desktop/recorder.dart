@@ -64,14 +64,16 @@ class Recorder {
 
   Map<String, String> get _xEnv => {'DISPLAY': config.display};
 
-  /// The output to grab: an explicit geometry, else the named RandR output.
-  /// Null when it is not connected: never grab a different monitor.
-  Future<Output?> resolveOutput() async {
+  /// The output to grab: an explicit `WxH+X+Y`, else the monitor under
+  /// [window] (a configured name wins while it exists), else the primary.
+  /// Null when xrandr fails or lists no monitor.
+  Future<OutputPick?> resolveOutput({Rect? window}) async {
     final fixed = parseGeometry(config.output);
-    if (fixed != null) return fixed;
-    final r = await sys.run('xrandr', ['--query'], environment: _xEnv);
+    if (fixed != null) return (output: fixed, why: 'geometry');
+    final r = await sys.run('xrandr', ['--listmonitors'], environment: _xEnv);
     if (r.exitCode != 0) return null;
-    return findOutput(parseXrandr('${r.stdout}'), config.output);
+    final monitors = parseMonitors('${r.stdout}');
+    return pickOutput(monitors, window: window, pin: config.output);
   }
 
   /// The best encoder that really encodes a frame here, or null.

@@ -10,9 +10,11 @@ import 'package:path/path.dart' as p;
 
 import '../support/fakes.dart';
 
-const _xrandr = '''
-DP-2 connected 3840x2160+0+0 (normal) 597mm x 336mm
-HDMI-0 connected primary 2560x1440+3840+0 (normal) 597mm x 336mm
+// kuhy's real layout (2026-11-11): DP-0 primary, HDMI-0 right of it.
+const _monitors = '''
+Monitors: 2
+ 0: +*DP-0 3840/620x2160/340+0+0  DP-0
+ 1: +HDMI-0 2560/698x1440/393+3840+0  HDMI-0
 ''';
 
 String probeJson(num seconds) => jsonEncode({
@@ -39,23 +41,26 @@ void main() {
     test('an explicit geometry needs no xrandr', () async {
       final o = await recorder({'GAME_RESEARCH_OUTPUT': '100x50+3+4'})
           .resolveOutput();
-      expect(o?.geometry, '100x50+3+4');
+      expect(o?.output.geometry, '100x50+3+4');
+      expect(o?.why, 'geometry');
       expect(fake.calls, isEmpty);
     });
 
-    test('a named output is found on the private display', () async {
-      fake.onRun = (_) => ok(_xrandr);
-      final o = await recorder().resolveOutput();
-      expect(o?.name, 'DP-2');
+    test('the monitor under the game window, no output name', () async {
+      // 2026-11-11 live bug: the default DP-2 does not exist on :0.
+      fake.onRun = (_) => ok(_monitors);
+      const rect = (x: 3840, y: 0, width: 2560, height: 1440);
+      final o = await recorder().resolveOutput(window: rect);
+      expect(o?.output.name, 'HDMI-0');
+      expect(o?.why, 'window');
+      expect(fake.calls.single.args, ['--listmonitors']);
       expect(fake.calls.single.env, {'DISPLAY': ':99'});
+      expect((await recorder().resolveOutput())?.output.name, 'DP-0');
     });
 
-    test('a missing output or a failing xrandr gives null', () async {
-      fake.onRun = (_) => ok(_xrandr);
-      expect(
-        await recorder({'GAME_RESEARCH_OUTPUT': 'DP-9'}).resolveOutput(),
-        isNull,
-      );
+    test('a failing xrandr or no monitor gives null', () async {
+      fake.onRun = (_) => ok('Monitors: 0\n');
+      expect(await recorder().resolveOutput(), isNull);
       fake.onRun = (_) => bad('no display');
       expect(await recorder().resolveOutput(), isNull);
     });

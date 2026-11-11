@@ -42,7 +42,7 @@ class Config {
       steamRoot: get('STEAM_ROOT', p.join(home, '.local', 'share', 'Steam')),
       steamCmd: get('STEAM_CMD', 'steam'),
       display: get('DISPLAY', env['DISPLAY'] ?? ':0'),
-      output: get('OUTPUT', 'DP-2'),
+      output: get('OUTPUT', ''),
       audio: get('AUDIO', 'default'),
       fps: int.tryParse(get('FPS', '')) ?? 60,
       srcRoot: get('SRC', p.join(home, 'src')),
@@ -165,7 +165,8 @@ class Config {
   /// X display the game, hotkeys, dmenu and the flash live on.
   final String display;
 
-  /// RandR output to record (`DP-2`), or `WxH+X+Y`.
+  /// Output to record: '' = the monitor under the game window (default),
+  /// a monitor name to prefer while it exists, or a fixed `WxH+X+Y`.
   final String output;
 
   /// Audio source: `default`, a `*.monitor`, or `lavfi` (tests).

@@ -1,0 +1,14 @@
+#!/bin/bash
+# E2E stand-in for xrandr, first on the wrapper's PATH in the dual layout.
+# Xvfb 21.1 ignores `xrandr --setmonitor`, so it cannot list two monitors:
+# `--listmonitors` answers from $GAME_RESEARCH_E2E_ART/monitors (kuhy's real
+# listing, written by `up`); everything else is the real xrandr.
+
+set -euo pipefail
+
+readonly LISTING="${GAME_RESEARCH_E2E_ART:-}/monitors"
+if [[ ${1:-} == --listmonitors && -f $LISTING ]]; then
+	cat "$LISTING"
+	exit 0
+fi
+exec /usr/bin/xrandr "$@"

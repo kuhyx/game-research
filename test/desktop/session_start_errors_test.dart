@@ -28,13 +28,12 @@ void main() {
       Directory(h.config.dataDir).existsSync() &&
       Directory(h.config.dataDir).listSync().whereType<Directory>().isNotEmpty;
 
-  test('a missing output fails closed', () async {
-    h.fake.onRun = (c) =>
-        c.exe == 'xrandr' ? ok('HDMI-0 connected 1x1+0+0') : null;
+  test('no monitor at all fails closed', () async {
+    h.fake.onRun = (c) => c.exe == 'xrandr' ? ok('Monitors: 0\n') : null;
     final e = await failedStart();
-    expect(e.message, 'output DP-2 missing');
-    expect(h.controller.lastError, 'output DP-2 missing');
-    expect(h.controller.state()['error'], 'output DP-2 missing');
+    expect(e.message, 'no monitor found');
+    expect(h.controller.lastError, 'no monitor found');
+    expect(h.controller.state()['error'], 'no monitor found');
     expect(h.controller.recording, isFalse);
     expect(dataHasFolders(), isFalse);
   });

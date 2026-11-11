@@ -118,7 +118,6 @@ offscreen() {
 	export GAME_RESEARCH_PORT="$PORT"
 	: "${GAME_RESEARCH_DATA:=${HOME}/data/claude-scratch/playstudy/display-${n}}"
 	: "${GAME_RESEARCH_TICK_CMD:=true}"
-	: "${GAME_RESEARCH_OUTPUT:=screen}"
 	: "${GAME_RESEARCH_AUDIO:=lavfi}"
 	# No analysis job: it would call real models and write drafts and a
 	# todo task for kuhy's target repo from a test session.
@@ -131,7 +130,7 @@ offscreen() {
 	local dead="${XDG_RUNTIME_DIR:-/tmp}/playstudy-nosock"
 	: >"$dead"
 	: "${GAME_RESEARCH_STEAM_ENV:=PULSE_SERVER=unix:${dead} PIPEWIRE_REMOTE=${dead} SDL_AUDIODRIVER=dummy PROTON_USE_WINED3D=1 DBUS_SESSION_BUS_ADDRESS=unix:path=${dead}}"
-	export GAME_RESEARCH_DATA GAME_RESEARCH_TICK_CMD GAME_RESEARCH_OUTPUT \
+	export GAME_RESEARCH_DATA GAME_RESEARCH_TICK_CMD \
 		GAME_RESEARCH_AUDIO GAME_RESEARCH_STEAM_ENV GAME_RESEARCH_ANALYZE
 	unset XAUTHORITY
 }

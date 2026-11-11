@@ -47,7 +47,8 @@ void main() {
     expect(h.meta, containsPair('state', 'recording'));
     expect(h.meta, containsPair('appid', 730));
     expect(h.meta, containsPair('encoder', 'hevc_nvenc'));
-    expect(h.meta, containsPair('output', 'DP-2'));
+    expect(h.meta, containsPair('output', 'DP-0'));
+    expect(h.meta, containsPair('output_why', 'primary'));
     final session = h.controller.state()['session']! as Map<String, Object?>;
     expect(session['appid'], 730);
     expect(session['id'], p.basename(dir.path));

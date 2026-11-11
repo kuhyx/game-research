@@ -49,10 +49,16 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("appid")
     parser.add_argument("--life", type=float, default=600.0)
+    parser.add_argument("--geometry", default="", help="WxH+X+Y, else full screen")
     args = parser.parse_args()
     root = tk.Tk()
     width, height = root.winfo_screenwidth(), root.winfo_screenheight()
-    root.geometry(f"{width}x{height}+0+0")
+    place = "+0+0"
+    if args.geometry:
+        size, _, rest = args.geometry.partition("+")
+        width, height = (int(v) for v in size.split("x"))
+        place = f"+{rest}"
+    root.geometry(f"{width}x{height}{place}")
     root.overrideredirect(True)
     canvas = tk.Canvas(root, width=width, height=height, highlightthickness=0)
     canvas.pack()
