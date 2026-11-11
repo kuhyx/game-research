@@ -67,6 +67,17 @@ void main() {
     expect(flow.lastAppid(), librarian);
   });
 
+  test('a game already running is not launched again', () async {
+    // Handing the URI to Steam while the game runs makes Steam show an
+    // "error while launching" toast.
+    h.gameRuns(librarian);
+    await flow.start(librarian);
+    expect(h.fake.of('systemd-run'), isEmpty);
+    expect(h.fake.of('steam'), isEmpty);
+    expect(h.events, contains('already_running'));
+    await until(() => h.controller.recording);
+  });
+
   test('a running client gets the URI handed over', () async {
     final dir = Directory(p.join(h.proc.path, '500'))..createSync();
     File(p.join(dir.path, 'cmdline')).writeAsStringSync('/x/ubuntu12_32/steam');

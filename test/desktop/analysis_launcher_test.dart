@@ -75,4 +75,13 @@ void main() {
       expect(await l.launch(session), isFalse);
     });
   });
+
+  test('mode off starts nothing (off-screen runs)', () async {
+    final dir = Directory(root.path);
+    expect(
+      await launcher({'GAME_RESEARCH_ANALYZE': 'off'}).launch(dir),
+      isFalse,
+    );
+    expect(fake.calls, isEmpty);
+  });
 }

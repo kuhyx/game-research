@@ -118,9 +118,11 @@ class AnalysisLauncher {
   );
 
   /// Starts the job for [dir]. `systemd`: a `systemd-run --user --collect`
-  /// unit that outlives the wrapper; `inline`: a detached child (tests).
-  /// Returns false when it could not start.
+  /// unit that outlives the wrapper; `inline`: a detached child (tests);
+  /// `off`: nothing (off-screen agent runs must not call models or write
+  /// drafts into the target repo). Returns false when it did not start.
   Future<bool> launch(Directory dir, {bool force = false}) async {
+    if (config.analyzeMode == 'off') return false;
     final args = [dir.path, if (force) '--force'];
     if (config.analyzeMode == 'inline') {
       try {

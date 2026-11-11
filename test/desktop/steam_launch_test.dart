@@ -125,6 +125,7 @@ void main() {
         '--onlyvisible',
         '--pid',
         '11',
+        '',
         'getwindowgeometry',
         '--shell',
         '%@',

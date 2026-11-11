@@ -21,7 +21,11 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
   (flutter-web-drive) and `GAME_RESEARCH_TEST=1`, which refuses display `:0`.
 - Every side effect has an env seam (`lib/desktop/config.dart`):
   `GAME_RESEARCH_{DATA,STEAM_ROOT,STEAM_CMD,DISPLAY,OUTPUT,AUDIO,TICK_CMD,
-  FAKE_LLM,TODO_CMD,TARGET,SRC,ANALYZE,PORT}`. Never let a test reach the
+  FAKE_LLM,TODO_CMD,TARGET,SRC,ANALYZE,PORT,LOG,AUTOSTART_S,DEFAULT_APPID,
+  WINDOW_TIMEOUT_S,RELAUNCH_S,STEAM_PID,STEAM_ENV,PROC}`. `ANALYZE=off`
+  starts no analysis job.
+- steam-backlog-enforcer kills (and notifies kuhy about) any process with
+  an unapproved `SteamAppId` in its environment: fakes never set it. Never let a test reach the
   real Steam, todo app, cleanup-plate checkout, microphone or speakers.
 - Text-free UI (textgate): icons, colours, numbers; accessibility labels live
   on lines containing `semantic` (`final semanticLabel = ...`).
@@ -41,3 +45,28 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
   real caption call (synthetic frames only for OmniRoute: free providers log
   prompts). ollama needs ~40 s to load the model the first time.
 - `pre-commit run --all-files`
+
+### Driving the app (agents)
+
+- Event log: `~/data/game-research/playstudy.jsonl` (`<data>/playstudy.jsonl`),
+  one JSON object per step: `app_start`, `picker` (games + state), every
+  `api` POST with its status, `autostart_arm/fire`, `cancel`, `steam_client`
+  (pid or null), `launch` (argv + exit code), `waiting`, `relaunch`,
+  `already_running`, `window`, `record_start/stop`, `error` (step + message).
+- Off-screen run, never on :0: start `Xvfb :N` as a `systemd-run --user`
+  unit, then `systemd-run --user --collect --unit <name> tool/game_research_app.sh
+  --display :N` (the window call blocks). Port 18800+N, data
+  `~/data/claude-scratch/playstudy/display-N`, its own Chrome profile, muted
+  Chrome/Steam/game (dead audio and D-Bus sockets), silent recording, no
+  analysis, Proton on wined3d. Steam is single-instance: check
+  `~/.steam/steam.pid` is dead first and `steam -shutdown` (DISPLAY=:N) after.
+- Control (same `--display :N` or `--port P`): `playstudy --status`,
+  `--games`, `--sessions`, `--session start [--appid N]`, `--session stop`,
+  `--autostart [--appid N]`, `--cancel`, `--marker good|bad|confusing|note`,
+  `--log [N]`, `--wait idle|armed|launching|waiting|recording [--timeout S]`.
+  JSON out; exit 0 ok, 1 refused/timeout, 2 usage, 3 no wrapper.
+- HTTP: `GET /api/state|games|sessions`, `POST /api/start[?appid]`,
+  `/api/stop`, `/api/autostart[?appid]`, `/api/autostart/cancel`,
+  `/api/marker?tag=`. GUI semantics labels: `start`/`stop`, `autostart`,
+  `waiting for game`, `marker <tag>`, `note text`, game tiles by name
+  (`<name>, updating` while Steam has not finished).

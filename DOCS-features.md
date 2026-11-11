@@ -15,8 +15,10 @@
 
 | feature | how to reach it | expected outcome |
 |---|---|---|
-| Game picker | window opens -> capsule grid (`/api/games`) | one tile per installed Steam game (`appmanifest_*.acf`, tools and half-downloaded games skipped), cached capsule or a procedural hue tile; no text |
-| Start | pick capsule -> play button (`start`) | `steam steam://rungameid/<id>`; `recording.mkv` grows; button turns to stop, red dot, clock runs |
+| Game picker | window opens -> capsule grid (`/api/games`) | one tile per Steam game with a manifest (tools skipped), cached capsule or a procedural hue tile; a half-downloaded game shows a download glyph and its progress bar; no games = red empty glyph; no text |
+| Autostart | open PlayStudy (launcher adds `?autostart=1`) | a 3 s ring drains around the stop button, then the last game (default Librarian 4197610) starts; Esc or the button cancels |
+| Start | pick capsule -> play button (`start`), or autostart | Steam client down: `systemd-run --user --unit playstudy-steam-<port> steam steam://rungameid/<id>`; up: `steam <uri>` handoff (again every 30 s while Steam runs but the game does not); spinner ring while waiting; recording starts when a game-sized window appears (Proton class `steam_app_<id>`); failures show the error glyph and an `error` log line |
+| Event log + CLI | `<data>/playstudy.jsonl`; `playstudy --status` etc. | every step logged; control commands in CLAUDE.md |
 | Markers by button | thumbs up / thumbs down / question / note buttons | line in `markers.jsonl` (wall, offset_s, tag, note); counter +1; 300 ms border flash in the tag colour on the game output; tick sound |
 | Note by button | note button -> one-line field -> Enter (Esc = empty) | marker stamped at the button press, note text added on Enter |
 | Hotkeys | Mod+F1 good, Mod+F2 bad, Mod+F3 confusing, Mod+F4 note (dmenu line), Mod+Shift+F4 stop | same as the buttons; keys exist only while a session records (sxhkd unit `game-research-keys-<port>`) |
@@ -37,6 +39,7 @@
 |---|---|---|---|
 | F1 | GUI start, 4 hotkey + 4 button markers, stop by Mod+Shift+F4, full analysis with stub models | `e2e/run.sh F1 && e2e/run.sh F1-check` | 2026-11-11 (68 checks) |
 | F2 | session stops by itself when the game exits | `e2e/run.sh F2` | 2026-11-11 |
+| F3 | real Steam + Librarian off-screen: open, ring, Steam starts, game window, recording, CLI markers, game exit stops it | manual, CLAUDE.md "Driving the app" | 2026-11-11 (Xvfb :148) |
 
 F1-check asserts: 8 chapters at the marker offsets, each marker offset within
 0.5 s of the moment the input was sent, the border flash visible in the

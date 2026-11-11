@@ -20,7 +20,8 @@
 # --display :N (never :0) is the off-screen mode for agents: wrapper, Chrome,
 # Steam, recording and hotkeys all live on that X display; the port defaults
 # to 18800+N, the data dir to ~/data/claude-scratch/playstudy/display-N, the
-# Chrome profile is per port, the tick is silent and Chrome is muted. kuhy's
+# Chrome profile is per port, the tick is silent, Chrome, Steam and the game
+# are muted, the recording's audio is silence and no analysis job runs. kuhy's
 # own instance (port 8805, unit game-research-wrapper) is never touched.
 # ============================================================================
 
@@ -119,6 +120,9 @@ offscreen() {
 	: "${GAME_RESEARCH_TICK_CMD:=true}"
 	: "${GAME_RESEARCH_OUTPUT:=screen}"
 	: "${GAME_RESEARCH_AUDIO:=lavfi}"
+	# No analysis job: it would call real models and write drafts and a
+	# todo task for kuhy's target repo from a test session.
+	: "${GAME_RESEARCH_ANALYZE:=off}"
 	# Steam and the game get no audio server and no session bus (its tray
 	# icon, notifications and portals would reach kuhy's desktop): both point
 	# at a plain file. It must exist, since Steam's runtime (bwrap)
@@ -128,7 +132,7 @@ offscreen() {
 	: >"$dead"
 	: "${GAME_RESEARCH_STEAM_ENV:=PULSE_SERVER=unix:${dead} PIPEWIRE_REMOTE=${dead} SDL_AUDIODRIVER=dummy PROTON_USE_WINED3D=1 DBUS_SESSION_BUS_ADDRESS=unix:path=${dead}}"
 	export GAME_RESEARCH_DATA GAME_RESEARCH_TICK_CMD GAME_RESEARCH_OUTPUT \
-		GAME_RESEARCH_AUDIO GAME_RESEARCH_STEAM_ENV
+		GAME_RESEARCH_AUDIO GAME_RESEARCH_STEAM_ENV GAME_RESEARCH_ANALYZE
 	unset XAUTHORITY
 }
 

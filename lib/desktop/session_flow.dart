@@ -141,11 +141,16 @@ class SessionFlow {
     if (game == null) _fail('pick', 'game $appid is not in the Steam library');
     _parts.targets.settings.merge({'last_appid': appid});
     _phase = Phase.launching;
-    try {
-      await _parts.launcher.launch(appid);
-    } on StartError catch (e) {
-      if (gen == _gen) _fail('launch', e.message);
-      rethrow;
+    if (_parts.launcher.scan.running(appid) ?? false) {
+      // A second URI for a running game only gets Steam's error toast.
+      _parts.log.event('already_running', {'appid': appid});
+    } else {
+      try {
+        await _parts.launcher.launch(appid);
+      } on StartError catch (e) {
+        if (gen == _gen) _fail('launch', e.message);
+        rethrow;
+      }
     }
     if (gen != _gen) return; // cancelled while Steam ran
     _phase = Phase.waiting;
