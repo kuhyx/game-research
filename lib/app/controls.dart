@@ -68,23 +68,19 @@ class Controls extends StatelessWidget {
           children: [
             Row(
               children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    StartRing(
-                      state: state,
-                      now: now,
-                      child: _StartStop(
-                        recording: active,
-                        enabled: active || canStart,
-                        error: state.error,
-                        onPressed: active ? onStop : onStart,
-                      ),
-                    ),
-                    // sxhkd (and so the stop key) runs only while recording.
-                    ShortcutLabel(rec ? 'stop' : null, active: rec),
-                  ],
+                StartRing(
+                  state: state,
+                  now: now,
+                  child: _StartStop(
+                    recording: active,
+                    enabled: active || canStart,
+                    error: state.error,
+                    onPressed: active ? onStop : onStart,
+                  ),
                 ),
+                const SizedBox(width: AppSpacing.sm),
+                // sxhkd (and so the stop key) runs only while recording.
+                ShortcutLabel(rec ? 'stop' : null, active: rec),
                 const SizedBox(width: AppSpacing.lg),
                 Icon(
                   Icons.fiber_manual_record_rounded,
@@ -116,17 +112,11 @@ class Controls extends StatelessWidget {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.xs),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _MarkerButton(
-                            style: s,
-                            count: state.counts[s.tag] ?? 0,
-                            enabled: rec,
-                            onPressed: () => onMarker(s.tag),
-                          ),
-                          ShortcutLabel(s.tag, active: rec),
-                        ],
+                      child: _MarkerButton(
+                        style: s,
+                        count: state.counts[s.tag] ?? 0,
+                        enabled: rec,
+                        onPressed: () => onMarker(s.tag),
                       ),
                     ),
                   ),
@@ -221,7 +211,10 @@ class _MarkerButton extends StatelessWidget {
             color: enabled ? style.color : AppPalette.lineDark,
             width: 2,
           ),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.md,
+            horizontal: AppSpacing.sm,
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -229,6 +222,13 @@ class _MarkerButton extends StatelessWidget {
             Icon(style.icon, size: 40),
             const SizedBox(width: AppSpacing.sm),
             Text('$count', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(width: AppSpacing.sm),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: ShortcutLabel(style.tag, active: enabled),
+              ),
+            ),
           ],
         ),
       ),

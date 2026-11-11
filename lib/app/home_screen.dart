@@ -173,7 +173,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(width: AppSpacing.lg),
               SizedBox(
-                width: 640,
+                // 760: room for icon, count and hotkey legend per marker.
+                width: 760,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

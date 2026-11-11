@@ -21,7 +21,7 @@
 | Event log + CLI | `<data>/playstudy.jsonl`; `playstudy --status` etc. | every step logged; control commands in CLAUDE.md |
 | Markers by button | thumbs up / thumbs down / question / note buttons | line in `markers.jsonl` (wall, offset_s, tag, note); counter +1; 300 ms border flash in the tag colour on the game output; tick sound |
 | Note by button | note button -> one-line field -> Enter (Esc = empty) | marker stamped at the button press, note text added on Enter |
-| Hotkeys | Mod+F1 good, Mod+F2 bad, Mod+F3 confusing, Mod+F4 note (dmenu line), Mod+Shift+F4 stop | same as the buttons, each shown as a key legend under its button (`Super+F1`, from `kHotkeys`); keys exist only while a session records (sxhkd unit `game-research-keys-<port>`) |
+| Hotkeys | Mod+F1 good, Mod+F2 bad, Mod+F3 confusing, Mod+F4 note (dmenu line), Mod+Shift+F4 stop | same as the buttons, each shown as a key legend beside its button (`Super+F1`, from `kHotkeys`); keys exist only while a session records (sxhkd unit `game-research-keys-<port>`) |
 | Auto stop | quit the game | session ends when no process carries `AppId=<id>` any more (after it was seen once); `ended_by: game-exit` |
 | Recording | any session | `~/data/game-research/<stamp>-<game>/recording.mkv`: x11grab of the monitor the game window is on (`xrandr --listmonitors` x window rect, else the primary; `record_start` logs `output` + `output_why`), default-sink monitor audio (never a mic), HEVC NVENC cq 14, FLAC, one chapter per marker |
 | Analysis job | starts after Stop (`systemd-run --user`) | `analysis/status.json` drives the ring; stages resume from their own outputs |
