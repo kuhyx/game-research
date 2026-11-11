@@ -1,7 +1,8 @@
 /// One recording session at a time: start, markers, stop.
 ///
-/// Start: resolve the output and encoder (fail closed), pick t0, start
-/// ffmpeg, the hotkeys, the flash helper and the game, then watch the game.
+/// Start (called by `SessionFlow` once the game window is up): resolve the
+/// output and encoder (fail closed), pick t0, start ffmpeg, the hotkeys and
+/// the flash helper, then watch the game.
 /// Stop (button, Mod+Shift+F4, game exit or ffmpeg dying): release the
 /// keys, close pending notes, finalise ffmpeg, write chapters and
 /// `session.json`, start the analysis job.
@@ -79,6 +80,7 @@ class SessionController {
       await _start(game);
     } on StartError catch (e) {
       lastError = e.message;
+      parts.log.event('error', {'step': 'record_start', 'message': e.message});
       rethrow;
     }
   }
@@ -145,12 +147,12 @@ class SessionController {
       game.appid,
       () => unawaited(stop(endedBy: 'game-exit')),
     );
-    try {
-      await parts.launcher.launch(game.appid);
-    } on StartError {
-      await stop(endedBy: 'launch-failed');
-      rethrow;
-    }
+    parts.log.event('record_start', {
+      'session': p.basename(dir.path),
+      'appid': game.appid,
+      'encoder': codec,
+      'output': output.name,
+    });
   }
 
   void _append(_Active a, Marker m) {
@@ -225,6 +227,12 @@ class SessionController {
       lastError = '$e';
     }
     parts.store.writeMeta(a.dir, meta);
+    parts.log.event('record_stop', {
+      'session': p.basename(a.dir.path),
+      'ended_by': endedBy,
+      'markers': a.markers.length,
+      if (meta['error'] != null) 'error': meta['error'],
+    });
     _active = null;
     if (!meta.containsKey('error')) await parts.analysis.launch(a.dir);
   }

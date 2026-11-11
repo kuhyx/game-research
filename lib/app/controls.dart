@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:game_research/app/marker_style.dart';
 import 'package:game_research/app/models.dart';
+import 'package:game_research/app/start_ring.dart';
 
 /// The session controls.
 class Controls extends StatelessWidget {
@@ -20,8 +21,12 @@ class Controls extends StatelessWidget {
     required this.onMarker,
     required this.noteOpen,
     required this.onNote,
+    required this.now,
     super.key,
   });
+
+  /// Wall clock for the autostart ring, unix seconds.
+  final double Function() now;
 
   /// The wrapper's state.
   final AppState state;
@@ -50,6 +55,7 @@ class Controls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rec = state.recording;
+    final active = rec || state.pending;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -58,11 +64,15 @@ class Controls extends StatelessWidget {
           children: [
             Row(
               children: [
-                _StartStop(
-                  recording: rec,
-                  enabled: rec || canStart,
-                  error: state.error,
-                  onPressed: rec ? onStop : onStart,
+                StartRing(
+                  state: state,
+                  now: now,
+                  child: _StartStop(
+                    recording: active,
+                    enabled: active || canStart,
+                    error: state.error,
+                    onPressed: active ? onStop : onStart,
+                  ),
                 ),
                 const SizedBox(width: AppSpacing.lg),
                 Icon(

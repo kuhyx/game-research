@@ -81,4 +81,30 @@ void main() {
     watcher.watch(42, () => exits++);
     expect(watcher.seen, isFalse);
   });
+
+  test('a failing /proc listing skips the tick instead of crashing', () async {
+    // 2026-11-11: Wine's helpers exiting made listSync throw inside the
+    // timer and killed the wrapper mid-session.
+    var fail = false;
+    List<FileSystemEntity> list(Directory d) => fail
+        ? throw const PathNotFoundException('/proc/1', OSError())
+        : d.listSync();
+    final w = GameWatcher(
+      procRoot: proc.path,
+      every: const Duration(milliseconds: 10),
+      list: list,
+    );
+    addTearDown(w.cancel);
+    var exited = 0;
+    process('101', 'reaper\x00AppId=42');
+    w.watch(42, () => exited++);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    fail = true;
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    expect(exited, 0, reason: 'an unreadable /proc is not a game exit');
+    fail = false;
+    Directory(p.join(proc.path, '101')).deleteSync(recursive: true);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    expect(exited, 1);
+  });
 }

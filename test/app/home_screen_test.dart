@@ -7,7 +7,11 @@ import 'package:game_research/main.dart';
 
 import 'fake_wrapper.dart';
 
-Future<void> _pump(WidgetTester tester, FakeWrapper w) async {
+Future<void> _pump(
+  WidgetTester tester,
+  FakeWrapper w, {
+  bool autostart = false,
+}) async {
   tester.view
     ..physicalSize = const Size(2048, 1152)
     ..devicePixelRatio = 1;
@@ -16,7 +20,11 @@ Future<void> _pump(WidgetTester tester, FakeWrapper w) async {
     GameResearchApp(api: w.api()).build(tester.element(find.byType(Container)))
             is MaterialApp
         ? MaterialApp(
-            home: HomeScreen(api: w.api(), now: () => 165),
+            home: HomeScreen(
+              api: w.api(),
+              now: () => 165,
+              autostart: autostart,
+            ),
           )
         : const SizedBox(),
   );
@@ -146,6 +154,60 @@ void main() {
     final w = FakeWrapper()..offline = true;
     await _pump(t, w);
     expect(find.byIcon(Icons.cloud_off_rounded), findsOneWidget);
+    await _end(t);
+  });
+
+  testWidgets('opening arms the autostart ring; Esc cancels it', (t) async {
+    final w = FakeWrapper();
+    await _pump(t, w, autostart: true);
+    expect(w.calls, contains('POST /api/autostart'));
+    await t.pump(const Duration(seconds: 1));
+    expect(_label('autostart'), findsOneWidget);
+    expect(_label('stop'), findsOneWidget, reason: 'the button cancels');
+    await t.sendKeyEvent(LogicalKeyboardKey.escape);
+    await t.pump();
+    expect(w.calls, contains('POST /api/autostart/cancel?src=esc'));
+    await t.pump(const Duration(seconds: 1));
+    expect(_label('autostart'), findsNothing);
+    await _end(t);
+  });
+
+  testWidgets('without the flag nothing arms', (t) async {
+    final w = FakeWrapper();
+    await _pump(t, w);
+    await t.pump(const Duration(seconds: 1));
+    expect(w.calls.where((c) => c.contains('autostart')), isEmpty);
+    await _end(t);
+  });
+
+  testWidgets('a pending launch shows the wait glyph; stop cancels', (t) async {
+    final w = FakeWrapper()..phase = 'waiting';
+    await _pump(t, w);
+    await t.pump(const Duration(seconds: 1));
+    expect(_label('waiting for game'), findsOneWidget);
+    await t.tap(_label('stop'));
+    await t.pump();
+    expect(w.calls, contains('POST /api/stop'));
+    await _end(t);
+  });
+
+  testWidgets('an updating game shows its download progress', (t) async {
+    final w = FakeWrapper()
+      ..games = [
+        {
+          'appid': 4197610,
+          'name': 'Librarian',
+          'capsule': false,
+          'state': 'updating',
+          'progress': 0.72,
+        },
+      ];
+    await _pump(t, w);
+    expect(find.bySemanticsLabel(RegExp('updating')), findsOneWidget);
+    final bar = t.widget<LinearProgressIndicator>(
+      find.byType(LinearProgressIndicator),
+    );
+    expect(bar.value, 0.72);
     await _end(t);
   });
 }

@@ -8,7 +8,12 @@ library;
 /// One installed game.
 class SteamGame {
   /// Creates a game.
-  const new({required this.appid, required this.name, this.installed = true});
+  const new({
+    required this.appid,
+    required this.name,
+    this.installed = true,
+    this.progress = 1,
+  });
 
   /// Steam app id.
   final int appid;
@@ -17,11 +22,20 @@ class SteamGame {
   /// accessibility label and the folder slug.
   final String name;
 
-  /// Whether Steam reports it fully installed.
+  /// Whether Steam reports it fully installed. A game Steam quit
+  /// mid-download is still listed: launching it makes Steam finish first.
   final bool installed;
 
+  /// Downloaded share, 0..1 (1 when installed or unknown).
+  final double progress;
+
   /// The `/api/games` object.
-  Map<String, Object?> toJson() => {'appid': appid, 'name': name};
+  Map<String, Object?> toJson() => {
+    'appid': appid,
+    'name': name,
+    'state': installed ? 'installed' : 'updating',
+    'progress': progress,
+  };
 }
 
 final _pair = RegExp(r'"([^"]*)"\s*"([^"]*)"');
@@ -65,7 +79,14 @@ SteamGame? parseAcf(String text) {
   final flags = int.tryParse(kv['stateflags'] ?? '');
   final installed =
       flags == null || (flags & _installedFlag != 0 && flags & _busyMask == 0);
-  return SteamGame(appid: appid, name: name, installed: installed);
+  final total = int.tryParse(kv['bytestodownload'] ?? '') ?? 0;
+  final done = int.tryParse(kv['bytesdownloaded'] ?? '') ?? 0;
+  return SteamGame(
+    appid: appid,
+    name: name,
+    installed: installed,
+    progress: installed || total <= 0 ? 1 : (done / total).clamp(0, 1),
+  );
 }
 
 /// Proton, runtimes and redistributables: in steamapps, never a game.

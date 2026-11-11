@@ -6,8 +6,12 @@ import 'package:game_research/desktop/browser.dart';
 import '../support/fakes.dart';
 
 void main() {
-  test('profileDir is fixed under the home share', () {
+  test("profileDir is fixed per port; only 8805 uses kuhy's profile", () {
     expect(profileDir('/h'), '/h/.local/share/game-research/profile');
+    expect(
+      profileDir('/h', port: 18947),
+      '/h/.local/share/game-research/profile-18947',
+    );
   });
 
   group('findBrowser', () {
@@ -87,14 +91,15 @@ HDMI-1 connected primary 1920x1080+3840+0 (normal) 597mm x 336mm
 
   test('browserArgs open the app window with a fixed profile', () {
     final args = browserArgs('/h', port: 8805, scale: 2);
-    expect(args.first, '--app=http://127.0.0.1:8805');
+    expect(args.first, '--app=http://127.0.0.1:8805/?autostart=1');
     expect(args, contains('--force-device-scale-factor=2'));
     expect(args, contains('--user-data-dir=${profileDir('/h')}'));
     expect(args, contains('--class=$kWindowClass'));
     expect(args, contains('--disable-extensions'));
-    expect(
-      browserArgs('/h', port: 1),
-      contains('--force-device-scale-factor=1'),
-    );
+    expect(args, contains('--mute-audio'));
+    final other = browserArgs('/h', port: 1, autostart: false);
+    expect(other.first, '--app=http://127.0.0.1:1/');
+    expect(other, contains('--force-device-scale-factor=1'));
+    expect(other, contains('--user-data-dir=${profileDir('/h', port: 1)}'));
   });
 }

@@ -123,9 +123,42 @@ void main() {
     expect(holds, 0, reason: 'nothing served');
     final call = fake.calls.single;
     expect(call.exe, '/fake/chrome');
-    expect(call.args.first, '--app=http://127.0.0.1:$port');
+    expect(call.args.first, '--app=http://127.0.0.1:$port/?autostart=1');
     expect(call.args, contains('--force-device-scale-factor=2'));
+    expect(call.args, contains('--mute-audio'));
     expect(call.env, {'DISPLAY': ':99'});
+  });
+
+  test('--no-autostart opens the window without the ring', () async {
+    final port = await freePort();
+    await run([
+      '--window-only',
+      '--no-autostart',
+    ], configOn(port, {'GAME_RESEARCH_SCALE': '1'}));
+    expect(fake.calls.single.args.first, '--app=http://127.0.0.1:$port/');
+  });
+
+  test('a control command goes to the CLI, not the wrapper', () async {
+    final seen = <List<String>>[];
+    final code = await runDesktop(
+      ['--status'],
+      configOn(1),
+      fake.sys,
+      cli: (args, _) async {
+        seen.add(args);
+        return 3;
+      },
+    );
+    expect(
+      [code, seen],
+      [
+        3,
+        [
+          ['--status'],
+        ],
+      ],
+    );
+    expect(fake.calls, isEmpty);
   });
 
   test('serve and window: the window ends, the server stays', () async {

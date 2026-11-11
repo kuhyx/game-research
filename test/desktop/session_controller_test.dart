@@ -25,7 +25,7 @@ void main() {
     });
   });
 
-  test('start brings up keys, recorder, flash, watcher and the game', () async {
+  test('start brings up keys, recorder, flash and the watcher', () async {
     await h.controller.start(game);
     expect(h.controller.recording, isTrue);
     final exes = h.fake.calls.map((c) => c.exe).toList();
@@ -38,10 +38,10 @@ void main() {
         'systemd-run',
         'ffmpeg',
         'python3',
-        'steam',
       ]),
     );
-    expect(h.fake.of('steam').single.args, ['steam://rungameid/730']);
+    expect(h.fake.of('steam'), isEmpty, reason: 'SessionFlow launches');
+    expect(h.events, ['record_start']);
     final dir = h.sessionDir;
     expect(p.basename(dir.path), endsWith('-counter-strike'));
     expect(h.meta, containsPair('state', 'recording'));

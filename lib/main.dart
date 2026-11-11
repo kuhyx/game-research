@@ -12,22 +12,30 @@ import 'package:http/http.dart' as http;
 // coverage:ignore-start
 // The browser entry point: tests build GameResearchApp directly.
 void main() {
-  runApp(GameResearchApp(api: ResearchApi(Uri.base, http.Client())));
+  runApp(
+    GameResearchApp(
+      api: ResearchApi(Uri.base, http.Client()),
+      autostart: Uri.base.queryParameters['autostart'] == '1',
+    ),
+  );
 }
 // coverage:ignore-end
 
 /// The app.
 class GameResearchApp extends StatelessWidget {
   /// Creates the app over [api].
-  const new({required this.api, super.key});
+  const new({required this.api, this.autostart = false, super.key});
 
   /// The wrapper client.
   final ResearchApi api;
+
+  /// Arm the autostart ring on open (the launcher's `?autostart=1`).
+  final bool autostart;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
     theme: buildDarkTheme(),
-    home: HomeScreen(api: api),
+    home: HomeScreen(api: api, autostart: autostart),
   );
 }

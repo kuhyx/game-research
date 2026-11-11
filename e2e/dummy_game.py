@@ -9,6 +9,8 @@ picture changes in hard cuts (scene detection), has a motionless stretch
 from __future__ import annotations
 
 import argparse
+import os
+import subprocess
 import time
 import tkinter as tk
 
@@ -54,6 +56,23 @@ def main() -> None:
     root.overrideredirect(True)
     canvas = tk.Canvas(root, width=width, height=height, highlightthickness=0)
     canvas.pack()
+    root.update_idletasks()
+    # Tk sets no _NET_WM_PID; Wine and native games do, and the wrapper finds
+    # the game window by it (xdotool search --pid), so stand in for them.
+    subprocess.run(
+        [
+            "xprop",
+            "-id",
+            root.wm_frame(),
+            "-f",
+            "_NET_WM_PID",
+            "32c",
+            "-set",
+            "_NET_WM_PID",
+            str(os.getpid()),
+        ],
+        check=True,
+    )
     bar = canvas.create_rectangle(
         0, height // 2 - 40, 120, height // 2 + 40, fill="#e0e0e0"
     )

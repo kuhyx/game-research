@@ -66,8 +66,15 @@ class ResearchApi {
   /// Starts a session of [appid].
   Future<void> start(int appid) => _post('start', query: {'appid': '$appid'});
 
-  /// Stops the session.
+  /// Stops the session, or cancels a pending start.
   Future<void> stop() => _post('stop');
+
+  /// Arms the autostart ring (the wrapper picks the last game).
+  Future<void> autostart() => _post('autostart');
+
+  /// Cancels the ring or a pending launch (Esc).
+  Future<void> cancelAutostart() =>
+      _post('autostart/cancel', query: {'src': 'esc'});
 
   /// Drops a marker; [hold] keeps a note marker open and returns its id.
   Future<int?> marker(String tag, {bool hold = false}) async {

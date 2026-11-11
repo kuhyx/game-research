@@ -26,7 +26,7 @@ void main() {
 
   bool dataHasFolders() =>
       Directory(h.config.dataDir).existsSync() &&
-      Directory(h.config.dataDir).listSync().isNotEmpty;
+      Directory(h.config.dataDir).listSync().whereType<Directory>().isNotEmpty;
 
   test('a missing output fails closed', () async {
     h.fake.onRun = (c) =>
@@ -73,16 +73,6 @@ void main() {
     expect(dataHasFolders(), isFalse);
     expect(h.fake.of('systemctl'), hasLength(2));
     expect(h.controller.recording, isFalse);
-  });
-
-  test('a steam launch failure ends the session and reports it', () async {
-    h.failStarts.add('steam');
-    final e = await failedStart();
-    expect(e.message, contains('steam did not start'));
-    expect(h.controller.lastError, e.message);
-    expect(h.controller.recording, isFalse);
-    expect(h.meta, containsPair('ended_by', 'launch-failed'));
-    expect(h.ffmpeg.signals, isNotEmpty);
   });
 
   test('a good start clears the last error', () async {

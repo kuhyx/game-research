@@ -84,32 +84,4 @@ void main() {
       expect(fake.calls.single.exe, 'systemctl');
     });
   });
-
-  group('GameLauncher', () {
-    test('starts steam detached with the rungameid uri', () async {
-      await GameLauncher(
-        testConfig(root, extra: {'GAME_RESEARCH_STEAM_CMD': 'fakesteam'}),
-        fake.sys,
-      ).launch(730);
-      final call = fake.calls.single;
-      expect(call.exe, 'fakesteam');
-      expect(call.args, ['steam://rungameid/730']);
-      expect(call.mode, ProcessStartMode.detached);
-      expect(call.env, {'DISPLAY': ':99'});
-    });
-
-    test('a missing steam binary is a StartError', () async {
-      fake.onStart = (_) => throw const ProcessException('steam', [], 'gone');
-      await expectLater(
-        GameLauncher(testConfig(root), fake.sys).launch(1),
-        throwsA(
-          isA<StartError>().having(
-            (e) => e.message,
-            'message',
-            contains('steam did not start'),
-          ),
-        ),
-      );
-    });
-  });
 }

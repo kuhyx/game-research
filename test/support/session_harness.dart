@@ -7,12 +7,15 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:game_research/desktop/config.dart';
+import 'package:game_research/desktop/event_log.dart';
 import 'package:game_research/desktop/game_watcher.dart';
+import 'package:game_research/desktop/proc_scan.dart';
 import 'package:game_research/desktop/recorder.dart';
 import 'package:game_research/desktop/session_controller.dart';
 import 'package:game_research/desktop/session_parts.dart';
 import 'package:game_research/desktop/session_services.dart';
 import 'package:game_research/desktop/session_store.dart';
+import 'package:game_research/desktop/steam_launch.dart';
 import 'package:game_research/desktop/targets.dart';
 import 'package:path/path.dart' as p;
 
@@ -27,10 +30,19 @@ class Harness {
   new({Map<String, String> extra = const {}}) {
     root = tempDir();
     proc = Directory(p.join(root.path, 'proc'))..createSync();
-    config = testConfig(root, extra: extra);
+    config = testConfig(
+      root,
+      extra: {
+        'GAME_RESEARCH_PROC': proc.path,
+        'GAME_RESEARCH_STEAM_PID': p.join(root.path, 'steam.pid'),
+        ...extra,
+      },
+    );
     fake.onRun = _run;
     fake.onStart = _start;
     final sys = fake.sys;
+    final scan = ProcScan(proc.path);
+    log = EventLog(config.logFile);
     watcher = GameWatcher(
       procRoot: proc.path,
       every: const Duration(milliseconds: 10),
@@ -42,11 +54,13 @@ class Harness {
       hotkeys: HotkeyService(config, sys),
       overlay: Overlay(config, sys),
       asker: NoteAsker(config, sys),
-      launcher: GameLauncher(config, sys),
+      launcher: GameLauncher(config, sys, scan, log),
       watcher: watcher,
       store: SessionStore(config),
       analysis: AnalysisLauncher(config, sys),
       targets: Targets(config),
+      log: log,
+      window: GameWindow(config, sys, scan),
     );
     controller = SessionController(parts);
     // Runs before the temp dir goes: lets ffmpeg.log finish opening.
@@ -61,6 +75,15 @@ class Harness {
 
   /// Fake /proc.
   late final Directory proc;
+
+  /// The event log (under the temp data dir).
+  late final EventLog log;
+
+  /// Event names logged so far, in order.
+  List<String> get events => [
+    for (final l in log.tail(1000))
+      (jsonDecode(l) as Map<String, Object?>)['event']! as String,
+  ];
 
   /// Settings.
   late final Config config;
@@ -95,6 +118,11 @@ class Harness {
   ProcessResult? _run(Call c) {
     if (failRuns.contains(c.exe)) return bad('${c.exe} failed');
     switch (c.exe) {
+      case 'xdotool':
+        final pid = c.args[3];
+        return Directory(p.join(proc.path, pid)).existsSync()
+            ? ok('WINDOW=$windowId\nWIDTH=1920\nHEIGHT=1080\n')
+            : bad();
       case 'xrandr':
         return ok(kXrandr);
       case 'ffprobe':
@@ -124,11 +152,17 @@ class Harness {
     };
   }
 
-  /// Marks a fake process of [appid] as running.
+  /// The X window id `xdotool` reports for a game process.
+  String windowId = '81788929';
+
+  /// Marks a fake process of [appid] as running (reaper cmdline + Steam's
+  /// `SteamAppId` environment), which also gives it a window.
   void gameRuns(int appid) {
     final dir = Directory(p.join(proc.path, '77'))..createSync();
     File(p.join(dir.path, 'cmdline'))
         .writeAsStringSync('reaper\x00AppId=$appid');
+    File(p.join(dir.path, 'environ'))
+        .writeAsStringSync('HOME=/h\x00SteamAppId=$appid\x00');
   }
 
   /// The game exits.

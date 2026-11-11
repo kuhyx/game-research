@@ -29,7 +29,7 @@ class SteamLibrary {
     return dirs.toList();
   }
 
-  /// Installed games (no tools, nothing mid-download), by name, one per id.
+  /// Games, installed or mid-download (no tools), by name, one per id.
   List<SteamGame> games() {
     final byId = <int, SteamGame>{};
     for (final dir in _steamappsDirs()) {
@@ -41,7 +41,7 @@ class SteamLibrary {
           continue;
         }
         final game = parseAcf(f.readAsStringSync());
-        if (game == null || !game.installed || isSteamTool(game.name)) continue;
+        if (game == null || isSteamTool(game.name)) continue;
         byId.putIfAbsent(game.appid, () => game);
       }
     }

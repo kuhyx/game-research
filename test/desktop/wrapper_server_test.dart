@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:game_research/desktop/session_flow.dart';
 import 'package:game_research/desktop/steam_library.dart';
 import 'package:game_research/desktop/wrapper_server.dart';
 import 'package:path/path.dart' as p;
 
+import '../support/fakes.dart';
 import '../support/session_harness.dart';
 
 class Reply {
@@ -19,6 +21,7 @@ class Reply {
 void main() {
   late Harness h;
   late WrapperServer server;
+  late SessionFlow flow;
   late HttpClient client;
   late int port;
   late Directory web;
@@ -62,8 +65,11 @@ void main() {
     openFails = false;
     server = WrapperServer(
       webRoot: web.path,
-      controller: h.controller,
-      library: SteamLibrary(h.config.steamRoot),
+      flow: flow = SessionFlow(
+        h.controller,
+        SteamLibrary(h.config.steamRoot),
+        every: const Duration(milliseconds: 10),
+      ),
       open: (path) async {
         if (openFails) throw StateError('no editor');
         opened.add(path);
@@ -80,8 +86,7 @@ void main() {
   test('close before start is harmless', () async {
     await WrapperServer(
       webRoot: web.path,
-      controller: h.controller,
-      library: SteamLibrary(h.config.steamRoot),
+      flow: flow,
       open: (_) async {},
     ).close();
   });
@@ -104,10 +109,12 @@ void main() {
 
   test('games list marks which have a cached capsule', () async {
     final games = (await hit('GET', '/api/games')).json! as List;
+    const installed = {'state': 'installed', 'progress': 1.0};
     expect(games, [
-      {'appid': 730, 'name': 'Alpha', 'capsule': true},
-      {'appid': 731, 'name': 'Beta', 'capsule': false},
+      {'appid': 730, 'name': 'Alpha', ...installed, 'capsule': true},
+      {'appid': 731, 'name': 'Beta', ...installed, 'capsule': false},
     ]);
+    expect(h.events.last, 'picker');
   });
 
   test('capsule: the image, or 404', () async {
@@ -125,13 +132,20 @@ void main() {
   });
 
   test('start, markers, note, stop over HTTP', () async {
-    expect((await hit('POST', '/api/start?appid=9')).status, 404);
-    expect((await hit('POST', '/api/start')).status, 404);
+    final unknown = await hit('POST', '/api/start?appid=9');
+    expect(unknown.status, 409);
+    expect(unknown.json, {'error': 'game 9 is not in the Steam library'});
+    expect((await hit('POST', '/api/start')).status, 409, reason: 'default');
     expect((await hit('POST', '/api/marker?tag=good')).status, 409);
+    expect(h.events.last, 'api', reason: 'every POST is logged');
 
     final started = await hit('POST', '/api/start?appid=730');
     expect(started.status, 200);
-    expect(started.json, containsPair('recording', true));
+    expect(started.json, containsPair('phase', 'waiting'));
+    h.gameRuns(730);
+    for (var i = 0; i < 100 && !h.controller.recording; i++) {
+      await settle();
+    }
     expect((await hit('POST', '/api/start?appid=731')).status, 409);
 
     expect((await hit('POST', '/api/marker?tag=zzz')).status, 409);
@@ -151,23 +165,26 @@ void main() {
     );
 
     final stop = await hit('POST', '/api/stop?src=key');
-    expect(
-      [stop.status, stop.json],
-      [
-        202,
-        {'stopping': true},
-      ],
-    );
+    expect(stop.status, 202);
+    expect(stop.json, {'stopping': true});
     await h.untilStopped();
     expect(h.meta, containsPair('ended_by', 'hotkey'));
     final again = await hit('POST', '/api/stop');
-    expect(
-      [again.status, again.json],
-      [
-        202,
-        {'stopping': false},
-      ],
-    );
+    expect(again.status, 202);
+    expect(again.json, {'stopping': false});
+  });
+
+  test('autostart: arm, refuse a second arm, cancel, stop cancels', () async {
+    final armed = await hit('POST', '/api/autostart?appid=730');
+    expect(armed.status, 200);
+    expect(armed.json, containsPair('phase', 'armed'));
+    expect((await hit('POST', '/api/autostart')).status, 409);
+    final cancel = await hit('POST', '/api/autostart/cancel?src=cli');
+    expect(cancel.json, containsPair('phase', 'idle'));
+    expect((await hit('POST', '/api/autostart/cancel')).status, 409);
+    await hit('POST', '/api/autostart?appid=730');
+    final stop = await hit('POST', '/api/stop');
+    expect([stop.status, flow.phase], [200, Phase.idle]);
   });
 
   test('targets: list and pick', () async {

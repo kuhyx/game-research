@@ -40,7 +40,7 @@ class GamePicker extends StatelessWidget {
         child: Icon(
           Icons.videogame_asset_off_rounded,
           size: 96,
-          color: AppPalette.mutedOnDark,
+          color: AppPalette.danger,
           semanticLabel: 'no games',
         ),
       );
@@ -91,7 +91,7 @@ class _Capsule extends StatelessWidget {
     return Semantics(
       button: true,
       selected: picked,
-      label: game.name,
+      label: game.updating ? '${game.name}, updating' : game.name,
       onTap: enabled ? onTap : null,
       excludeSemantics: true,
       child: Opacity(
@@ -115,6 +115,7 @@ class _Capsule extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   art,
+                  if (game.updating) _Updating(progress: game.progress),
                   if (picked)
                     const Align(
                       alignment: Alignment.topRight,
@@ -135,6 +136,35 @@ class _Capsule extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Steam stopped this game mid-download: a download glyph and how far it
+/// got. Starting it still works; Steam finishes the download first.
+class _Updating extends StatelessWidget {
+  const new({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Padding(
+        padding: EdgeInsets.all(AppSpacing.sm),
+        child: Icon(
+          Icons.downloading_rounded,
+          color: AppPalette.textOnDark,
+          size: 36,
+        ),
+      ),
+      const Spacer(),
+      LinearProgressIndicator(
+        value: progress,
+        minHeight: 8,
+        color: AppPalette.accent,
+      ),
+    ],
+  );
 }
 
 /// A capsule drawn from the app id: a hue band and a gamepad glyph.

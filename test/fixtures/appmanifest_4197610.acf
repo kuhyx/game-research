@@ -1,0 +1,44 @@
+"AppState"
+{
+	"appid"		"4197610"
+	"Universe"		"1"
+	"name"		"Librarian: Tidy Up the Arcane Library!"
+	"StateFlags"		"1026"
+	"installdir"		"Librarian Tidy Up the Arcane Library!"
+	"LastUpdated"		"0"
+	"LastPlayed"		"0"
+	"SizeOnDisk"		"0"
+	"StagingSize"		"1199069111"
+	"buildid"		"0"
+	"DownloadType"		"1"
+	"UpdateResult"		"4"
+	"BytesToDownload"		"1873562816"
+	"BytesDownloaded"		"1349071552"
+	"BytesToStage"		"3588375740"
+	"BytesStaged"		"3026012494"
+	"TargetBuildID"		"24263394"
+	"AutoUpdateBehavior"		"0"
+	"AllowOtherDownloadsWhileRunning"		"0"
+	"ScheduledAutoUpdate"		"0"
+	"InstalledDepots"
+	{
+	}
+	"SharedDepots"
+	{
+		"228989"		"228980"
+		"228990"		"228980"
+	}
+	"StagedDepots"
+	{
+		"4197611"
+		{
+			"manifest"		"6952518360840326100"
+			"size"		"1209051941"
+			"dlcappid"		"0"
+		}
+	}
+	}
+	"MountedConfig"
+	{
+	}
+}

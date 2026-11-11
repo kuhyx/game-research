@@ -8,8 +8,10 @@ library;
 import 'dart:io';
 
 import 'package:game_research/desktop/browser.dart';
+import 'package:game_research/desktop/cli.dart';
 import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/session_controller.dart';
+import 'package:game_research/desktop/session_flow.dart';
 import 'package:game_research/desktop/session_parts.dart';
 import 'package:game_research/desktop/steam_library.dart';
 import 'package:game_research/desktop/sys.dart';
@@ -28,10 +30,17 @@ Future<WrapperServer> serve(Config config, Sys sys, {int? port}) async {
   final controller = buildController(config, sys);
   // A wrapper that crashed mid-session may have left its keys grabbed.
   await controller.parts.hotkeys.stop();
+  controller.parts.log.event('app_start', {
+    'port': port ?? config.port,
+    'display': config.display,
+    'data': config.dataDir,
+    'steam_root': config.steamRoot,
+    'steam_cmd': config.steamCmd,
+    'pid': pid,
+  });
   final server = WrapperServer(
     webRoot: webRootOf(config),
-    controller: controller,
-    library: SteamLibrary(config.steamRoot),
+    flow: SessionFlow(controller, SteamLibrary(config.steamRoot)),
     open: (path) async {
       await sys.start('xdg-open', [path], mode: ProcessStartMode.detached);
     },
@@ -40,8 +49,10 @@ Future<WrapperServer> serve(Config config, Sys sys, {int? port}) async {
   return server;
 }
 
-/// Runs the wrapper: serve (unless `--window-only`), then open the window
-/// (unless `--serve-only`), then keep serving.
+/// Runs the wrapper: a control command (`--status`, `--session start`, ...,
+/// see `cli.dart`) talks to the running wrapper and exits; otherwise serve
+/// (unless `--window-only`), then open the window (unless `--serve-only`;
+/// `--no-autostart` opens it without the autostart ring), then keep serving.
 Future<int> runDesktop(
   List<String> args,
   Config config,
@@ -49,7 +60,9 @@ Future<int> runDesktop(
   String Function() browserFinder = findBrowser,
   Future<void> Function() hold = _forever,
   void Function(String) err = _stderr,
+  Future<int> Function(List<String>, Config) cli = runCli,
 }) async {
+  if (isCliCommand(args)) return await cli(args, config);
   var serving = false;
   if (!args.contains('--window-only')) {
     try {
@@ -73,7 +86,12 @@ Future<int> runDesktop(
     );
     final process = await sys.start(
       browser,
-      browserArgs(config.home, port: config.port, scale: scale),
+      browserArgs(
+        config.home,
+        port: config.port,
+        scale: scale,
+        autostart: !args.contains('--no-autostart'),
+      ),
       environment: {'DISPLAY': config.display},
     );
     await process.exitCode;

@@ -24,11 +24,21 @@ class Config {
     }
 
     final share = p.join(home, '.local', 'share', 'game-research');
+    final data = get('DATA', p.join(home, 'data', 'game-research'));
     final config = Config._(
       home: home,
       repo: get('REPO', cwd),
       port: int.tryParse(get('PORT', '')) ?? kDefaultPort,
-      dataDir: get('DATA', p.join(home, 'data', 'game-research')),
+      dataDir: data,
+      logFile: get('LOG', p.join(data, 'playstudy.jsonl')),
+      autostartS: double.tryParse(get('AUTOSTART_S', '')) ?? 3,
+      defaultAppid: int.tryParse(get('DEFAULT_APPID', '')) ?? 4197610,
+      windowTimeoutS: double.tryParse(get('WINDOW_TIMEOUT_S', '')) ?? 900,
+      relaunchS: double.tryParse(get('RELAUNCH_S', '')) ?? 30,
+      steamPidFile: get('STEAM_PID', p.join(home, '.steam', 'steam.pid')),
+      steamEnv: _words(get('STEAM_ENV', '')),
+      xauthority: env['XAUTHORITY'] ?? '',
+      procRoot: get('PROC', '/proc'),
       steamRoot: get('STEAM_ROOT', p.join(home, '.local', 'share', 'Steam')),
       steamCmd: get('STEAM_CMD', 'steam'),
       display: get('DISPLAY', env['DISPLAY'] ?? ':0'),
@@ -72,6 +82,15 @@ class Config {
     required this.repo,
     required this.port,
     required this.dataDir,
+    required this.logFile,
+    required this.autostartS,
+    required this.defaultAppid,
+    required this.windowTimeoutS,
+    required this.relaunchS,
+    required this.steamPidFile,
+    required this.steamEnv,
+    required this.xauthority,
+    required this.procRoot,
     required this.steamRoot,
     required this.steamCmd,
     required this.display,
@@ -108,6 +127,34 @@ class Config {
 
   /// Session folders: `<dataDir>/<stamp>-<game>/`.
   final String dataDir;
+
+  /// The JSON-lines event log (every step, every failure).
+  final String logFile;
+
+  /// Seconds the autostart ring drains before the session starts.
+  final double autostartS;
+
+  /// Game started when none was used before (Librarian).
+  final int defaultAppid;
+
+  /// How long to wait for the game window after the launch, seconds.
+  final double windowTimeoutS;
+
+  /// Seconds between URI handoffs while Steam runs but the game does not
+  /// (Steam finishes an update and does not launch afterwards).
+  final double relaunchS;
+
+  /// Steam's pid file; a live pid means the client runs.
+  final String steamPidFile;
+
+  /// Extra `K=V` for a Steam client PlayStudy starts (tests, Xvfb runs).
+  final List<String> steamEnv;
+
+  /// `$XAUTHORITY` handed to a Steam client PlayStudy starts ('' = none).
+  final String xauthority;
+
+  /// The proc filesystem (a temp dir in tests).
+  final String procRoot;
 
   /// Steam's root (`steamapps/`, `appcache/librarycache/`).
   final String steamRoot;

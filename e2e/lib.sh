@@ -19,7 +19,7 @@ readonly E2E_PORT="${E2E_PORT:-8806}"
 readonly E2E_CDP="${E2E_CDP:-9361}"
 readonly E2E_APPID=4242
 readonly E2E_GAME="Dummy Game"
-readonly E2E_UNITS=(gr-e2e-wrapper gr-e2e-xvfb)
+readonly E2E_UNITS=(gr-e2e-wrapper gr-e2e-xvfb "playstudy-steam-${E2E_PORT}")
 readonly E2E_FWD_APP=game-research-e2e
 
 die() {
@@ -58,6 +58,13 @@ art_dir() {
 
 # Wall time now, seconds with ms.
 now() { date +%s.%3N; }
+
+# Waits up to $1 s until /api/state reports phase $2 (the GUI's stop
+# button shows already while the game is starting; recording starts with
+# the game window).
+wait_phase() {
+	wait_for "api /api/state | grep -q '\"phase\":\"$2\"'" "$1"
+}
 
 # Appends one fired marker to fired.jsonl: {"tag":..,"wall":..,"via":..}.
 fired() {

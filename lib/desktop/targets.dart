@@ -6,11 +6,11 @@
 /// `<dataDir>/settings.json`.
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:game_research/core/synthesis.dart';
 import 'package:game_research/desktop/config.dart';
+import 'package:game_research/desktop/settings_file.dart';
 import 'package:path/path.dart' as p;
 
 /// The target list and the current pick.
@@ -21,7 +21,9 @@ class Targets {
   /// Settings.
   final Config config;
 
-  File get _settings => File(p.join(config.dataDir, 'settings.json'));
+  /// `<dataDir>/settings.json`, shared with the last-game key.
+  SettingsFile get settings =>
+      SettingsFile(p.join(config.dataDir, 'settings.json'));
 
   /// Candidate target folders, default first, then by name.
   List<String> list() {
@@ -39,24 +41,14 @@ class Targets {
 
   /// The picked target, or the default when none (or a vanished one) is set.
   String current() {
-    if (_settings.existsSync()) {
-      try {
-        final s = jsonDecode(_settings.readAsStringSync());
-        final t = s is Map ? s['target'] : null;
-        if (t is String && list().contains(t)) return t;
-      } on FormatException {
-        // a corrupt settings file falls back to the default
-      }
-    }
-    return config.defaultTarget;
+    final t = settings.read()['target'];
+    return t is String && list().contains(t) ? t : config.defaultTarget;
   }
 
   /// Picks [target]; false when it is not in [list].
   bool pick(String target) {
     if (!list().contains(target)) return false;
-    _settings
-      ..parent.createSync(recursive: true)
-      ..writeAsStringSync(jsonEncode({'target': target}));
+    settings.merge({'target': target});
     return true;
   }
 

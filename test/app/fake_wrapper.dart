@@ -21,6 +21,12 @@ class FakeWrapper {
   /// Error text in `/api/state`.
   String error = '';
 
+  /// `phase` in `/api/state` while not recording.
+  String phase = 'idle';
+
+  /// Seconds the autostart ring lasts.
+  double totalS = 3;
+
   /// Session rows served by `/api/sessions`.
   List<Map<String, Object?>> sessions = [];
 
@@ -51,6 +57,13 @@ class FakeWrapper {
           'recording': recording,
           'error': error,
           'target': '/src/cleanup-plate',
+          'phase': recording ? 'recording' : phase,
+          if (const {'armed', 'launching', 'waiting'}.contains(phase))
+            'pending': {
+              'appid': 2,
+              if (phase == 'armed') 'deadline_unix': 166.5,
+              if (phase == 'armed') 'total_s': totalS,
+            },
           if (recording)
             'session': {
               'id': 's1',
@@ -73,7 +86,12 @@ class FakeWrapper {
       return http.Response(jsonEncode(body), body == null ? 404 : getStatus);
     }
     if (path == '/api/start') recording = true;
-    if (path == '/api/stop') recording = false;
+    if (path == '/api/stop') {
+      recording = false;
+      phase = 'idle';
+    }
+    if (path == '/api/autostart') phase = 'armed';
+    if (path == '/api/autostart/cancel') phase = 'idle';
     final reply = path == '/api/marker'
         ? {'hold': r.url.queryParameters['hold'] == '1' ? 7 : null}
         : {'ok': true, if (postStatus != 200) 'error': 'nope'};

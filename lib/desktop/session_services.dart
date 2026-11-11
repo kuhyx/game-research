@@ -1,5 +1,5 @@
 /// The side effects a session switches on and off: hotkeys, the flash and
-/// tick, the dmenu note line and the Steam launch.
+/// tick and the dmenu note line.
 library;
 
 import 'dart:async';
@@ -8,7 +8,6 @@ import 'dart:io';
 
 import 'package:game_research/core/hotkeys.dart';
 import 'package:game_research/core/markers.dart';
-import 'package:game_research/core/steam.dart';
 import 'package:game_research/core/xrandr.dart';
 import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/recorder.dart';
@@ -170,32 +169,6 @@ class NoteAsker {
   void cancelAll() {
     for (final proc in _open) {
       proc.kill();
-    }
-  }
-}
-
-/// Starts a game through Steam.
-class GameLauncher {
-  /// Creates the launcher.
-  const new(this.config, this.sys);
-
-  /// Settings.
-  final Config config;
-
-  /// OS seam.
-  final Sys sys;
-
-  /// `steam steam://rungameid/<appid>`, detached.
-  Future<void> launch(int appid) async {
-    try {
-      await sys.start(
-        config.steamCmd,
-        [runGameUri(appid)],
-        environment: {'DISPLAY': config.display},
-        mode: ProcessStartMode.detached,
-      );
-    } on ProcessException catch (e) {
-      throw StartError('steam did not start: ${e.message}');
     }
   }
 }

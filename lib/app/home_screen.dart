@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:game_research/app/api.dart';
 import 'package:game_research/app/controls.dart';
 import 'package:game_research/app/game_picker.dart';
@@ -21,8 +22,12 @@ class HomeScreen extends StatefulWidget {
     required this.api,
     this.poll = const Duration(seconds: 1),
     this.now = _now,
+    this.autostart = false,
     super.key,
   });
+
+  /// Opened by the launcher (`?autostart=1`): arm the autostart ring.
+  final bool autostart;
 
   /// The wrapper client.
   final ResearchApi api;
@@ -47,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int? _picked;
   int? _hold;
   bool _offline = false;
+  bool _armed = false;
   Timer? _timer;
 
   ResearchApi get _api => widget.api;
@@ -65,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadAll() async {
+    final first = _games.isEmpty && _sessions.isEmpty && !_state.recording;
     try {
       final games = await _api.games();
       final targets = await _api.targets();
@@ -78,6 +85,10 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) setState(() => _offline = true);
     }
     await _refresh();
+    if (first && widget.autostart && !_armed && _state.phase == 'idle') {
+      _armed = true;
+      await _act(_api.autostart);
+    }
   }
 
   Future<void> _refresh() async {
@@ -90,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _state = state;
         _sessions = sessions;
         _offline = false;
-        if (state.appid != null) _picked = state.appid;
+        _picked = state.appid ?? state.pendingAppid ?? _picked;
         if (!state.recording) _hold = null;
       });
       if (ended) unawaited(_loadAll());
@@ -124,6 +135,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final started = _state.startedUnix;
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          if (_state.pending) unawaited(_act(_api.cancelAutostart));
+        },
+      },
+      child: Focus(autofocus: true, child: _body(started)),
+    );
+  }
+
+  Widget _body(double? started) {
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -144,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     : GamePicker(
                         games: _games,
                         selected: _picked,
-                        enabled: !_state.recording,
+                        enabled: !_state.recording && !_state.pending,
                         capsuleUrl: _api.capsuleUrl,
                         onPick: (id) => setState(() => _picked = id),
                       ),
@@ -160,6 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       canStart: _picked != null,
                       elapsedS: started == null ? 0 : widget.now() - started,
                       noteOpen: _hold != null,
+                      now: widget.now,
                       onStart: () => _act(() => _api.start(_picked!)),
                       onStop: () => _act(_api.stop),
                       onMarker: _marker,

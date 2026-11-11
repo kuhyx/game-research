@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/core/steam.dart';
 
@@ -22,7 +24,12 @@ void main() {
     expect(g.appid, 1234560);
     expect(g.name, 'Librarian: Tidy Up');
     expect(g.installed, isTrue);
-    expect(g.toJson(), {'appid': 1234560, 'name': 'Librarian: Tidy Up'});
+    expect(g.toJson(), {
+      'appid': 1234560,
+      'name': 'Librarian: Tidy Up',
+      'state': 'installed',
+      'progress': 1.0,
+    });
   });
 
   test('a manifest without appid or name is skipped', () {
@@ -38,6 +45,23 @@ void main() {
     expect(g!.installed, isFalse);
     final noFlags = parseAcf('"AppState" { "appid" "5" "name" "x" }');
     expect(noFlags!.installed, isTrue);
+  });
+
+  test('the real interrupted Librarian manifest is an updating game', () {
+    // Trimmed from kuhy's real appmanifest_4197610.acf (2026-11-11): Steam
+    // quit mid-download, StateFlags 1026. Dropping it emptied the picker.
+    final text = File('test/fixtures/appmanifest_4197610.acf')
+        .readAsStringSync();
+    final g = parseAcf(text)!;
+    expect(g.appid, 4197610);
+    expect(g.installed, isFalse);
+    expect(g.progress, closeTo(1349071552 / 1873562816, 1e-9));
+    expect(g.toJson(), {
+      'appid': 4197610,
+      'name': 'Librarian: Tidy Up the Arcane Library!',
+      'state': 'updating',
+      'progress': g.progress,
+    });
   });
 
   test('Steam tools and runtimes are not games', () {

@@ -29,7 +29,7 @@ step "pick ${E2E_GAME}"
 fwd tap "$E2E_GAME" >/dev/null || fail "game tile not tappable"
 step "start"
 fwd tap start >/dev/null || fail "no start button"
-fwd wait stop --timeout 15 >/dev/null || fail "never reached recording"
+wait_phase 20 recording || fail "never reached recording"
 step "dummy game running"
 wait_for "[[ -s ${ART}/game.pid ]] && kill -0 \$(cat ${ART}/game.pid)" 15 ||
 	fail "fake steam never started the game"

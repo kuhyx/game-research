@@ -6,13 +6,21 @@ int _int(Object? v) => (v as num?)?.toInt() ?? 0;
 /// One installed game.
 class Game {
   /// Creates a game.
-  const new({required this.appid, required this.name, this.capsule = false});
+  const new({
+    required this.appid,
+    required this.name,
+    this.capsule = false,
+    this.updating = false,
+    this.progress = 1,
+  });
 
   /// Parses one `/api/games` entry.
   factory fromJson(Map<String, Object?> j) => Game(
     appid: _int(j['appid']),
     name: '${j['name'] ?? ''}',
     capsule: j['capsule'] == true,
+    updating: j['state'] == 'updating',
+    progress: (j['progress'] as num?)?.toDouble() ?? 1,
   );
 
   /// Steam app id.
@@ -23,6 +31,12 @@ class Game {
 
   /// Whether a capsule image exists.
   final bool capsule;
+
+  /// Steam stopped mid-download; starting it lets Steam finish first.
+  final bool updating;
+
+  /// Downloaded share, 0..1.
+  final double progress;
 }
 
 /// Marker counts per tag name.
@@ -42,12 +56,21 @@ class AppState {
     this.appid,
     this.startedUnix,
     this.counts = const {},
+    this.phase = 'idle',
+    this.pendingAppid,
+    this.deadlineUnix,
+    this.totalS = 0,
   });
 
   /// Parses `/api/state`.
   factory fromJson(Map<String, Object?> j) {
     final s = j['session'] as Map<String, Object?>?;
+    final pending = j['pending'] as Map<String, Object?>?;
     return AppState(
+      phase: '${j['phase'] ?? 'idle'}',
+      pendingAppid: (pending?['appid'] as num?)?.toInt(),
+      deadlineUnix: (pending?['deadline_unix'] as num?)?.toDouble(),
+      totalS: (pending?['total_s'] as num?)?.toDouble() ?? 0,
       recording: j['recording'] == true,
       error: '${j['error'] ?? ''}',
       target: '${j['target'] ?? ''}',
@@ -74,6 +97,21 @@ class AppState {
 
   /// Markers so far.
   final Counts counts;
+
+  /// `idle`, `armed`, `launching`, `waiting` or `recording`.
+  final String phase;
+
+  /// The game an armed or launching session is for.
+  final int? pendingAppid;
+
+  /// When the autostart ring runs out, unix seconds.
+  final double? deadlineUnix;
+
+  /// The ring's full length, seconds.
+  final double totalS;
+
+  /// Whether a start is armed or on its way (Stop / Esc cancel it).
+  bool get pending => const {'armed', 'launching', 'waiting'}.contains(phase);
 }
 
 /// `/api/targets`.

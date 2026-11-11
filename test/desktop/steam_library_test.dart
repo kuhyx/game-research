@@ -32,7 +32,7 @@ void main() {
     expect(library.find(1), isNull);
   });
 
-  test('games: installed only, tools hidden, sorted, one per id', () {
+  test('games: installed and updating, tools hidden, sorted, one per id', () {
     final apps = p.join(steam, 'steamapps');
     final second = p.join(root.path, 'second');
     manifest(apps, 20, 'beta');
@@ -50,9 +50,10 @@ void main() {
     manifest(p.join(second, 'steamapps'), 20, 'beta in second');
 
     final games = library.games();
-    expect(games.map((g) => g.name), ['Alpha', 'beta', 'Gamma']);
+    expect(games.map((g) => g.name), ['Alpha', 'beta', 'Downloading', 'Gamma']);
+    expect(games[2].installed, isFalse);
     expect(library.find(50)?.name, 'Gamma');
-    expect(library.find(30), isNull);
+    expect(library.find(30)?.name, 'Downloading');
     expect(library.find(7), isNull);
   });
 

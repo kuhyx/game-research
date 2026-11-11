@@ -4,13 +4,21 @@ library;
 import 'dart:io';
 
 import 'package:game_research/core/xrandr.dart';
+import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/sys.dart';
 import 'package:path/path.dart' as p;
 
-/// Browser profile. Fixed: Chrome keys zoom and page state by profile and
-/// origin, so a moving profile (or port) is a fresh window every launch.
-String profileDir(String home) =>
-    p.join(home, '.local', 'share', 'game-research', 'profile');
+/// Browser profile. Fixed per port: Chrome keys zoom and page state by
+/// profile and origin, so a moving profile is a fresh window every launch.
+/// Any other port (an off-screen or test run) gets its own profile: sharing
+/// kuhy's would hand the URL to his open window on :0.
+String profileDir(String home, {int port = kDefaultPort}) => p.join(
+  home,
+  '.local',
+  'share',
+  'game-research',
+  port == kDefaultPort ? 'profile' : 'profile-$port',
+);
 
 /// The window's WM_CLASS; the `.desktop` StartupWMClass matches it.
 const kWindowClass = 'game-research';
@@ -60,19 +68,26 @@ Future<double> detectScale(
   return scaleFor(target);
 }
 
-/// Arguments for the app window on [port] at [scale].
-List<String> browserArgs(String home, {required int port, double scale = 1}) =>
-    [
-      '--app=http://127.0.0.1:$port',
-      scaleFlag(scale),
-      '--user-data-dir=${profileDir(home)}',
-      '--class=$kWindowClass',
-      '--no-first-run',
-      '--no-default-browser-check',
-      // No extension: the flags file's forced one opens its own window.
-      '--disable-extensions',
-      '--disable-session-crashed-bubble',
-      '--hide-crash-restore-bubble',
-      // Off the desktop keyring: a locked one blocks the first page load.
-      '--password-store=basic',
-    ];
+/// Arguments for the app window on [port] at [scale]. [autostart]: the
+/// page arms the autostart ring (opening PlayStudy starts a session).
+List<String> browserArgs(
+  String home, {
+  required int port,
+  double scale = 1,
+  bool autostart = true,
+}) => [
+  '--app=http://127.0.0.1:$port/${autostart ? '?autostart=1' : ''}',
+  scaleFlag(scale),
+  '--user-data-dir=${profileDir(home, port: port)}',
+  '--class=$kWindowClass',
+  // The app makes no sound; a test or Xvfb window must never play any.
+  '--mute-audio',
+  '--no-first-run',
+  '--no-default-browser-check',
+  // No extension: the flags file's forced one opens its own window.
+  '--disable-extensions',
+  '--disable-session-crashed-bubble',
+  '--hide-crash-restore-bubble',
+  // Off the desktop keyring: a locked one blocks the first page load.
+  '--password-store=basic',
+];

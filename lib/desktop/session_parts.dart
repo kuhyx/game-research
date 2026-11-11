@@ -2,10 +2,13 @@
 library;
 
 import 'package:game_research/desktop/config.dart';
+import 'package:game_research/desktop/event_log.dart';
 import 'package:game_research/desktop/game_watcher.dart';
+import 'package:game_research/desktop/proc_scan.dart';
 import 'package:game_research/desktop/recorder.dart';
 import 'package:game_research/desktop/session_services.dart';
 import 'package:game_research/desktop/session_store.dart';
+import 'package:game_research/desktop/steam_launch.dart';
 import 'package:game_research/desktop/sys.dart';
 import 'package:game_research/desktop/targets.dart';
 
@@ -24,22 +27,30 @@ class SessionParts {
     required this.store,
     required this.analysis,
     required this.targets,
+    required this.log,
+    required this.window,
   });
 
   /// The real parts for [config] and [sys].
-  factory real(Config config, Sys sys) => SessionParts(
-    config: config,
-    sys: sys,
-    recorder: Recorder(config, sys),
-    hotkeys: HotkeyService(config, sys),
-    overlay: Overlay(config, sys),
-    asker: NoteAsker(config, sys),
-    launcher: GameLauncher(config, sys),
-    watcher: GameWatcher(),
-    store: SessionStore(config),
-    analysis: AnalysisLauncher(config, sys),
-    targets: Targets(config),
-  );
+  factory real(Config config, Sys sys) {
+    final scan = ProcScan(config.procRoot);
+    final log = EventLog(config.logFile);
+    return SessionParts(
+      config: config,
+      sys: sys,
+      recorder: Recorder(config, sys),
+      hotkeys: HotkeyService(config, sys),
+      overlay: Overlay(config, sys),
+      asker: NoteAsker(config, sys),
+      launcher: GameLauncher(config, sys, scan, log),
+      watcher: GameWatcher(procRoot: config.procRoot),
+      store: SessionStore(config),
+      analysis: AnalysisLauncher(config, sys),
+      targets: Targets(config),
+      log: log,
+      window: GameWindow(config, sys, scan),
+    );
+  }
 
   /// Settings.
   final Config config;
@@ -73,4 +84,10 @@ class SessionParts {
 
   /// Target projects.
   final Targets targets;
+
+  /// The JSON-lines event log.
+  final EventLog log;
+
+  /// Finds the game's window.
+  final GameWindow window;
 }
