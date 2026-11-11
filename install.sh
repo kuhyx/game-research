@@ -4,7 +4,7 @@
 # tick sound, the family icon and the .desktop launcher (StartupWMClass =
 # the Chrome window's --class). Never starts the app.
 #
-# Usage: install.sh [--step deps|build|tick|desktop|hooks]   (default: all)
+# Usage: install.sh [--step deps|build|tick|desktop|bin|hooks]   (default: all)
 #   Each step stays well under a minute except `build` (~40 s).
 # ============================================================================
 
@@ -16,6 +16,7 @@ readonly SHARE="${XDG_DATA_HOME:-${HOME}/.local/share}"
 readonly APPS_DIR="${SHARE}/applications"
 readonly ICON_DIR="${SHARE}/icons/hicolor"
 readonly TICK="${SHARE}/game-research/tick.wav"
+readonly BIN_DIR="${HOME}/.local/bin"
 readonly CAPPED="${HOME}/.claude/scripts/capped.sh"
 
 # command -> Arch package. Browser deliberately absent: a policy on this PC
@@ -86,6 +87,18 @@ step_desktop() {
 	update-desktop-database "$APPS_DIR" 2>/dev/null || true
 	gtk-update-icon-cache -q -t "$ICON_DIR" 2>/dev/null || true
 	echo "desktop: ${APPS_DIR}/game-research.desktop"
+	step_bin
+}
+
+# Terminal + dmenu_run ($mod+d lists PATH executables, not .desktop files):
+# one symlink per name; the launcher resolves its repo through readlink -f.
+step_bin() {
+	local name
+	mkdir -p "$BIN_DIR"
+	for name in playstudy game-research; do
+		ln -sfn "${REPO}/tool/game_research_app.sh" "${BIN_DIR}/${name}"
+	done
+	echo "bin: ${BIN_DIR}/playstudy, ${BIN_DIR}/game-research"
 }
 
 step_hooks() {
@@ -100,7 +113,7 @@ main() {
 		[[ $(type -t "step_${2:-}") == function ]] || die "unknown step '${2:-}'"
 		"step_$2"
 		;;
-	*) die "usage: install.sh [--step deps|build|tick|desktop|hooks]" ;;
+	*) die "usage: install.sh [--step deps|build|tick|desktop|bin|hooks]" ;;
 	esac
 }
 
