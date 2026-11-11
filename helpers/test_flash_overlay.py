@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import os
+import re
+import time
 import tkinter as tk
 
 import pytest
@@ -67,4 +69,37 @@ def test_stdin_feed_flashes_lines_and_quits_on_eof(root: tk.Tk) -> None:
     root.tk.createfilehandler(read_fd, tk.READABLE, feed.on_readable)
     feed.on_readable()
     assert destroyed == [True]
+    os.close(read_fd)
+
+
+def test_parse_line_takes_colour_and_optional_tag() -> None:
+    assert fo.parse_line("#e2302f bad\n") == ("#e2302f", "bad")
+    assert fo.parse_line("#e2302f") == ("#e2302f", "e2302f")
+    assert fo.parse_line("bad #e2302f") is None
+
+
+def test_flash_prints_shown_line_after_drawing(
+    root: tk.Tk, capsys: pytest.CaptureFixture[str]
+) -> None:
+    flasher = fo.Flasher(root, (200, 100, 0, 0), 4, 50)
+    before = time.time()
+    flasher.flash("#e2302f", "bad")
+    after = time.time()
+    out = capsys.readouterr().out
+    m = re.fullmatch(r"shown bad (\d+\.\d{6})\n", out)
+    assert m is not None, out
+    assert before <= float(m.group(1)) <= after
+    assert all(w.winfo_viewable() for w in flasher.windows)
+
+
+def test_stdin_feed_reports_the_tag_it_was_given(
+    root: tk.Tk, capsys: pytest.CaptureFixture[str]
+) -> None:
+    flasher = fo.Flasher(root, (200, 100, 0, 0), 4, 50)
+    read_fd, write_fd = os.pipe()
+    feed = fo.StdinFeed(root, flasher, read_fd)
+    os.write(write_fd, b"#2f6fe2 note\n")
+    feed.on_readable()
+    assert capsys.readouterr().out.startswith("shown note ")
+    os.close(write_fd)
     os.close(read_fd)

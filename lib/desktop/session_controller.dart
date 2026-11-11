@@ -137,7 +137,8 @@ class SessionController {
     parts.store.writeMeta(dir, meta);
     final active = _Active(dir, game, t0, rec, meta);
     _active = active;
-    await parts.overlay.start(output);
+    final flashes = File(p.join(dir.path, 'flashes.jsonl'));
+    await parts.overlay.start(output, flashLog: flashes);
     unawaited(
       rec.exited.then((_) {
         if (identical(_active, active) && !active.stopping) {

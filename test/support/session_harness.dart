@@ -107,6 +107,9 @@ class Harness {
   /// What `dmenu` answers.
   String dmenuText = 'asked note\n';
 
+  /// What the flash helper prints on stdout.
+  String overlayOut = '';
+
   /// Keep dmenu open until killed.
   bool dmenuHangs = false;
 
@@ -149,7 +152,7 @@ class Harness {
     }
     return switch (c.exe) {
       'ffmpeg' => ffmpeg = FakeProcess(),
-      'python3' => FakeProcess(),
+      'python3' => FakeProcess(stdoutText: overlayOut),
       'dmenu' =>
         dmenuHangs
             ? FakeProcess()

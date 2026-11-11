@@ -38,7 +38,7 @@ coverage)
 	(cd "$REPO" && dart run tool/check_coverage.dart coverage/*.info)
 	;;
 py)
-	(cd "$REPO" && xvfb-run -a python3 -m pytest -q helpers/test_flash_overlay.py)
+	(cd "$REPO" && xvfb-run -a python3 -m pytest -q helpers)
 	;;
 *)
 	echo "usage: scripts/test.sh core|desktop|analysis|app|coverage|py" >&2

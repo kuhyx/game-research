@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -33,13 +34,38 @@ void main() {
       expect(call.env, {'DISPLAY': ':99'});
     });
 
+    test('shown lines are logged to the flash log, bad ones ignored', () async {
+      fake.onStart = (_) => FakeProcess(
+        stdoutText:
+            'shown bad 1700000000.123456\nshown note x\n\nnoise\n'
+            'shown good 1700000001.5\nshown a b c\n',
+      );
+      final log = File('${root.path}/flashes.jsonl');
+      await overlay().start(_output, flashLog: log);
+      await settle();
+      expect(
+        const LineSplitter().convert(log.readAsStringSync()).map(jsonDecode),
+        [
+          {'tag': 'bad', 'shown_unix': 1700000000.123456},
+          {'tag': 'good', 'shown_unix': 1700000001.5},
+        ],
+      );
+    });
+
+    test('no flash log: stdout is only drained', () async {
+      fake.onStart = (_) => FakeProcess(stdoutText: 'shown bad 1.5\n');
+      await overlay().start(_output);
+      await settle();
+      expect(root.listSync().whereType<File>(), isEmpty);
+    });
+
     test('mark flashes the colour and plays the tick detached', () async {
       fake.onStart = (c) => c.exe == 'python3' ? FakeProcess() : null;
       final o = overlay();
       await o.start(_output);
       await o.mark(MarkerTag.bad);
       await settle();
-      expect(fake.started.first.stdinText, '#e2302f\n');
+      expect(fake.started.first.stdinText, '#e2302f bad\n');
       final tick = fake.calls.last;
       expect(tick.exe, 'faketick');
       expect(tick.args, ['bad']);

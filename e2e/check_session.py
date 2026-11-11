@@ -13,10 +13,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+from video_pixels import border_pixels
+
 # Flash colours, the same as MarkerTag.flashHex in lib/core/markers.dart.
 FLASH = {"good": "3cb043", "bad": "e2302f", "confusing": "f0c020", "note": "2f6fe2"}
 TOLERANCE_S = 0.5
 PIXEL_TOLERANCE = 64
+WINDOW_S = 0.6  # --flash-only: the flash may land this long after the marker
 
 
 def ffprobe(*args: str) -> dict:
@@ -42,6 +45,13 @@ def pixel(video: Path, t: float, x: int, y: int) -> tuple[int, int, int]:
     )  # fmt: skip
     r, g, b = done.stdout[:3]
     return r, g, b
+
+
+def close_to(got: bytes, want: bytes) -> bool:
+    """Whether every channel of `got` is within PIXEL_TOLERANCE of `want`."""
+    return len(got) == len(want) and all(
+        abs(a - b) <= PIXEL_TOLERANCE for a, b in zip(got, want, strict=True)
+    )
 
 
 class Checker:
@@ -94,8 +104,11 @@ def check_markers(c: Checker, session: Path, art: Path, expect: int) -> list[dic
     return markers
 
 
-def check_flash(c: Checker, session: Path, markers: list[dict]) -> None:
-    """The border flash shows in the recording at each marker's offset."""
+def check_flash(
+    c: Checker, session: Path, markers: list[dict], anywhere: bool = False
+) -> None:
+    """The border flash shows in the recording at each marker's offset: the
+    exact +0.15 s sample, or (`anywhere`) any frame in [offset, offset + 0.6]."""
     video = session / "recording.mkv"
     height = int(
         ffprobe("-show_streams", "-select_streams", "v", str(video))["streams"][0][
@@ -104,11 +117,18 @@ def check_flash(c: Checker, session: Path, markers: list[dict]) -> None:
     )
     for i, m in enumerate(markers):
         want = bytes.fromhex(FLASH[m["tag"]])
+        if anywhere:
+            times, px = border_pixels(video, m["offset_s"], WINDOW_S, height // 2)
+            hits = [
+                t
+                for k, t in enumerate(times)
+                if m["offset_s"] <= t <= m["offset_s"] + WINDOW_S
+                and close_to(px[3 * k : 3 * k + 3], want)
+            ]
+            c.check(f"flash {i} {m['tag']}", bool(hits), f"no frame in {WINDOW_S} s")
+            continue
         got = pixel(video, m["offset_s"] + 0.15, 4, height // 2)
-        close = all(
-            abs(a - b) <= PIXEL_TOLERANCE for a, b in zip(got, want, strict=True)
-        )
-        c.check(f"flash {i} {m['tag']}", close, f"pixel {got} vs {tuple(want)}")
+        c.check(f"flash {i} {m['tag']}", close_to(bytes(got), want), f"pixel {got}")
 
 
 def check_analysis(c: Checker, session: Path, expect: int) -> None:
@@ -208,7 +228,7 @@ def main() -> int:
     c = Checker()
     if args.flash_only:
         markers = jsonl(args.session / "markers.jsonl")
-        check_flash(c, args.session, markers)
+        check_flash(c, args.session, markers, anywhere=True)
         return min(c.failed, 100)
     markers = check_markers(c, args.session, args.art, args.expect_markers)
     check_flash(c, args.session, markers)

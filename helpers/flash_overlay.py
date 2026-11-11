@@ -2,7 +2,10 @@
 
 Started by the wrapper per session with the output's geometry; reads one
 `#rrggbb` per line on stdin and shows four override-redirect edge strips in
-that colour for --ms milliseconds. Four strips, not one full-screen window:
+that colour for --ms milliseconds. A line may carry a tag after the colour
+(`#rrggbb tag`); once the strips are drawn the helper prints
+`shown <tag> <unix wall time>` on stdout (the wrapper logs it as ground truth
+for the marker-to-flash latency). Four strips, not one full-screen window:
 without a compositor a full-screen window would cover the game. Exits on
 stdin EOF, so it cannot outlive the wrapper. Never takes focus.
 """
@@ -13,6 +16,7 @@ import argparse
 import os
 import re
 import sys
+import time
 import tkinter as tk
 
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -45,6 +49,17 @@ def parse_colour(line: str) -> str | None:
     return text if _HEX.match(text) else None
 
 
+def parse_line(line: str) -> tuple[str, str] | None:
+    """(colour, tag) of one stdin line; the tag defaults to the hex digits."""
+    parts = line.split()
+    if not parts or len(parts) > 2:
+        return None
+    colour = parse_colour(parts[0])
+    if colour is None:
+        return None
+    return colour, parts[1] if len(parts) == 2 else colour[1:]
+
+
 class Flasher:
     """Four hidden strips that show a colour for a moment."""
 
@@ -63,8 +78,9 @@ class Flasher:
             win.withdraw()
             self.windows.append(win)
 
-    def flash(self, colour: str) -> None:
-        """Shows `colour` on every strip, hides them after `ms`."""
+    def flash(self, colour: str, tag: str | None = None) -> None:
+        """Shows `colour` on every strip, hides them after `ms`; prints
+        `shown <tag> <unix time>` once the strips have been drawn."""
         if self.pending is not None:
             self.root.after_cancel(self.pending)
         for win in self.windows:
@@ -72,6 +88,9 @@ class Flasher:
             win.deiconify()
             win.lift()
         self.pending = self.root.after(self.ms, self.hide)
+        self.root.update()  # map and paint now, not at the next idle
+        shown = time.time()
+        print(f"shown {tag or colour[1:]} {shown:.6f}", flush=True)
 
     def hide(self) -> None:
         """Hides every strip."""
@@ -89,9 +108,19 @@ class StdinFeed:
         self.flasher = flasher
         self.fd = fd
         self.buffer = b""
+        self.busy = False
 
     def on_readable(self, *_: object) -> None:
         """Reads what arrived; flashes each complete line; quits on EOF."""
+        if self.busy:  # flash() runs root.update(), which can re-enter here
+            return
+        self.busy = True
+        try:
+            self._read()
+        finally:
+            self.busy = False
+
+    def _read(self) -> None:
         chunk = os.read(self.fd, 4096)
         if not chunk:
             self.root.tk.deletefilehandler(self.fd)
@@ -100,9 +129,9 @@ class StdinFeed:
         self.buffer += chunk
         *lines, self.buffer = self.buffer.split(b"\n")
         for line in lines:
-            colour = parse_colour(line.decode("ascii", "replace"))
-            if colour is not None:
-                self.flasher.flash(colour)
+            parsed = parse_line(line.decode("ascii", "replace"))
+            if parsed is not None:
+                self.flasher.flash(*parsed)
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -74,10 +74,13 @@ class Overlay {
   /// OS seam.
   final Sys sys;
   Process? _flash;
+  StreamSubscription<String>? _shown;
 
   /// Starts the flash helper over [output]. It exits on stdin EOF, so it
-  /// cannot outlive a crashed wrapper.
-  Future<void> start(Output output) async {
+  /// cannot outlive a crashed wrapper. Each `shown <tag> <unix>` line it
+  /// prints (the flash is on screen) is appended to [flashLog] as
+  /// `{"tag", "shown_unix"}`; anything else is ignored.
+  Future<void> start(Output output, {File? flashLog}) async {
     _flash = await sys.start(
       'python3',
       [
@@ -91,13 +94,28 @@ class Overlay {
       ],
       environment: {'DISPLAY': config.display},
     );
-    unawaited(_flash!.stdout.drain<void>());
+    _shown = _flash!.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) => _logShown(line, flashLog));
     unawaited(_flash!.stderr.drain<void>());
+  }
+
+  void _logShown(String line, File? log) {
+    final parts = line.trim().split(' ');
+    final unix = parts.length == 3 && parts[0] == 'shown'
+        ? double.tryParse(parts[2])
+        : null;
+    if (log == null || unix == null) return;
+    log.writeAsStringSync(
+      '${jsonEncode({'tag': parts[1], 'shown_unix': unix})}\n',
+      mode: FileMode.append,
+    );
   }
 
   /// Flashes [tag]'s colour and plays the tick.
   Future<void> mark(MarkerTag tag) async {
-    _flash?.stdin.writeln(tag.flashHex);
+    _flash?.stdin.writeln('${tag.flashHex} ${tag.name}');
     if (config.tickCmd.isEmpty) return;
     try {
       await sys.start(config.tickCmd.first, [
@@ -114,6 +132,8 @@ class Overlay {
     final flash = _flash;
     _flash = null;
     if (flash == null) return;
+    unawaited(_shown?.cancel());
+    _shown = null;
     await flash.stdin.close();
     flash.kill();
   }

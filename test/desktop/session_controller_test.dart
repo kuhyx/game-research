@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -53,6 +54,18 @@ void main() {
     expect(session['appid'], 730);
     expect(session['id'], p.basename(dir.path));
     expect(h.controller.lastError, '');
+    await h.controller.stop();
+  });
+
+  test('flash draw times land in flashes.jsonl, noise does not', () async {
+    h.overlayOut = 'shown bad 1700000000.25\nnot a line\nshown good x\n';
+    await h.controller.start(game);
+    await settle();
+    final f = File(p.join(h.sessionDir.path, 'flashes.jsonl'));
+    expect(jsonDecode(f.readAsStringSync().trim()), {
+      'tag': 'bad',
+      'shown_unix': 1700000000.25,
+    });
     await h.controller.stop();
   });
 
