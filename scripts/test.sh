@@ -3,7 +3,7 @@
 # The Dart test suite, one directory per call (each < 60 s), with coverage.
 #
 #   scripts/test.sh core|desktop|analysis|app   one directory, coverage file
-#                                               coverage/<dir>.lcov.info
+#                                               coverage/<dir>.info
 #   scripts/test.sh coverage                    merge check: every lib/ line
 #                                               covered (tool/check_coverage)
 #   scripts/test.sh py                          helper + E2E python unit tests
@@ -27,13 +27,15 @@ run_dir() {
 		echo "test.sh: no test/${dir}" >&2
 		exit 2
 	}
-	(cd "$REPO" && capped flutter test --coverage --coverage-path "coverage/${dir}.lcov.info" "test/${dir}")
+	# -j1: parallel test isolates under the CPU cap fail to start their DDS.
+	(cd "$REPO" && capped flutter test --no-pub -j1 -r failures-only --coverage \
+		--coverage-path "coverage/${dir}.info" "test/${dir}")
 }
 
 case "${1:-}" in
 core | desktop | analysis | app) run_dir "$1" ;;
 coverage)
-	(cd "$REPO" && dart run tool/check_coverage.dart coverage/*.lcov.info)
+	(cd "$REPO" && dart run tool/check_coverage.dart coverage/*.info)
 	;;
 py)
 	(cd "$REPO" && xvfb-run -a python3 -m pytest -q helpers/test_flash_overlay.py)
