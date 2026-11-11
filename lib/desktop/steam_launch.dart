@@ -111,13 +111,27 @@ class GameWindow {
   /// /proc reader.
   final ProcScan scan;
 
-  /// Smallest side of a game window; Wine's helper windows (IME 1x1,
-  /// WineD3D 111x1, DXGI 113x2) are smaller.
-  static const minSide = 200;
+  /// Smallest side of a game window; Wine's helpers (IME 1x1, WineD3D
+  /// 111x1, DXGI 113x2, Proton's "Steam" 400x300) are smaller.
+  static const minSide = 480;
 
-  /// The first visible, game-sized window of [appid]'s processes, or null.
-  /// Walks the window tree (`_NET_WM_PID`), so it needs no window manager.
+  Future<String?> _search(List<String> by) async {
+    final r = await sys.run(
+      'xdotool',
+      ['search', '--onlyvisible', ...by, 'getwindowgeometry', '--shell', '%@'],
+      environment: {'DISPLAY': config.display},
+    );
+    return r.exitCode == 0 ? bigWindow('${r.stdout}') : null;
+  }
+
+  /// The first visible, game-sized window of [appid], or null. Proton
+  /// names every window's class `steam_app_<id>` (its `_NET_WM_PID` is a
+  /// Wine thread id, not a process); a native game is found by the pids of
+  /// its tree (pid 0 = found by class). Walks the window tree, so it needs
+  /// no window manager.
   Future<WindowHit?> find(int appid) async {
+    final byClass = await _search(['--class', '^steam_app_$appid\$']);
+    if (byClass != null) return (pid: 0, window: byClass);
     final List<int> pids;
     try {
       pids = scan.gamePids(appid);
@@ -125,21 +139,7 @@ class GameWindow {
       return null; // /proc unreadable this tick; the next poll retries
     }
     for (final pid in pids) {
-      final r = await sys.run(
-        'xdotool',
-        [
-          'search',
-          '--onlyvisible',
-          '--pid',
-          '$pid',
-          'getwindowgeometry',
-          '--shell',
-          '%@',
-        ],
-        environment: {'DISPLAY': config.display},
-      );
-      if (r.exitCode != 0) continue;
-      final id = bigWindow('${r.stdout}');
+      final id = await _search(['--pid', '$pid']);
       if (id != null) return (pid: pid, window: id);
     }
     return null;

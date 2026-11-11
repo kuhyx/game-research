@@ -85,13 +85,29 @@ void main() {
     // Wine's helpers (1x1 IME, 111x1 WineD3D) come first; the game window
     // is the big one.
     const geometry =
-        'WINDOW=99\nX=14\nY=40\nWIDTH=111\nHEIGHT=1\nSCREEN=0\n'
+        'WINDOW=99\nX=40\nY=40\nWIDTH=400\nHEIGHT=300\nSCREEN=0\n'
         'WINDOW=100\nX=0\nY=0\nWIDTH=1920\nHEIGHT=1080\nSCREEN=0\n';
 
-    test('no game process means no window and no xdotool call', () async {
+    test('no game process and no Proton window: one class query', () async {
       final w = GameWindow(testConfig(root), fake.sys, ProcScan(proc.path));
       expect(await w.find(7), isNull);
-      expect(fake.calls, isEmpty);
+      expect(fake.calls.single.args, [
+        'search',
+        '--onlyvisible',
+        '--class',
+        r'^steam_app_7$',
+        'getwindowgeometry',
+        '--shell',
+        '%@',
+      ]);
+    });
+
+    test("Proton's steam_app class finds the game window", () async {
+      // 2026-11-11 real run: Librarian's window carried a Wine thread id
+      // as _NET_WM_PID, so only the class matched.
+      fake.onRun = (c) => c.args.contains('--class') ? ok(geometry) : bad();
+      final w = GameWindow(testConfig(root), fake.sys, ProcScan(proc.path));
+      expect(await w.find(7), (pid: 0, window: '100'));
     });
 
     test('the first process with a visible window wins', () async {
@@ -101,6 +117,7 @@ void main() {
             .writeAsStringSync('SteamAppId=7\x00');
       }
       fake.onRun = (c) => c.args.contains('11') ? ok(geometry) : bad();
+      // (the class query comes first and finds nothing here)
       final w = GameWindow(testConfig(root), fake.sys, ProcScan(proc.path));
       expect(await w.find(7), (pid: 11, window: '100'));
       expect(fake.calls.last.args, [

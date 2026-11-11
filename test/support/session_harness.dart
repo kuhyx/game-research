@@ -118,6 +118,8 @@ class Harness {
   ProcessResult? _run(Call c) {
     if (failRuns.contains(c.exe)) return bad('${c.exe} failed');
     switch (c.exe) {
+      case 'xdotool' when c.args.contains('--class'):
+        return bad();
       case 'xdotool':
         final pid = c.args[3];
         return Directory(p.join(proc.path, pid)).existsSync()

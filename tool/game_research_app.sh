@@ -5,7 +5,8 @@
 # 1. builds the web page and both binaries if missing,
 # 2. starts the wrapper on 127.0.0.1:<port> as a `systemd-run --user` unit
 #    unless something already answers (it then outlives this script and the
-#    window, so a running session and its analysis job are never cut off),
+#    window, so a running session and its analysis job are never cut off);
+#    an idle wrapper older than its binary (after an install) is restarted,
 # 3. opens the Chrome app window through the wrapper's --window-only mode,
 #    so the browser flags live in exactly one place (lib/desktop/browser.dart).
 #    The window arms the 3 s autostart ring (last game, default Librarian).
@@ -51,6 +52,18 @@ usage() {
 
 wrapper_up() {
 	curl -fsS -o /dev/null --max-time 1 "http://127.0.0.1:${PORT}/api/state" 2>/dev/null
+}
+
+# The wrapper outlives every window, so after an install it would keep
+# serving old code to the new page. Stale = its binary is newer than the
+# running unit and nothing records or is pending: then it is restarted.
+stale_wrapper() {
+	local since state
+	since="$(systemctl --user show -p ActiveEnterTimestamp --value "$(unit_name).service" 2>/dev/null)"
+	[[ -n $since ]] || return 1
+	(($(stat -c %Y "$WRAPPER") > $(date -d "$since" +%s))) || return 1
+	state="$(curl -fsS --max-time 1 "http://127.0.0.1:${PORT}/api/state" 2>/dev/null)" || return 1
+	[[ $state == *'"recording":false'* && ! $state =~ \"phase\":\"(armed|launching|waiting)\" ]]
 }
 
 # kuhy's instance keeps its historical unit name; every other port its own.
@@ -131,7 +144,7 @@ main() {
 	if ((REBUILD)) || [[ ! -f $WEB_INDEX || ! -x $WRAPPER || ! -x $ANALYZER ]]; then
 		build
 	fi
-	wrapper_up || start_wrapper
+	if ! wrapper_up || stale_wrapper; then start_wrapper; fi
 	((WINDOW)) || exit 0
 	cd "$APP_DIR"
 	exec "$WRAPPER" --window-only "${WINDOW_ARGS[@]}"
