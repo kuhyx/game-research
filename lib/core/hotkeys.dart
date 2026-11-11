@@ -28,6 +28,25 @@ const kHotkeys = [
   Hotkey('super + shift + F4', '/api/stop?src=key'),
 ];
 
+/// [chord] spelt the way key caps read: `super + shift + F4` ->
+/// `Super+Shift+F4`.
+String keyLegend(String chord) => chord
+    .split(' + ')
+    .map((k) => '${k[0].toUpperCase()}${k.substring(1)}')
+    .join('+');
+
+/// The key legend bound to a marker [action] (`good`, `bad`, `confusing`,
+/// `note`) or `stop`, read from [kHotkeys] (the bindings sxhkd gets), or
+/// null when nothing is bound.
+String? shortcutFor(String action) {
+  for (final k in kHotkeys) {
+    final uri = Uri.parse(k.path);
+    final name = uri.path == '/api/stop' ? 'stop' : uri.queryParameters['tag'];
+    if (name == action) return keyLegend(k.chord);
+  }
+  return null;
+}
+
 /// The sxhkd config posting to the wrapper on [port] with [curl].
 String sxhkdConfig({required int port, String curl = 'curl'}) {
   final out = StringBuffer('# game-research session hotkeys (generated)\n');

@@ -52,4 +52,22 @@ bindcode $mod+67 exec x
     ]);
     expect(i3Collisions('bindsym \$mod+F5 exec x\n'), isEmpty);
   });
+
+  shortcutTests();
+}
+
+void shortcutTests() {
+  test('shortcutFor reads the key legend from the generated bindings', () {
+    expect(shortcutFor('good'), 'Super+F1');
+    expect(shortcutFor('bad'), 'Super+F2');
+    expect(shortcutFor('confusing'), 'Super+F3');
+    expect(shortcutFor('note'), 'Super+F4');
+    expect(shortcutFor('stop'), 'Super+Shift+F4');
+    expect(shortcutFor('start'), isNull);
+    for (final k in kHotkeys) {
+      // The label is the very chord sxhkd gets, only re-spelt.
+      final label = keyLegend(k.chord).toLowerCase().replaceAll('+', ' + ');
+      expect(label, k.chord.toLowerCase());
+    }
+  });
 }

@@ -29,6 +29,7 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
   real Steam, todo app, cleanup-plate checkout, microphone or speakers.
 - Text-free UI (textgate): icons, colours, numbers; accessibility labels live
   on lines containing `semantic` (`final semanticLabel = ...`).
+  One exception (kuhy, 2026-11-11: "put them as text I allow it in this case"): each control's global hotkey as a key legend (`Super+F1`) from `kHotkeys`, `lib/app/shortcut_label.dart`.
 - No LLM adjudicates anything: tier skips, stage results and the synthesis
   JSON are checked by code; a missing caption or a malformed draft fails the
   stage (fail closed).

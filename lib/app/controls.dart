@@ -1,13 +1,17 @@
 /// Start/Stop, the elapsed clock, the four marker buttons and the one-line
-/// note field. Icons and numbers only; every control has a semantics label.
+/// note field. Icons and numbers, plus each control's global hotkey as a
+/// key legend (kuhy's one text exception); every control has a semantics
+/// label, its hotkey as the semantics hint.
 library;
 
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:game_research/app/marker_style.dart';
 import 'package:game_research/app/models.dart';
+import 'package:game_research/app/note_field.dart';
+import 'package:game_research/app/shortcut_label.dart';
 import 'package:game_research/app/start_ring.dart';
+import 'package:game_research/core/hotkeys.dart';
 
 /// The session controls.
 class Controls extends StatelessWidget {
@@ -64,15 +68,22 @@ class Controls extends StatelessWidget {
           children: [
             Row(
               children: [
-                StartRing(
-                  state: state,
-                  now: now,
-                  child: _StartStop(
-                    recording: active,
-                    enabled: active || canStart,
-                    error: state.error,
-                    onPressed: active ? onStop : onStart,
-                  ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    StartRing(
+                      state: state,
+                      now: now,
+                      child: _StartStop(
+                        recording: active,
+                        enabled: active || canStart,
+                        error: state.error,
+                        onPressed: active ? onStop : onStart,
+                      ),
+                    ),
+                    // sxhkd (and so the stop key) runs only while recording.
+                    ShortcutLabel(rec ? 'stop' : null, active: rec),
+                  ],
                 ),
                 const SizedBox(width: AppSpacing.lg),
                 Icon(
@@ -105,17 +116,23 @@ class Controls extends StatelessWidget {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.xs),
-                      child: _MarkerButton(
-                        style: s,
-                        count: state.counts[s.tag] ?? 0,
-                        enabled: rec,
-                        onPressed: () => onMarker(s.tag),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _MarkerButton(
+                            style: s,
+                            count: state.counts[s.tag] ?? 0,
+                            enabled: rec,
+                            onPressed: () => onMarker(s.tag),
+                          ),
+                          ShortcutLabel(s.tag, active: rec),
+                        ],
                       ),
                     ),
                   ),
               ],
             ),
-            if (noteOpen) _NoteField(onNote: onNote),
+            if (noteOpen) NoteField(onNote: onNote),
           ],
         ),
       ),
@@ -144,6 +161,7 @@ class _StartStop extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: semanticLabel,
+      hint: recording ? shortcutFor('stop') : null,
       value: failed ? error : null,
       onTap: enabled ? onPressed : null,
       excludeSemantics: true,
@@ -191,6 +209,7 @@ class _MarkerButton extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: semanticLabel,
+      hint: shortcutFor(style.tag),
       value: '$count',
       onTap: enabled ? onPressed : null,
       excludeSemantics: true,
@@ -211,38 +230,6 @@ class _MarkerButton extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Text('$count', style: Theme.of(context).textTheme.titleLarge),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NoteField extends StatelessWidget {
-  const new({required this.onNote});
-
-  final ValueChanged<String> onNote;
-
-  @override
-  Widget build(BuildContext context) {
-    const semanticLabel = 'note text';
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md),
-      child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.escape): () => onNote(''),
-        },
-        child: Semantics(
-          label: semanticLabel,
-          child: TextField(
-            autofocus: true,
-            onSubmitted: onNote,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(
-                Icons.edit_note_rounded,
-                color: Color(0xFF2F6FE2),
-              ),
-            ),
-          ),
         ),
       ),
     );
