@@ -134,6 +134,9 @@ def main() -> int:
     p.add_argument("session", type=Path)
     p.add_argument("--raw", action="store_true", help="unshifted gsr file (.ts)")
     args = p.parse_args()
+    if not (args.session / "flashes.jsonl").is_file():
+        print("no flashes.jsonl: recorded before flash logging", file=sys.stderr)
+        return 2
     lines, missing = report(measure(args.session, args.raw))
     print("\n".join(lines))
     return 1 if missing else 0

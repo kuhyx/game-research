@@ -55,6 +55,16 @@ class Stage1 {
     return r;
   }
 
+  /// Input seek to [t] on the recording's absolute timeline (the first frame
+  /// sits at the recorder start-up delay, not 0): without `-seek_timestamp`
+  /// ffmpeg reads `-ss` as relative to the file's start_time.
+  static List<String> _seekAbs(double t) => [
+    '-seek_timestamp',
+    '1',
+    '-ss',
+    t.toStringAsFixed(3),
+  ];
+
   /// One decode pass, downscaled: freezedetect logs still stretches and
   /// select + showinfo log scene cuts. Writes scenes.json and still.jsonl.
   Future<(List<double>, List<Span>)> detect(double durationS) async {
@@ -84,6 +94,9 @@ class Stage1 {
     final r = await _ffmpeg([
       '-v',
       'info',
+      // Keep the file's own pts: showinfo and freezedetect then log absolute
+      // times, the timeline of the markers (start_time is not 0).
+      '-copyts',
       '-i',
       _video,
       '-an',
@@ -117,8 +130,7 @@ class Stage1 {
         await _ffmpeg([
           '-v',
           'error',
-          '-ss',
-          f.t.toStringAsFixed(3),
+          ..._seekAbs(f.t),
           '-i',
           _video,
           '-frames:v',
@@ -148,8 +160,7 @@ class Stage1 {
       await _ffmpeg([
         '-v',
         'error',
-        '-ss',
-        start.toStringAsFixed(3),
+        ..._seekAbs(start),
         '-i',
         _video,
         '-t',
