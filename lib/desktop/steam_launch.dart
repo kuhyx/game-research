@@ -139,8 +139,10 @@ class GameWindow {
       return null; // /proc unreadable this tick; the next poll retries
     }
     for (final pid in pids) {
-      // xdotool takes the next word as the pattern: '' matches any window.
-      final id = await _search(['--pid', '$pid', '']);
+      // xdotool takes the next word as the pattern. '' also matches the
+      // root window (no _NET_WM_PID filter there); '.' needs a name or
+      // class, which every game window has and root has not.
+      final id = await _search(['--pid', '$pid', '.']);
       if (id != null) return (pid: pid, window: id);
     }
     return null;
