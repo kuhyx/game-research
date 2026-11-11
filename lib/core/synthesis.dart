@@ -74,8 +74,11 @@ Drafts draftPaths(String targetRoot, String gameSlug) {
   );
 }
 
-/// The todo task's title.
-String todoTaskTitle(String game) => 'review $game research draft';
+/// The todo task's title. Reviewing is kuhy's manual work, and todoImplementer
+/// never runs a task titled `MANUAL WORK REQUIRED:` (cleanup-plate gets no
+/// Claude-runnable tasks).
+String todoTaskTitle(String game) =>
+    'MANUAL WORK REQUIRED: review $game research draft';
 
 /// The task's done check: the reviewed draft is committed in the target.
 String todoDoneCheck(String gameSlug) =>

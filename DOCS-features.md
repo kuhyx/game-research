@@ -25,7 +25,7 @@
 | Analysis job | starts after Stop (`systemd-run --user`) | `analysis/status.json` drives the ring; stages resume from their own outputs |
 | Stage 1 | automatic | `scenes.json`, `still.jsonl` (no motion >= 20 s), `frames/` (every marker + scene cuts at most one per 10 s, <= 1280 px), `clips/` (10 s per marker, stream copy, up to +1 s at the start keyframe), `contact/sheet_*.png` |
 | Stage 2 | automatic | `captions.jsonl`: one line per frame with `tier`, `model`, `skipped`; chain haiku -> OmniRoute `agnes/agnes-2.5-flash` -> ollama `qwen3-vl:30b-a3b-instruct`; a frame no tier captions fails the stage (rerun resumes) |
-| Stage 3 | automatic | one Opus call; `<target>/docs/research/DOCS-research-<game>.md` + `-pl.md` written uncommitted; todo task "review <game> research draft" (`--new-note`); frames shown: ceil(60 x hours), at least 1, marker frames first |
+| Stage 3 | automatic | one Opus call; `<target>/docs/research/DOCS-research-<game>.md` + `-pl.md` written uncommitted; todo task "MANUAL WORK REQUIRED: review <game> research draft" (`--new-note`); frames shown: ceil(60 x hours), at least 1, marker frames first |
 | Target picker | folder chips under the controls | any `~/src/*` with `docs/research/DOCS-research-questions.md`, default cleanup-plate; kept in `~/data/game-research/settings.json` |
 | Past sessions | right column | capsule, start `MM-DD HH:MM`, length, marker counts, progress ring (accent running, green done, red failed) |
 | Rerun analysis | refresh button on a row | new job; resumes a failed or unfinished one; on a finished one runs all three stages again (`--force`: new Opus call, drafts overwritten) |

@@ -78,7 +78,10 @@ void main() {
   });
 
   test('todoTaskTitle and done check name the game and the draft', () {
-    expect(todoTaskTitle('Foo Game'), 'review Foo Game research draft');
+    expect(
+      todoTaskTitle('Foo Game'),
+      'MANUAL WORK REQUIRED: review Foo Game research draft',
+    );
     expect(
       todoDoneCheck('foo-game'),
       'git ls-files --error-unmatch docs/research/DOCS-research-foo-game.md',
