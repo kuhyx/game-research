@@ -56,6 +56,10 @@ void main() {
       expect(call.args, containsAllInOrder(['--user', '--collect', '--quiet']));
       expect(call.args, contains('game-research-analyze-1700000000500'));
       expect(call.args, contains('WorkingDirectory=/repo'));
+      // The job never competes with a game: idle CPU and IO class.
+      expect(call.args, containsAllInOrder(['-p', 'Nice=19']));
+      expect(call.args, contains('CPUSchedulingPolicy=idle'));
+      expect(call.args, contains('IOSchedulingClass=idle'));
       expect(call.args, contains('--setenv=HOME=${root.path}'));
       expect(
         call.args.firstWhere((a) => a.startsWith('--setenv=PATH=')),

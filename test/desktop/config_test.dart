@@ -15,7 +15,8 @@ void main() {
     expect(c.display, ':7');
     expect(c.output, '', reason: 'auto: the game window decides');
     expect(c.audio, 'default');
-    expect(c.fps, 60);
+    expect(c.fps, 30, reason: 'analysis samples stills; 60 only costs');
+    expect(c.capture, 'auto');
     expect(c.srcRoot, '/h/src');
     expect(c.defaultTarget, '/h/src/cleanup-plate');
     expect(c.tickCmd, ['paplay', '/h/.local/share/game-research/tick.wav']);
@@ -105,7 +106,7 @@ void main() {
       'GAME_RESEARCH_FLASH_PX': 'y',
     });
     expect(c.port, kDefaultPort);
-    expect(c.fps, 60);
+    expect(c.fps, 30);
     expect(c.stillS, 20);
     expect(c.flashPx, 12);
   });

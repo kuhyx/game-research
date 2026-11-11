@@ -15,6 +15,12 @@ import 'package:path/path.dart' as p;
 /// Reports progress: [done] of [total] items.
 typedef Progress = void Function(int done, int total);
 
+/// Completes when the job may do its next heavy step.
+typedef Gate = Future<void> Function();
+
+/// A gate that never holds.
+Future<void> openGate() async {}
+
 /// Half the clip around a marker, seconds.
 const kClipHalfS = 5.0;
 
@@ -24,7 +30,7 @@ const kSceneThreshold = 0.3;
 /// Runs stage 1 on session folder [dir].
 class Stage1 {
   /// Creates the stage; [stillS] is the shortest still stretch reported.
-  const new(this.dir, this.sys, {this.stillS = 20});
+  const new(this.dir, this.sys, {this.stillS = 20, this.gate = openGate});
 
   /// Session folder.
   final String dir;
@@ -34,6 +40,9 @@ class Stage1 {
 
   /// Shortest no-motion stretch, seconds.
   final double stillS;
+
+  /// Awaited before each heavy step: holds the job while a recording runs.
+  final Gate gate;
 
   String get _out => p.join(dir, 'analysis');
   String get _video => p.join(dir, 'recording.mkv');
@@ -104,6 +113,7 @@ class Stage1 {
       final f = frames[i];
       final out = p.join(dir.path, f.file);
       if (!File(out).existsSync()) {
+        await gate();
         await _ffmpeg([
           '-v',
           'error',
@@ -133,6 +143,7 @@ class Stage1 {
       names.add(name);
       final out = p.join(dir.path, name);
       if (File(out).existsSync()) continue;
+      await gate();
       final start = m.offsetS - kClipHalfS < 0 ? 0.0 : m.offsetS - kClipHalfS;
       await _ffmpeg([
         '-v',
@@ -179,6 +190,7 @@ class Stage1 {
     required Progress progress,
   }) async {
     Directory(_out).createSync(recursive: true);
+    await gate();
     final (scenes, _) = await detect(durationS);
     final frames = sampleFrames(
       scenes: scenes,
@@ -191,6 +203,7 @@ class Stage1 {
     await extractFrames(frames, (d, _) => progress(d, total));
     await clips(markers);
     progress(frames.length + 1, total);
+    await gate();
     await contactSheets();
     progress(total, total);
     return frames;

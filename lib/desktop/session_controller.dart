@@ -91,7 +91,7 @@ class SessionController {
     final pick = await parts.recorder.resolveOutput(window: window);
     if (pick == null) throw const StartError('no monitor found');
     final output = pick.output;
-    final codec = await parts.recorder.probeEncoder();
+    final codec = await parts.recorder.probeCapture(output);
     if (codec == null) throw const StartError('no working video encoder');
     final now = DateTime.fromMicrosecondsSinceEpoch(
       (parts.sys.nowUnix() * 1e6).round(),
@@ -127,7 +127,7 @@ class SessionController {
       't0_unix': t0,
       'started_unix': t0,
       'state': 'recording',
-      'encoder': codec,
+      'encoder': rec.codec,
       'output': output.name,
       'output_why': pick.why,
       'video': 'recording.mkv',
@@ -152,7 +152,8 @@ class SessionController {
     parts.log.event('record_start', {
       'session': p.basename(dir.path),
       'appid': game.appid,
-      'encoder': codec,
+      'encoder': rec.codec,
+      if (rec.codec != codec) 'capture_fallback': '$codec (see gsr.log)',
       'output': output.name,
       'output_why': pick.why,
       'geometry': output.geometry,
@@ -225,8 +226,11 @@ class SessionController {
       ..['ended_by'] = endedBy
       ..['ended_unix'] = parts.sys.nowUnix();
     try {
-      final video = p.join(a.dir.path, 'recording.mkv');
-      meta['duration_s'] = await parts.recorder.embedChapters(video, a.markers);
+      meta['duration_s'] = await parts.recorder.finish(
+        a.recording,
+        a.markers,
+        a.t0,
+      );
     } on Object catch (e) {
       meta['error'] = '$e';
       lastError = '$e';

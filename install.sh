@@ -27,6 +27,7 @@ declare -A PKGS=(
 	["Xvfb"]=xorg-server-xvfb ["xvfb-run"]=xorg-server-xvfb ["curl"]=curl
 	["desktop-file-validate"]=desktop-file-utils ["xdg-open"]=xdg-utils
 	["pre-commit"]=python-pre-commit ["jq"]=jq
+	["gpu-screen-recorder"]=gpu-screen-recorder
 )
 readonly PKGS
 

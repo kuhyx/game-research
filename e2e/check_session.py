@@ -193,6 +193,9 @@ def main() -> int:
     p.add_argument("--art", type=Path)
     p.add_argument("--expect-markers", type=int, default=8)
     p.add_argument("--finished", action="store_true")
+    # A real play session (no fired.jsonl): only the border flash at each
+    # marker offset, the direct check of the gpu-screen-recorder time shift.
+    p.add_argument("--flash-only", action="store_true")
     args = p.parse_args()
     status_file = args.session / "analysis" / "status.json"
     if args.finished:
@@ -203,6 +206,10 @@ def main() -> int:
         )
         return 0 if state in ("done", "failed") else 1
     c = Checker()
+    if args.flash_only:
+        markers = jsonl(args.session / "markers.jsonl")
+        check_flash(c, args.session, markers)
+        return min(c.failed, 100)
     markers = check_markers(c, args.session, args.art, args.expect_markers)
     check_flash(c, args.session, markers)
     check_analysis(c, args.session, args.expect_markers)

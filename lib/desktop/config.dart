@@ -44,7 +44,8 @@ class Config {
       display: get('DISPLAY', env['DISPLAY'] ?? ':0'),
       output: get('OUTPUT', ''),
       audio: get('AUDIO', 'default'),
-      fps: int.tryParse(get('FPS', '')) ?? 60,
+      fps: int.tryParse(get('FPS', '')) ?? 30,
+      capture: get('CAPTURE', 'auto'),
       srcRoot: get('SRC', p.join(home, 'src')),
       defaultTarget: get('TARGET', p.join(home, 'src', 'cleanup-plate')),
       tickCmd: _words(get('TICK_CMD', 'paplay ${p.join(share, 'tick.wav')}')),
@@ -97,6 +98,7 @@ class Config {
     required this.output,
     required this.audio,
     required this.fps,
+    required this.capture,
     required this.srcRoot,
     required this.defaultTarget,
     required this.tickCmd,
@@ -174,6 +176,9 @@ class Config {
 
   /// Recording frame rate.
   final int fps;
+
+  /// `auto` (gpu-screen-recorder, else x11grab), `gsr` or `x11grab`.
+  final String capture;
 
   /// Folder whose children may be target projects.
   final String srcRoot;

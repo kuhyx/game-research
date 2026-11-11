@@ -1,4 +1,5 @@
-/// The ffmpeg command lines of a recording.
+/// The ffmpeg command lines of a recording: the x11grab fallback when
+/// gpu-screen-recorder (`gsr_args.dart`) cannot capture, and the remux.
 ///
 /// The same design as kuhy's earlier game-session recorder: x11grab of one
 /// output, game
@@ -162,13 +163,19 @@ List<String> ffmpegRecordArgs(RecordSpec s) => [
 ];
 
 /// Remuxes [video] with the chapters in [ffmeta] into [tmp], streams copied
-/// and timestamps kept.
-List<String> embedChaptersArgs(String video, String ffmeta, String tmp) => [
+/// and timestamps kept, moved later by [shiftS] (gsr's first-frame delay).
+List<String> embedChaptersArgs(
+  String video,
+  String ffmeta,
+  String tmp, {
+  double shiftS = 0,
+}) => [
   'ffmpeg',
   '-v',
   'error',
   '-y',
   '-copyts',
+  if (shiftS != 0) ...['-itsoffset', shiftS.toStringAsFixed(6)],
   '-i',
   video,
   '-f',

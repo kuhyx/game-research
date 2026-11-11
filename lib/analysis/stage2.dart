@@ -16,13 +16,16 @@ import 'package:path/path.dart' as p;
 /// Runs stage 2 on session folder [dir].
 class Stage2 {
   /// Creates the stage over [tiers] (in fallback order).
-  const new(this.dir, this.tiers);
+  const new(this.dir, this.tiers, {this.gate = openGate});
 
   /// Session folder.
   final String dir;
 
   /// Caption tiers.
   final List<CaptionTier> tiers;
+
+  /// Awaited before each caption: holds the job while a recording runs.
+  final Gate gate;
 
   File get _captions => File(p.join(dir, 'analysis', 'captions.jsonl'));
 
@@ -46,6 +49,7 @@ class Stage2 {
     for (var i = 0; i < frames.length; i++) {
       final f = frames[i];
       if (!have.contains(f.file)) {
+        await gate();
         final rec = await captionWithFallback(
           tiers,
           p.join(dir, 'analysis', 'frames', f.file),

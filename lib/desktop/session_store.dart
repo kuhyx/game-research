@@ -147,6 +147,12 @@ class AnalysisLauncher {
       'game-research-analyze-$stamp',
       '-p',
       'WorkingDirectory=${config.repo}',
+      // Never compete with a game: idle CPU and IO class, lowest priority.
+      for (final prop in const [
+        'Nice=19',
+        'CPUSchedulingPolicy=idle',
+        'IOSchedulingClass=idle',
+      ]) ...['-p', prop],
       for (final e in env.entries) '--setenv=${e.key}=${e.value}',
       analyzer,
       ...args,
