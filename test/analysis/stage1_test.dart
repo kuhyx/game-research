@@ -107,6 +107,16 @@ void main() {
       SampleFrame(t: 9, kind: FrameKind.scene, file: 'f_0002.png'),
     ];
 
+    test('a failing ffmpeg run stops the extraction', () async {
+      fake.onRun = (_) => bad('disk full');
+      await expectLater(
+        stage.extractFrames(frames, progress),
+        throwsA(
+          isA<StateError>().having((e) => '$e', 'text', contains('disk full')),
+        ),
+      );
+    });
+
     test('extracts the missing ones and reports each step', () async {
       final dir = Directory(p.join(fx.session.path, 'analysis', 'frames'))
         ..createSync(recursive: true);

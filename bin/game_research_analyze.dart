@@ -21,7 +21,13 @@ Future<void> main(List<String> args) async {
   );
   final client = http.Client();
   try {
-    exitCode = await analyzeMain(args, config, const Sys(), client);
+    exitCode = await analyzeMain(
+      args,
+      config,
+      const Sys(),
+      client,
+      err: stderr,
+    );
   } finally {
     client.close();
   }

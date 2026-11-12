@@ -114,13 +114,7 @@ class JobLock {
         }
         // Stale or garbled: remove it, but only if it is still that same
         // text (another job may just have taken it over).
-        try {
-          if (cur == null || _link.targetSync() == cur.text || cur.pid == 0) {
-            _link.deleteSync();
-          }
-        } on FileSystemException {
-          continue;
-        }
+        if (cur == null || _link.existsSync() && _same(cur)) _drop();
       }
     }
     return false;
@@ -129,12 +123,13 @@ class JobLock {
   /// Frees the lock if this process holds it.
   void release() {
     final cur = _readGlobal();
-    if (cur != null && cur.pid == selfPid) {
-      try {
-        _link.deleteSync();
-      } on FileSystemException {
-        return;
-      }
-    }
+    if (cur != null && cur.pid == selfPid) _drop();
+  }
+
+  bool _same(JobHolder seen) => _readGlobal()?.text == seen.text;
+
+  /// Deletes the lock link; a link that is already gone is fine.
+  void _drop() {
+    if (_link.existsSync()) _link.deleteSync();
   }
 }

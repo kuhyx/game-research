@@ -104,6 +104,44 @@ void main() {
     expect(JobLock(data).holder(), isNull);
   });
 
+  test('the real Opus call reads the target and every session', () async {
+    analysed(fx.session);
+    final env = jsonEncode({
+      'subtype': 'success',
+      'is_error': false,
+      'result': _answer,
+      'modelUsage': {'claude-opus-4-8': <String, Object>{}},
+      'usage': {'input_tokens': 70, 'output_tokens': 30},
+      'total_cost_usd': 0.75,
+    });
+    fake.onRun = (c) => switch (c.exe) {
+      'timeout' => ok(env),
+      'faketodo' => ok('t-3'),
+      _ => bad('no remote', 2),
+    };
+    final real = FinishRunner(
+      'alpha',
+      testConfig(fx.root, extra: {'GAME_RESEARCH_TODO_CMD': 'faketodo'}),
+      fake.sys,
+    );
+    expect(await real.run(), 0);
+    final call = fake.of('timeout').single;
+    expect(call.args, containsAllInOrder(['--model', 'opus']));
+    expect(
+      call.args,
+      containsAllInOrder([
+        '--add-dir',
+        fx.target.path,
+        '--add-dir',
+        fx.session.path,
+      ]),
+    );
+    final done = json('finish.json');
+    expect(done['model'], 'claude-opus-4-8');
+    expect(done['tokens'], containsPair('in', 70));
+    expect(done['cost_usd'], 0.75);
+  });
+
   test('a rerun with nothing new costs nothing', () async {
     analysed(fx.session);
     await runner().run();

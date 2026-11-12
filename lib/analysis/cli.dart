@@ -31,15 +31,14 @@ Future<int> analyzeMain(
   Config config,
   Sys sys,
   http.Client client, {
+  required IOSink err,
   Duration recordingPoll = const Duration(seconds: 5),
-  IOSink? err,
 }) async {
-  final sink = err ?? stderr;
   final resume = ResumeAll(config, sys, client, recordingPoll: recordingPoll);
   final flags = args.where((a) => a.startsWith('--')).toSet();
   final words = args.where((a) => !a.startsWith('--')).toList();
   int usage() {
-    sink.writeln(kUsage);
+    err.writeln(kUsage);
     return JobExit.usage;
   }
 
