@@ -6,11 +6,14 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:game_research/analysis/decode.dart';
 import 'package:game_research/core/ffmpeg_parse.dart';
 import 'package:game_research/core/markers.dart';
 import 'package:game_research/core/sampling.dart';
 import 'package:game_research/desktop/sys.dart';
 import 'package:path/path.dart' as p;
+
+export 'package:game_research/analysis/decode.dart';
 
 /// Reports progress: [done] of [total] items.
 typedef Progress = void Function(int done, int total);
@@ -67,7 +70,10 @@ class Stage1 {
 
   /// One decode pass, downscaled: freezedetect logs still stretches and
   /// select + showinfo log scene cuts. Writes scenes.json and still.jsonl.
-  Future<(List<double>, List<Span>)> detect(double durationS) async {
+  Future<(List<double>, List<Span>)> detect(
+    double durationS, {
+    Progress? progress,
+  }) async {
     final scenesFile = File(p.join(_out, 'scenes.json'));
     final stillFile = File(p.join(_out, 'still.jsonl'));
     if (scenesFile.existsSync() && stillFile.existsSync()) {
@@ -91,22 +97,34 @@ class Stage1 {
     final filter =
         'scale=320:-2,freezedetect=n=-50dB:d=${stillS.toStringAsFixed(1)},'
         "select='gt(scene,$kSceneThreshold)',showinfo";
-    final r = await _ffmpeg([
-      '-v',
-      'info',
-      // Keep the file's own pts: showinfo and freezedetect then log absolute
-      // times, the timeline of the markers (start_time is not 0).
-      '-copyts',
-      '-i',
-      _video,
-      '-an',
-      '-vf',
-      filter,
-      '-f',
-      'null',
-      '-',
-    ]);
-    final log = '${r.stderr}';
+    final log = await runDecode(
+      sys,
+      [
+        '-v',
+        'info',
+        // Real progress on stdout, one `key=value` per line.
+        '-progress',
+        'pipe:1',
+        '-nostats',
+        '-stats_period',
+        '2',
+        // Keep the file's own pts: showinfo and freezedetect then log absolute
+        // times, the timeline of the markers (start_time is not 0).
+        '-copyts',
+        '-i',
+        _video,
+        '-an',
+        '-vf',
+        filter,
+        '-f',
+        'null',
+        '-',
+      ],
+      (line) {
+        final units = decodeUnits(line, durationS);
+        if (units != null) progress?.call(units, kStageUnits);
+      },
+    );
     final scenes = parseSceneCuts(log);
     final spans = parseFreezes(log, durationS: durationS);
     scenesFile.writeAsStringSync(jsonEncode(scenes));
@@ -202,7 +220,8 @@ class Stage1 {
   }) async {
     Directory(_out).createSync(recursive: true);
     await gate();
-    final (scenes, _) = await detect(durationS);
+    final (scenes, _) = await detect(durationS, progress: progress);
+    progress(kDecodeUnits, kStageUnits);
     final frames = sampleFrames(
       scenes: scenes,
       markers: markers,
@@ -210,13 +229,17 @@ class Stage1 {
     );
     File(p.join(_out, 'frames.json'))
         .writeAsStringSync(const JsonEncoder.withIndent(' ').convert(frames));
-    final total = frames.length + 2;
-    await extractFrames(frames, (d, _) => progress(d, total));
+    final steps = frames.length + 2;
+    void step(int done) => progress(
+      kDecodeUnits + ((kStageUnits - kDecodeUnits) * done / steps).round(),
+      kStageUnits,
+    );
+    await extractFrames(frames, (d, _) => step(d));
     await clips(markers);
-    progress(frames.length + 1, total);
+    step(frames.length + 1);
     await gate();
     await contactSheets();
-    progress(total, total);
+    step(steps);
     return frames;
   }
 }

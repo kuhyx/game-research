@@ -22,7 +22,9 @@ void main() {
 
   setUp(() {
     fx = Fixture();
-    fake = FakeSys()..onRun = ffmpegFake;
+    fake = FakeSys()
+      ..onRun = ffmpegFake
+      ..onStart = ffmpegStart;
     stage = Stage1(fx.session.path, fake.sys, stillS: 2);
     ticks = [];
   });
@@ -47,6 +49,30 @@ void main() {
       expect(fake.calls, hasLength(1), reason: 'cached, no second decode');
     });
 
+    test('the decode reports real progress from ffmpeg -progress', () async {
+      analysis();
+      final seen = <(int, int)>[];
+      await stage.detect(40, progress: (d, t) => seen.add((d, t)));
+      expect(seen.first, (225, 1000), reason: '10 s of 40 s: 25 % of 900');
+      expect(seen.last, (900, 1000), reason: 'never above the decode share');
+      final args = fake.calls.single.args;
+      expect(args, containsAllInOrder(['-progress', 'pipe:1', '-nostats']));
+      expect(
+        args.indexOf('-progress'),
+        lessThan(args.indexOf('-i')),
+        reason: 'a global option',
+      );
+    });
+
+    test('progress is clamped, junk lines and zero duration are ignored', () {
+      expect(decodeUnits('out_time_us=20000000', 40), 450);
+      expect(decodeUnits('out_time_us=99000000', 40), 900);
+      expect(decodeUnits('out_time_us=-5', 40), 0);
+      expect(decodeUnits('out_time_us=N/A', 40), isNull);
+      expect(decodeUnits('progress=continue', 40), isNull);
+      expect(decodeUnits('out_time_us=5', 0), isNull);
+    });
+
     test('the cache tolerates a blank line', () async {
       analysis();
       fx.out('scenes.json').writeAsStringSync('[1, 2.5]');
@@ -61,7 +87,7 @@ void main() {
 
     test('a failing ffmpeg throws with its stderr', () async {
       analysis();
-      fake.onRun = (_) => bad('no such file');
+      fake.onStart = (_) => FakeProcess(exit: 1, stderrText: 'no such file');
       await expectLater(
         stage.detect(40),
         throwsA(
@@ -135,8 +161,14 @@ void main() {
         FrameKind.scene,
       ]);
       expect(fx.out('frames.json').readAsStringSync(), contains('f_0003.png'));
-      expect(ticks.last, (5, 5));
-      expect(ticks.map((t) => t.$1), [1, 2, 3, 4, 5]);
+      expect(ticks.last, (1000, 1000));
+      expect(
+        ticks.map((t) => t.$1),
+        orderedEquals([...ticks.map((t) => t.$1)]..sort()),
+        reason: 'the ring never moves back',
+      );
+      expect(ticks.map((t) => t.$2).toSet(), {1000});
+      expect(ticks.first.$1, lessThan(900), reason: 'the decode reports');
       expect(fx.out('contact/sheet_001.png').existsSync(), isTrue);
       final calls = fake.calls.length;
       await stage.run(durationS: 40, markers: markers, progress: progress);

@@ -38,6 +38,7 @@ void main() {
     fx = Fixture();
     opusAnswer = ok(kAnswer);
     fake = FakeSys()
+      ..onStart = ffmpegStart
       ..onRun = (c) {
         switch (c.exe) {
           case 'ffmpeg':

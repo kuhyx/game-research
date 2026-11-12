@@ -25,8 +25,8 @@ const kScenesLog = '''
 [freezedetect @ 0x56] lavfi.freezedetect.freeze_end: 6.5
 ''';
 
-/// Plays ffmpeg: the detect pass (`-f null -`) logs [log] on stderr, every
-/// other call writes its output file (a `%03d` pattern becomes `001`).
+/// Plays ffmpeg's `run` calls: every one writes its output file (a `%03d`
+/// pattern becomes `001`). The detect pass goes through [ffmpegStart].
 ProcessResult? ffmpegFake(Call c, {String log = kScenesLog}) {
   if (c.exe != 'ffmpeg') return null;
   final out = c.args.last;
@@ -36,6 +36,26 @@ ProcessResult? ffmpegFake(Call c, {String log = kScenesLog}) {
     ..writeAsStringSync('out');
   return null;
 }
+
+/// ffmpeg's `-progress` output for a decode that is 25 % and then 100 % done
+/// of a 40 s recording (times are absolute: `-copyts`).
+const kProgress = '''
+out_time_us=10000000
+progress=continue
+out_time_us=40000000
+progress=end
+''';
+
+/// Plays the detect pass, which runs through `start` so its progress can be
+/// read while it works: [progress] on stdout, [log] on stderr.
+FakeProcess? ffmpegStart(
+  Call c, {
+  String log = kScenesLog,
+  String progress = kProgress,
+  int exit = 0,
+}) => c.exe == 'ffmpeg'
+    ? FakeProcess(exit: exit, stdoutText: progress, stderrText: log)
+    : null;
 
 /// A session folder with a target repo that has the questions templates.
 class Fixture {

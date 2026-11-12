@@ -34,6 +34,7 @@ void main() {
     fx = Fixture(duration: duration, templates: templates);
     llmFails = false;
     fake = FakeSys()
+      ..onStart = ffmpegStart
       ..onRun = (c) {
         switch (c.exe) {
           case 'ffmpeg':
@@ -131,7 +132,7 @@ void main() {
   });
 
   test('ffmpeg failing fails stage 1', () async {
-    fake.onRun = (_) => bad('corrupt');
+    fake.onStart = (_) => FakeProcess(exit: 1, stderrText: 'corrupt');
     expect(await runner().run(), 1);
     expect(fx.status, containsPair('stage', 1));
     expect(fx.status['error'], contains('corrupt'));
