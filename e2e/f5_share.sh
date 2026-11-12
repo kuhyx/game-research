@@ -6,9 +6,12 @@
 # received into its window title. Chromium delivers files OR text per paste,
 # so the flow is two pastes: files, then text.
 #
-#   files  -> 8 files NN_<tag>.jpg, 01.. in order   copy notes 1 files
+#   blocked-> marker 2 has no note: copy icons off and POST copy is 409
+#             until the note is typed into its field (POST .../note)
+#   files  -> 8 captioned files NN_<tag>.jpg, 01.. in order (taller than the
+#             still: the note band) copy notes 1 files
 #   text   -> starts with `**`              copy notes 1 text
-#   marker -> 1 file                        copy marker <session> 1
+#   marker -> 1 captioned file 01_<tag>.jpg copy marker <session> 1
 #   short  -> <= 1900 chars, no `|`         copy short (on the draft)
 
 # shellcheck source=e2e/lib.sh
@@ -26,6 +29,12 @@ live() { fwd tree | grep -F "\"$1" | grep -vqF '[disabled]'; }
 # Copies the wrapper answered with 200.
 copies_ok() {
 	grep -c '"event":"api","path":"[^"]*copy".*"status":200' "${ART}/data/playstudy.jsonl" || true
+}
+
+# HTTP status of POST $1 with optional body $2 (curl without -f).
+post_status() {
+	curl -sS -m 10 -o /dev/null -w '%{http_code}' -X POST --data "${2:-}" \
+		"http://127.0.0.1:${E2E_PORT}$1"
 }
 
 # Taps $1 (a label prefix) and waits until the wrapper confirms copy number $2
@@ -67,6 +76,13 @@ BASE="$(copies_ok)"
 step "session with 8 markers"
 [[ $(wc -l <"${session}/markers.jsonl") -eq 8 ]] || fail "no 8-marker session; run F1 and F1-check first"
 
+step "marker 2 loses its note (an unfinished session)"
+jq -c 'if input_line_number == 2 then .note = "" else . end' "${session}/markers.jsonl" >"${session}/markers.tmp" &&
+	mv "${session}/markers.tmp" "${session}/markers.jsonl"
+[[ $(jq -r 'select(.note == "") | .tag' "${session}/markers.jsonl" | wc -l) -eq 1 ]] ||
+	fail "marker 2 still has a note"
+sid="$(basename "$session")"
+
 step "fresh page (a rerun may find a panel open)"
 fwd eval 'location.reload()' >/dev/null || fail "reload failed"
 fwd wait "$E2E_GAME" --timeout 30 >/dev/null || fail "game tile never showed"
@@ -82,20 +98,41 @@ wait_for "fwd tap-xy 900 3 >/dev/null 2>&1 && fwd wait 'my notes' --timeout 1 >/
 	fail "toolbar never showed"
 fwd tap "my notes" >/dev/null || fail "no my notes icon"
 
+step "empty note blocks every copy: icons off, POST 409"
+wait_for "fwd tree | grep -qF '\"copy notes 1 files'" 15 || fail "notes never loaded"
+live 'copy notes 1 files' && fail "files copy is on with an empty note"
+live 'copy notes 1 text' && fail "text copy is on with an empty note"
+[[ $(post_status "/api/games/${E2E_APPID}/notes/1/copy?what=files") == 409 ]] || fail "files copy not refused"
+[[ $(post_status "/api/games/${E2E_APPID}/notes/1/copy?what=text") == 409 ]] || fail "text copy not refused"
+[[ $(post_status "/api/sessions/${sid}/markers/2/copy") == 409 ]] || fail "marker copy not refused"
+[[ $(post_status "/api/sessions/${sid}/markers/2/note" '{"note": "  "}') == 400 ]] || fail "empty note not 400"
+[[ $(post_status "/api/sessions/${sid}/markers/99/note" '{"note": "x"}') == 404 ]] || fail "unknown marker not 404"
+
+step "type the note into its field: copies unlock"
+fwd tap "note text ${sid} 2" >/dev/null || fail "no note field on marker 2"
+fwd text "saved by F5" >/dev/null
+fwd key Enter >/dev/null
+wait_for "grep -q 'saved by F5' ${session}/markers.jsonl" 10 || fail "the note never reached markers.jsonl"
+[[ $(jq -c . "${session}/markers.jsonl" | wc -l) -eq 8 ]] || fail "markers.jsonl lost a line"
+
 step "paste window"
 start_paste_browser
 
-step "copy notes 1 files, paste: 8 stills"
+step "copy notes 1 files, paste: 8 captioned stills"
 copy_tap "copy notes 1 files" 1
 paste_check 1 --files 8 --ordered --names '0[1-8]_(good|bad|confusing|note)\.jpg'
+python3 "${E2E_REPO}/e2e/check_staged.py" "${ART}/data/share/dummy-game-1" \
+	"${session}/analysis/clips" 8 || fail "staged images are not captioned"
 
 step "copy notes 1 text, paste: starts with **"
 copy_tap "copy notes 1 text" 2
 paste_check 2 --files 0 --text-prefix '**'
 
-step "copy one marker, paste: 1 still"
+step "copy one marker, paste: 1 captioned still"
 copy_tap "copy marker" 3
-paste_check 3 --files 1 --names 'm_\d\d_\w+\.jpg'
+paste_check 3 --files 1 --names '01_\w+\.jpg'
+python3 "${E2E_REPO}/e2e/check_staged.py" "${ART}/data/share/marker-${sid}-1" \
+	"${session}/analysis/clips" 1 || fail "the marker image is not captioned"
 
 step "copy short on the draft, paste: <= 1900 chars, no |"
 fwd tap close >/dev/null || fail "no close on the notes"

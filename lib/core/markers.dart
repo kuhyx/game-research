@@ -110,18 +110,45 @@ class Marker {
   String toLine() => jsonEncode(toJson());
 }
 
+// The markers of [lines] with their line index, in `parseMarkers` order: by
+// offset, ties by line (Dart's sort is not stable, so the line decides).
+List<(Marker, int)> _indexed(List<String> lines) {
+  final found = <(Marker, int)>[];
+  for (var k = 0; k < lines.length; k++) {
+    parseJsonl(
+      lines[k],
+      accept: (row) {
+        found.add((Marker.fromJson(row), k));
+        return true;
+      },
+    );
+  }
+  return found..sort((a, b) {
+    final byOffset = a.$1.offsetS.compareTo(b.$1.offsetS);
+    return byOffset != 0 ? byOffset : a.$2.compareTo(b.$2);
+  });
+}
+
 /// Every marker in a `markers.jsonl` text, sorted by offset. A line a power
 /// cut tore, or that is not a marker, is skipped (see `parseJsonl`).
-List<Marker> parseMarkers(String text) {
-  final markers = <Marker>[];
-  parseJsonl(
-    text,
-    accept: (row) {
-      markers.add(Marker.fromJson(row));
-      return true;
-    },
-  );
-  return markers..sort((a, b) => a.offsetS.compareTo(b.offsetS));
+List<Marker> parseMarkers(String text) => [
+  for (final (m, _) in _indexed(const LineSplitter().convert(text))) m,
+];
+
+/// [text] with the note of marker [i] (1-based, `parseMarkers` order)
+/// replaced by [note]: that line is re-encoded with every other key kept, the
+/// other lines and the line order stay as they were. Null when there is no
+/// marker [i].
+String? withMarkerNote(String text, int i, String note) {
+  final lines = const LineSplitter().convert(text);
+  final found = _indexed(lines);
+  if (i < 1 || i > found.length) return null;
+  final k = found[i - 1].$2;
+  lines[k] = jsonEncode({
+    ...jsonDecode(lines[k]) as Map<String, Object?>,
+    'note': note,
+  });
+  return '${lines.join('\n')}\n';
 }
 
 /// How many markers of each tag, every tag present.

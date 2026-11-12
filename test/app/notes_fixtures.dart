@@ -25,14 +25,15 @@ Map<String, Object?> marker(
 };
 
 /// Two parts: two sessions in the first, an unknown tag in the second.
-List<Map<String, Object?>> twoParts({bool still = true}) => [
+/// [noted] false leaves the second marker of the first session without a note.
+List<Map<String, Object?>> twoParts({bool still = true, bool noted = true}) => [
   {
     'n': 1,
     'of': 2,
     'text': '**One** · my notes 1/2',
     'markers': [
       marker(stampA, 1, 'good', '0:01:05', 'nice shelf', still: still),
-      marker(stampA, 2, 'bad', '0:01:30', '', still: still),
+      marker(stampA, 2, 'bad', '0:01:30', noted ? 'bad one' : '', still: still),
       marker(stampB, 1, 'confusing', '1:02:03', 'what now', still: still),
     ],
   },

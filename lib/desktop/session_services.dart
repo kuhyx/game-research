@@ -141,8 +141,16 @@ class Overlay {
 
 /// The text-free dmenu line for a hotkey note: no prompt, no items.
 class NoteAsker {
-  /// Creates the asker.
-  new(this.config, this.sys);
+  /// Creates the asker; [retryAfter] is the pause before an empty line is
+  /// asked again.
+  new(
+    this.config,
+    this.sys, {
+    this.retryAfter = const Duration(milliseconds: 300),
+  });
+
+  /// Pause before asking again.
+  final Duration retryAfter;
 
   /// Settings.
   final Config config;
@@ -151,8 +159,22 @@ class NoteAsker {
   final Sys sys;
   final _open = <Process>{};
 
-  /// What kuhy typed ('' on Escape or when [cancelAll] closed it).
-  Future<String> ask() async {
+  /// A note kuhy typed: asks again on Esc or an empty line until text
+  /// arrives. Once [stopped] says so (the session ended) an empty answer is
+  /// kept, and a dmenu that cannot start ends it at once.
+  Future<String> askNote(bool Function() stopped) async {
+    while (true) {
+      final text = await ask();
+      if (text == null) return '';
+      if (text.isNotEmpty || stopped()) return text;
+      await Future<void>.delayed(retryAfter);
+      if (stopped()) return '';
+    }
+  }
+
+  /// What kuhy typed ('' on Escape or when [cancelAll] closed it; null when
+  /// dmenu cannot start).
+  Future<String?> ask() async {
     final Process proc;
     try {
       proc = await sys.start(
@@ -174,7 +196,7 @@ class NoteAsker {
         environment: {'DISPLAY': config.display},
       );
     } on ProcessException {
-      return '';
+      return null;
     }
     _open.add(proc);
     unawaited(proc.stdin.close());

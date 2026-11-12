@@ -61,7 +61,7 @@ class ShareHarness {
     );
     const markers = [
       Marker(wallUnix: 1, offsetS: 65, tag: MarkerTag.good, note: 'nice'),
-      Marker(wallUnix: 2, offsetS: 90, tag: MarkerTag.bad),
+      Marker(wallUnix: 2, offsetS: 90, tag: MarkerTag.bad, note: 'rough'),
     ];
     File(p.join(x.session.path, 'markers.jsonl'))
         .writeAsStringSync(markers.map((m) => '${m.toLine()}\n').join());
@@ -109,6 +109,22 @@ class ShareHarness {
   File stillOf(String name) =>
       File(p.join(session.path, 'analysis', 'clips', name));
 
+  /// Marker 2 loses its note again (an unfinished session).
+  void clearNote2() {
+    final file = File(p.join(session.path, 'markers.jsonl'));
+    final lines = const LineSplitter()
+        .convert(file.readAsStringSync())
+        .map((l) => l.replaceAll('"note":"rough"', '"note":""'));
+    file.writeAsStringSync('${lines.join('\n')}\n');
+  }
+
+  /// `POST` the note [note] of marker [i] of [id].
+  Future<Reply> postNote(String id, String i, String note) => s.hit(
+    'POST',
+    '/api/sessions/$id/markers/$i/note',
+    body: jsonEncode({'note': note}),
+  );
+
   /// Both stills exist.
   void cutStills() {
     stillOf('m_01_good.jpg')
@@ -128,7 +144,12 @@ class ShareHarness {
         'started_unix': DateTime(2026, 11, 9, 20).millisecondsSinceEpoch / 1e3,
       }),
     );
-    const marker = Marker(wallUnix: 1, offsetS: 10, tag: MarkerTag.good);
+    const marker = Marker(
+      wallUnix: 1,
+      offsetS: 10,
+      tag: MarkerTag.good,
+      note: 'early',
+    );
     File(p.join(dir.path, 'markers.jsonl'))
         .writeAsStringSync('${marker.toLine()}\n');
     File(p.join(dir.path, 'recording.mkv')).writeAsStringSync('v');

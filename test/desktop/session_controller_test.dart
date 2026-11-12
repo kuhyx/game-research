@@ -100,6 +100,30 @@ void main() {
     await h.controller.stop();
   });
 
+  test('hotkey markers ask again after Esc or an empty line', () async {
+    h.dmenuAnswers.addAll(['', '\n', 'finally\n', '', 'second\n']);
+    await h.controller.start(game);
+    await h.controller.marker(MarkerTag.good, ask: true);
+    await h.controller.marker(MarkerTag.confusing, ask: true);
+    await settle();
+    await h.controller.stop();
+    expect(h.markerLines.map((m) => m['note']).toSet(), {'finally', 'second'});
+    expect(h.dmenuOpens, 5);
+  });
+
+  test('stop keeps an unanswered marker empty and stops asking', () async {
+    h.dmenuText = '';
+    await h.controller.start(game);
+    await h.controller.marker(MarkerTag.bad, ask: true);
+    await settle();
+    expect(h.dmenuOpens, greaterThan(1), reason: 'asked again and again');
+    await h.controller.stop();
+    final opens = h.dmenuOpens;
+    await settle();
+    expect(h.markerLines.single['note'], '');
+    expect(h.dmenuOpens, opens);
+  });
+
   test('note and marker without a session', () async {
     expect(h.controller.note(1, 'x'), isFalse);
     expect(

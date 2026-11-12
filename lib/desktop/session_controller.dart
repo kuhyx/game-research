@@ -188,16 +188,15 @@ class SessionController {
       return Future.value(id);
     }
     if (ask) {
-      a.asks.add(
-        parts.asker.ask().then((text) => _append(a, m.copyWith(note: text))),
-      );
+      final asked = parts.asker.askNote(() => a.stopping);
+      a.asks.add(asked.then((t) => _append(a, m.copyWith(note: t))));
       return Future.value();
     }
     _append(a, m);
     return Future.value();
   }
 
-  /// Closes held marker [id] with [text]; false when there is none.
+  /// Closes held marker [id] with [text]; false when none.
   bool note(int id, String text) {
     final a = _active;
     final m = a?.pending.remove(id);

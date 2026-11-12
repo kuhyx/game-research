@@ -69,7 +69,7 @@ void main() {
       expect(r.status, 200);
       const text =
           '**Librarian** · my notes 1/1\n__2026-11-10__\n'
-          '👍 `0:01:05` nice\n👎 `0:01:30`';
+          '👍 `0:01:05` nice\n👎 `0:01:30` rough';
       expect(r.json, {'ok': true, 'files': 2, 'chars': text.length});
       final dir = p.join(x.s.h.config.dataDir, 'share', 'librarian-1');
       expect(x.starts.single.$1, [
@@ -81,9 +81,9 @@ void main() {
           File(p.join(dir, '02_bad.jpg')).readAsBytesSync(),
           allowMalformed: true,
         ),
-        startsWith('cap|0:01:30||Librarian · 2026-11-10|'),
+        startsWith('cap|0:01:30|rough|Librarian · 2026-11-10|'),
       );
-      expect(x.captions.single.map((j) => j['note']), ['nice', '']);
+      expect(x.captions.single.map((j) => j['note']), ['nice', 'rough']);
       expect(
         File(p.join(dir, '..', 'librarian-1.jobs.json')).existsSync(),
         isFalse,
@@ -109,10 +109,10 @@ void main() {
           p.join(dir, '02_good.jpg'),
           p.join(dir, '03_bad.jpg'),
         ]);
-        expect(File(names.first).readAsBytesSync().sublist(37), [
-          0xFF,
-          0xD8,
+        expect(File(names.first).readAsBytesSync().reversed.take(3).toList(), [
           9,
+          0xD8,
+          0xFF,
         ]);
         expect(x.captions.single.first['right'], 'Librarian · 2026-11-09');
         expect(early.existsSync(), isTrue);
