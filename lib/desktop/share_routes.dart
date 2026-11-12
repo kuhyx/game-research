@@ -64,6 +64,8 @@ class ShareRoutes {
         await _still(res, id, i);
       case ('POST', ['games', final id, 'notes', final n, 'copy']):
         await _copyPart(res, id, n, what);
+      case ('POST', ['sessions', final id, 'markers', final i, 'note']):
+        await _saveNote(req, res, id, i);
       case ('POST', ['sessions', final id, 'markers', final i, 'copy']):
         await _copyMarker(res, id, i);
       case ('POST', ['doc', 'copy']):
@@ -116,6 +118,9 @@ class ShareRoutes {
       return _err(res, HttpStatus.notFound, 'no such part');
     }
     final part = all[k - 1];
+    if (part.markers.any((m) => m.note.isEmpty)) {
+      return _err(res, HttpStatus.conflict, 'a marker has no note');
+    }
     if (what == 'text') return await _copy(res, const [], part.text);
     // Discord pairs images with note lines by order only, so a part with a
     // missing still is not copied at all.
@@ -143,12 +148,42 @@ class ShareRoutes {
     await _copy(res, files, part.text);
   }
 
+  /// kuhy's note of one marker, from the body `{"note": "..."}`.
+  Future<void> _saveNote(
+    HttpRequest req,
+    HttpResponse res,
+    String id,
+    String i,
+  ) async {
+    final body = await utf8.decoder.bind(req).join();
+    final Object? json;
+    try {
+      json = jsonDecode(body);
+    } on FormatException {
+      return _err(res, HttpStatus.badRequest, 'json {note} needed');
+    }
+    final raw = json is Map ? json['note'] : null;
+    final note = raw is String ? raw.split('\n').first.trim() : '';
+    if (note.isEmpty) return _err(res, HttpStatus.badRequest, 'empty note');
+    final session = controller.state()['session'];
+    if (session is Map && session['id'] == id) {
+      return _err(res, HttpStatus.conflict, 'a session is recording');
+    }
+    if (!notes.setNote(id, int.tryParse(i) ?? -1, note)) {
+      return _err(res, HttpStatus.notFound, 'no such marker');
+    }
+    _json(res, {'ok': true});
+  }
+
   Future<void> _copyMarker(HttpResponse res, String id, String i) async {
     final k = int.tryParse(i) ?? -1;
     final file = notes.stillFile(id, k);
     final entry = notes.markerEntry(id, k);
     if (file == null || entry == null) {
       return _err(res, HttpStatus.notFound, 'no such still');
+    }
+    if (entry.note.isEmpty) {
+      return _err(res, HttpStatus.conflict, 'the marker has no note');
     }
     if (controller.recording) {
       return _err(res, HttpStatus.conflict, 'a session is recording');

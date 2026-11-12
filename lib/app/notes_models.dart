@@ -42,6 +42,9 @@ class NoteMarker {
   /// The still frame is cut and can be fetched.
   final bool still;
 
+  /// kuhy wrote a note (a copy needs one: the note is part of the image).
+  bool get hasNote => note.isNotEmpty;
+
   /// `YYYY-MM-DD` of the session's start (the date header of the part text).
   String get date {
     final m = RegExp(r'^(\d{4})(\d{2})(\d{2})-').firstMatch(session);
@@ -76,6 +79,9 @@ class NotePart {
   /// Whether every still of the part exists (a files copy needs all: Discord
   /// pairs images with note lines by order).
   bool get hasStills => markers.every((m) => m.still);
+
+  /// Whether every marker of the part has a note.
+  bool get hasNotes => markers.every((m) => m.hasNote);
 }
 
 /// The doc behind `GET /api/doc`.

@@ -79,6 +79,19 @@ class FakeWrapper {
       return http.Response(jsonEncode(reply), 200);
     }
     if (r.method == 'POST' && path.endsWith('/copy')) await copyGate?.future;
+    final noteAt = RegExp(r'^/api/sessions/([^/]+)/markers/(\d+)/note$');
+    final saved = noteAt.firstMatch(path);
+    if (r.method == 'POST' && saved != null && postStatus == 200) {
+      // The wrapper writes the note: the next read of the parts has it.
+      for (final part in noteParts) {
+        for (final m in part['markers']! as List) {
+          final row = m as Map<String, Object?>;
+          if (row['session'] == saved[1] && row['i'] == int.parse(saved[2]!)) {
+            row['note'] = (jsonDecode(r.body) as Map)['note'];
+          }
+        }
+      }
+    }
     Object? body;
     if (r.method == 'GET') {
       body = switch (path) {

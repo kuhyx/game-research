@@ -1,15 +1,15 @@
 /// One message part of kuhy's notes as a card: a `n/of` header with the two
-/// copy icons (stills, text), then a row per marker. Icons, numbers and the
+/// copy icons (the images with the notes drawn in: big, first; the plain text:
+/// small, muted, after it), then a row per marker. Icons, numbers and the
 /// notes kuhy typed himself; no labels.
 library;
 
-import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:game_research/app/api.dart';
 import 'package:game_research/app/copy_icon.dart';
 import 'package:game_research/app/doc_style.dart';
-import 'package:game_research/app/marker_style.dart';
 import 'package:game_research/app/notes_models.dart';
+import 'package:game_research/app/notes_row.dart';
 
 const _tabular = [FontFeature.tabularFigures()];
 
@@ -21,8 +21,12 @@ class NotesCard extends StatelessWidget {
     required this.appid,
     required this.part,
     required this.style,
+    required this.onChanged,
     super.key,
   });
+
+  /// A note was saved: re-read the notes.
+  final VoidCallback onChanged;
 
   /// The wrapper client.
   final ResearchApi api;
@@ -38,7 +42,6 @@ class NotesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = style.px(64);
     final rows = <Widget>[];
     String? date;
     for (final m in part.markers) {
@@ -46,7 +49,9 @@ class NotesCard extends StatelessWidget {
         date = m.date;
         rows.add(_DateRow(date: date, style: style));
       }
-      rows.add(_MarkerRow(api: api, marker: m, style: style));
+      rows.add(
+        MarkerRow(api: api, marker: m, style: style, onChanged: onChanged),
+      );
     }
     return Container(
       width: style.px(1700),
@@ -74,16 +79,19 @@ class NotesCard extends StatelessWidget {
               CopyIcon(
                 semantic: 'copy notes ${part.n} files',
                 glyph: Icons.photo_library_rounded,
-                size: size,
-                onCopy: part.hasStills
+                size: style.px(80),
+                onCopy: part.hasStills && part.hasNotes
                     ? () => api.copyPart(appid, part.n, 'files')
                     : null,
               ),
               CopyIcon(
                 semantic: 'copy notes ${part.n} text',
                 glyph: Icons.text_snippet_rounded,
-                size: size,
-                onCopy: () => api.copyPart(appid, part.n, 'text'),
+                size: style.px(48),
+                color: DocStyle.muted,
+                onCopy: part.hasNotes
+                    ? () => api.copyPart(appid, part.n, 'text')
+                    : null,
               ),
             ],
           ),
@@ -123,90 +131,6 @@ class _DateRow extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _MarkerRow extends StatelessWidget {
-  const new({required this.api, required this.marker, required this.style});
-
-  final ResearchApi api;
-  final NoteMarker marker;
-  final DocStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    final look = kMarkerStyles.firstWhere(
-      (s) => s.tag == marker.tag,
-      orElse: () => kMarkerStyles.last,
-    );
-    final text = TextStyle(
-      fontFamily: 'Inter',
-      fontSize: style.px(44),
-      color: DocStyle.body,
-      fontFeatures: _tabular,
-    );
-    return SizedBox(
-      height: style.px(164),
-      child: Row(
-        children: [
-          Icon(look.icon, color: look.color, size: style.px(64)),
-          SizedBox(width: style.px(20)),
-          Text(marker.time, style: text),
-          SizedBox(width: style.px(24)),
-          Expanded(
-            child: Text(
-              marker.note,
-              style: text,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          _Thumb(api: api, marker: marker, style: style),
-          CopyIcon(
-            semantic: 'copy marker ${marker.session} ${marker.i}',
-            size: style.px(64),
-            onCopy: marker.still
-                ? () => api.copyMarker(marker.session, marker.i)
-                : null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Thumb extends StatelessWidget {
-  const new({required this.api, required this.marker, required this.style});
-
-  final ResearchApi api;
-  final NoteMarker marker;
-  final DocStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    final w = style.px(256);
-    final h = style.px(144);
-    Widget placeholder(IconData icon, Color color) => Container(
-      width: w,
-      height: h,
-      color: AppPalette.inkRaised1,
-      child: Icon(icon, color: color, size: style.px(48)),
-    );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(style.px(8)),
-      child: marker.still
-          ? Image.network(
-              api.stillUrl(marker.session, marker.i),
-              width: w,
-              height: h,
-              fit: BoxFit.cover,
-              // Stills are full resolution: decode them small.
-              cacheWidth: (w * MediaQuery.devicePixelRatioOf(context)).round(),
-              errorBuilder: (_, _, _) =>
-                  placeholder(Icons.broken_image_rounded, DocStyle.muted),
-            )
-          : placeholder(Icons.hourglass_top_rounded, DocStyle.muted),
     );
   }
 }

@@ -137,6 +137,12 @@ class ResearchApi {
   Future<void> copyMarker(String stamp, int i) =>
       _post('sessions/$stamp/markers/$i/copy');
 
+  /// Saves [note] as the note of marker [i] of session [stamp].
+  Future<void> setNote(String stamp, int i, String note) => _post(
+    'sessions/$stamp/markers/$i/note',
+    body: jsonEncode({'note': note}),
+  );
+
   /// The still of marker [i] of session [stamp] (a JPEG).
   String stillUrl(String stamp, int i) =>
       _u('sessions/$stamp/still/$i').toString();

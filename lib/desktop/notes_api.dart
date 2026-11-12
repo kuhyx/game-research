@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:game_research/analysis/stills.dart' as stills;
 import 'package:game_research/core/discord_notes.dart';
 import 'package:game_research/core/markers.dart';
+import 'package:game_research/core/safe_json.dart' show writeAtomic;
 import 'package:game_research/core/slug.dart';
 import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/event_log.dart';
@@ -148,6 +149,20 @@ class NotesApi {
 
   /// The text line of marker [i] of session [id], or null.
   String? markerLine(String id, int i) => markerEntry(id, i)?.line;
+
+  /// Writes [note] as the note of marker [i] (1-based) of session [id]:
+  /// `markers.jsonl` is rewritten atomically, only that line changes. False
+  /// when there is no such marker. The caller refuses a recording session.
+  bool setNote(String id, int i, String note) {
+    final dir = store.dir(id);
+    if (dir == null) return false;
+    final file = File(p.join(dir.path, 'markers.jsonl'));
+    if (!file.existsSync()) return false;
+    final text = withMarkerNote(file.readAsStringSync(), i, note);
+    if (text == null) return false;
+    writeAtomic(file, text);
+    return true;
+  }
 
   Marker? _marker(String id, int i) {
     final dir = store.dir(id);

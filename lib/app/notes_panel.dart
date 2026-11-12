@@ -169,6 +169,7 @@ class _NotesPanelState extends State<NotesPanel> {
                 appid: widget.appid,
                 part: p,
                 style: style,
+                onChanged: _load,
               ),
           ],
         ),
