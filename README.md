@@ -5,8 +5,11 @@ Steam game, press Start: the game launches through Steam and its monitor is
 recorded with game audio. Drop markers while playing (good, bad, confusing,
 note) with the buttons or the session-only hotkeys. After Stop an analysis job
 cuts scenes, finds still stretches, samples frames, captions them with a
-model fallback chain and has one Claude Opus call fill the target project's
-research questions template, in English and Polish.
+model fallback chain (8 frames per call) and has one Claude Opus call fill the
+target project's research questions template, in English. A per-game "finished"
+run (`game_research_analyze --finish <slug>`) merges the session drafts and
+writes a report. A systemd user timer (`install.sh --step resume`) relaunches
+jobs that a shutdown, crash or usage limit interrupted.
 
 The UI is text-free (icons, capsule images, numbers) and runs as Flutter web
 in a Chrome `--app` window; a local Dart wrapper owns ffmpeg, the files, the
@@ -36,9 +39,9 @@ monitor (green, red, yellow, blue).
 Sessions land in `~/data/game-research/<stamp>-<game>/`:
 `recording.mkv` (HEVC NVENC near-lossless, FLAC, one chapter per marker),
 `markers.jsonl`, `session.json` and `analysis/` (scenes, stills, frames,
-clips, contact sheets, captions, status). The drafts go to
-`<target>/docs/research/DOCS-research-<game>.md` and its `-pl` twin,
-uncommitted, plus one todo task to review them.
+clips, contact sheets, captions, status). Each session writes its own draft
+`<target>/docs/research/games/<game>/DOCS-research-<game>-<stamp>.md`,
+uncommitted, plus one todo task to review it.
 
 ## Requirements
 

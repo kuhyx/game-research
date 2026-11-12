@@ -29,8 +29,7 @@ fixtures() {
 		"$E2E_APPID" "$E2E_GAME" >"${steam}/steamapps/appmanifest_${E2E_APPID}.acf"
 	ffmpeg -v error -y -f lavfi -i "color=c=0x3c6e9a:s=600x900" -frames:v 1 \
 		"${steam}/appcache/librarycache/${E2E_APPID}/library_600x900.jpg"
-	cp "${E2E_REPO}/test/fixtures/DOCS-research-questions.md" \
-		"${E2E_REPO}/test/fixtures/DOCS-research-questions-pl.md" "$target/"
+	cp "${E2E_REPO}/test/fixtures/DOCS-research-questions.md" "$target/"
 	git -C "${ART}/target" init -q
 }
 

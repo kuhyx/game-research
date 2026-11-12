@@ -24,10 +24,12 @@
 | Hotkeys | Mod+F1 good, Mod+F2 bad, Mod+F3 confusing, Mod+F4 note (dmenu line), Mod+Shift+F4 stop | same as the buttons, each shown as a key legend beside its button (`Super+F1`, from `kHotkeys`); keys exist only while a session records (sxhkd unit `game-research-keys-<port>`) |
 | Auto stop | quit the game | session ends when no process carries `AppId=<id>` any more (after it was seen once); `ended_by: game-exit` |
 | Recording | any session | `~/data/game-research/<stamp>-<game>/recording.mkv`: x11grab of the monitor the game window is on (`xrandr --listmonitors` x window rect, else the primary; `record_start` logs `output` + `output_why`), default-sink monitor audio (never a mic), HEVC NVENC cq 14, FLAC, one chapter per marker |
-| Analysis job | starts after Stop (`systemd-run --user`) | `analysis/status.json` drives the ring; stages resume from their own outputs |
+| Analysis job | starts after Stop (`systemd-run --user`) | `analysis/status.json` drives the ring (`state` running / waiting / interrupted / done / failed, `tokens`, `cost_usd`, `eta_s`, `started_unix`); stages resume from their own outputs; one job at a time machine-wide (`<data>/analysis.lock`: pid + start time), a second one is `waiting` and starts when the first ends |
+| Resume | `game-research-resume.timer` (`install.sh --step resume`), 2 min after boot then every 15 min | `game_research_analyze --resume-all` relaunches interrupted jobs, waiting ones whose retry time passed and sessions never analysed, one at a time, never while `<data>/recording.pid` is live; `failed` is never retried; also deletes `recording.mkv` 14 days after the game's `finish.json` |
+| Finish | `game_research_analyze --finish <slug>` | one Opus call merges every session draft into `games/<slug>/DOCS-research-<slug>.md` and `-report.md`; `<data>/games/<slug>/finish.json` + `status.json`; todo task "MANUAL WORK REQUIRED: review <game> research report" |
 | Stage 1 | automatic | `scenes.json`, `still.jsonl` (no motion >= 20 s), `frames/` (every marker + scene cuts at most one per 10 s, <= 1280 px), `clips/` (10 s per marker, stream copy, up to +1 s at the start keyframe), `contact/sheet_*.png` |
-| Stage 2 | automatic | `captions.jsonl`: one line per frame with `tier`, `model`, `skipped`; chain haiku -> OmniRoute `agnes/agnes-2.5-flash` -> ollama `qwen3-vl:30b-a3b-instruct`; a frame no tier captions fails the stage (rerun resumes) |
-| Stage 3 | automatic | one Opus call; `<target>/docs/research/DOCS-research-<game>.md` + `-pl.md` written uncommitted; todo task "MANUAL WORK REQUIRED: review <game> research draft" (`--new-note`); frames shown: ceil(60 x hours), at least 1, marker frames first |
+| Stage 2 | automatic | `captions.jsonl`: one line per frame stage 3 will use (60 per hour, marker frames first; none in the first 2 s unless a marker is there), 8 frames per call with one JSON object per frame checked by code (a malformed batch falls back to single frames), `tier`, `model`, `skipped`, `usage` (a call's tokens sit on its first row); chain haiku -> OmniRoute `agnes/agnes-2.5-flash` -> ollama `qwen3-vl:30b-a3b-instruct`; a frame no tier captions fails the stage (rerun resumes) |
+| Stage 3 | automatic | one Opus call; `<target>/docs/research/games/<game>/DOCS-research-<game>-<stamp>.md` (one per session, English, never overwritten; the prompt carries the earlier drafts, every question has a `- **Status:** answered|partial|open` line) written uncommitted; `stage3.json` has `draft`, `tokens`, `cost_usd`; todo task "MANUAL WORK REQUIRED: review <game> research draft" (`--new-note`); frames shown: ceil(60 x hours), at least 1, marker frames first |
 | Target picker | folder chips under the controls | any `~/src/*` with `docs/research/DOCS-research-questions.md`, default cleanup-plate; kept in `~/data/game-research/settings.json` |
 | Past sessions | right column | capsule, start `MM-DD HH:MM`, length, marker counts, progress ring (accent running, green done, red failed) |
 | Rerun analysis | refresh button on a row | new job; resumes a failed or unfinished one; on a finished one runs all three stages again (`--force`: new Opus call, drafts overwritten) |
@@ -45,6 +47,6 @@
 F1-check asserts: 8 chapters at the marker offsets, each marker offset within
 0.5 s of the moment the input was sent, the border flash visible in the
 recording at each offset, frames / clips / contact sheet / stills, captions
-from the second tier with haiku skipped, both drafts filled, the todo call and
+from the second tier with haiku skipped, one captioned frame per frame stage 3 uses, the single draft filled with status lines (no `-pl`), the todo call and
 8 ticks. On failure every flow prints `FAIL F<n> step <i>: <why>; shots:
 <path>` and exits non-zero.
