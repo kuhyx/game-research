@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:game_research/analysis/decode.dart';
+import 'package:game_research/analysis/stored_frames.dart';
 import 'package:game_research/core/ffmpeg_parse.dart';
 import 'package:game_research/core/markers.dart';
 import 'package:game_research/core/sampling.dart';
@@ -222,11 +223,9 @@ class Stage1 {
     await gate();
     final (scenes, _) = await detect(durationS, progress: progress);
     progress(kDecodeUnits, kStageUnits);
-    final frames = sampleFrames(
-      scenes: scenes,
-      markers: markers,
-      durationS: durationS,
-    );
+    final frames =
+        storedFrames(_out) ??
+        sampleFrames(scenes: scenes, markers: markers, durationS: durationS);
     File(p.join(_out, 'frames.json'))
         .writeAsStringSync(const JsonEncoder.withIndent(' ').convert(frames));
     final steps = frames.length + 2;

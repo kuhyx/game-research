@@ -96,7 +96,7 @@ class JobLock {
       final file = File(p.join(d.path, 'analysis', 'lock'));
       if (!file.existsSync()) continue;
       final owner = int.tryParse(file.readAsStringSync().trim());
-      if (owner != null && _isAnalyzer(owner)) {
+      if (owner != null && owner != selfPid && _isAnalyzer(owner)) {
         return JobHolder(owner, '', p.basename(d.path));
       }
     }

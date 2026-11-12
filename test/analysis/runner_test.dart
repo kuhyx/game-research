@@ -61,20 +61,19 @@ void main() {
     );
   });
 
-  test('a lock held by a live pid is exit 3 and stays', () async {
+  test('a lock held by a live analyzer is exit 3 and stays', () async {
     final lock = fx.out('lock')
       ..createSync(recursive: true)
-      ..writeAsStringSync('$pid');
+      ..writeAsStringSync('4242');
     // An analyzer process by its cmdline (a bare live pid proves nothing:
     // after a reboot it may be any program).
-    final proc = Directory(p.join(fx.root.path, 'proc', '$pid'))
+    final proc = Directory(p.join(fx.root.path, 'proc', '4242'))
       ..createSync(recursive: true);
     File(p.join(proc.path, 'cmdline')).writeAsStringSync(
       '/x/bin/game_research_analyze\u0000${fx.session.path}\u0000',
     );
-    final procRoot = p.dirname(proc.path);
-    expect(await runner(proc: procRoot).run(), 3);
-    expect(lock.readAsStringSync(), '$pid');
+    expect(await runner(proc: p.dirname(proc.path)).run(), 3);
+    expect(lock.readAsStringSync(), '4242');
     expect(fake.calls, isEmpty);
   });
 
