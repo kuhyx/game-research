@@ -41,6 +41,7 @@ class ShareHarness {
     };
     final run = x.s.h.fake.onRun;
     x.s.h.fake.onRun = (c) {
+      if (c.exe == '/usr/bin/python3') return x.caption(c);
       if (c.exe != 'ffmpeg' || c.args.last.endsWith('.chapters.mkv')) {
         return run!(c);
       }
@@ -76,6 +77,30 @@ class ShareHarness {
 
   /// Each helper start: (file arguments, text file content).
   final starts = <(List<String>, String)>[];
+
+  /// Each captioner run's jobs (decoded `*.jobs.json`).
+  final captions = <List<Map<String, Object?>>>[];
+
+  /// Makes the captioner fail with this exit code (null = it works).
+  int? captionExit;
+
+  /// The captioner: writes each `out` as `cap|<time>|<note>|<right>|` plus
+  /// the source bytes, so a test sees what the band would say.
+  ProcessResult caption(Call c) {
+    if (captionExit != null) return ProcessResult(1, captionExit!, '', 'boom');
+    final jobs = [
+      for (final j in jsonDecode(File(c.args.last).readAsStringSync()) as List)
+        (j as Map).cast<String, Object?>(),
+    ];
+    captions.add(jobs);
+    for (final j in jobs) {
+      File(j['out']! as String).writeAsBytesSync([
+        ...utf8.encode('cap|${j['time']}|${j['note']}|${j['right']}|'),
+        ...File(j['src']! as String).readAsBytesSync(),
+      ]);
+    }
+    return ProcessResult(1, 0, '', '');
+  }
 
   /// What the helper process does.
   FakeProcess Function(Call) helper = (_) => FakeProcess(stdoutText: 'ready\n');

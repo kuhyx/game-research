@@ -10,6 +10,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:game_research/core/discord_notes.dart';
+import 'package:game_research/core/share_contract.dart';
 import 'package:game_research/core/slug.dart';
 import 'package:game_research/core/steam.dart';
 import 'package:game_research/desktop/clip_owner.dart';
@@ -124,27 +126,55 @@ class ShareRoutes {
     if (controller.recording) {
       return _err(res, HttpStatus.conflict, 'a session is recording');
     }
-    final files = stageStills(
-      controller.parts.config.dataDir,
-      slugify(game.name),
-      k,
-      [
-        for (var i = 0; i < cut.length; i++)
-          (source: cut[i]!, tag: part.markers[i].tag.name),
-      ],
-    );
+    final List<String> files;
+    try {
+      files = await stageStills(
+        controller.parts.sys,
+        controller.parts.config,
+        '${slugify(game.name)}-$k',
+        [
+          for (var i = 0; i < cut.length; i++)
+            _source(cut[i]!, part.markers[i], game.name),
+        ],
+      );
+    } on CaptionFailed catch (e) {
+      return _err(res, HttpStatus.internalServerError, e.message);
+    }
     await _copy(res, files, part.text);
   }
 
   Future<void> _copyMarker(HttpResponse res, String id, String i) async {
     final k = int.tryParse(i) ?? -1;
     final file = notes.stillFile(id, k);
-    final line = notes.markerLine(id, k);
-    if (file == null || line == null) {
+    final entry = notes.markerEntry(id, k);
+    if (file == null || entry == null) {
       return _err(res, HttpStatus.notFound, 'no such still');
     }
-    await _copy(res, [file.path], line);
+    if (controller.recording) {
+      return _err(res, HttpStatus.conflict, 'a session is recording');
+    }
+    final game = notes.gameOf(id);
+    final List<String> files;
+    try {
+      files = await stageStills(
+        controller.parts.sys,
+        controller.parts.config,
+        'marker-$id-$k',
+        [_source(file, entry, game)],
+      );
+    } on CaptionFailed catch (e) {
+      return _err(res, HttpStatus.internalServerError, e.message);
+    }
+    await _copy(res, files, entry.line);
   }
+
+  StillSource _source(File file, NoteLine m, String game) => (
+    source: file,
+    tag: m.tag.name,
+    time: m.time,
+    note: m.note,
+    right: '$game · ${sessionDate(m.session)}',
+  );
 
   /// The Discord version of the document at [path], text only.
   Future<void> _copyDoc(HttpResponse res, String? path) async {

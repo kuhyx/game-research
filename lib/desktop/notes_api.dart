@@ -129,17 +129,25 @@ class NotesApi {
     return file.existsSync() ? file : null;
   }
 
-  /// The text line of marker [i] of session [id], or null.
-  String? markerLine(String id, int i) {
+  /// The game name recorded in session [id] ('' when unknown).
+  String gameOf(String id) {
+    final dir = store.dir(id);
+    return dir == null ? '' : '${store.meta(dir)['game'] ?? ''}';
+  }
+
+  /// The note line of marker [i] of session [id], or null.
+  NoteLine? markerEntry(String id, int i) {
     final marker = _marker(id, i);
     final dir = store.dir(id);
     if (marker == null || dir == null) return null;
     final started = _started(dir, store.meta(dir));
-    final part = buildParts('', [
+    return buildParts('', [
       NoteSession(id: id, started: started, markers: [marker]),
-    ]).single;
-    return part.markers.single.line;
+    ]).single.markers.single;
   }
+
+  /// The text line of marker [i] of session [id], or null.
+  String? markerLine(String id, int i) => markerEntry(id, i)?.line;
 
   Marker? _marker(String id, int i) {
     final dir = store.dir(id);

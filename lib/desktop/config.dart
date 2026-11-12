@@ -26,6 +26,7 @@ class Config {
     final share = p.join(home, '.local', 'share', 'game-research');
     final data = get('DATA', p.join(home, 'data', 'game-research'));
     final clipHelper = p.join(get('REPO', cwd), 'helpers', 'clip_owner.py');
+    final capHelper = p.join(get('REPO', cwd), 'helpers', 'caption_still.py');
     final config = Config._(
       home: home,
       repo: get('REPO', cwd),
@@ -69,6 +70,7 @@ class Config {
       i3Config: get('I3_CONFIG', p.join(home, '.config', 'i3', 'config')),
       flashPx: int.tryParse(get('FLASH_PX', '')) ?? 12,
       clipCmd: _words(get('CLIP_CMD', '/usr/bin/python3 $clipHelper')),
+      captionCmd: _words(get('CAPTION_CMD', '/usr/bin/python3 $capHelper')),
       env: {
         for (final e in env.entries)
           if (e.key.startsWith('GAME_RESEARCH_')) e.key: e.value,
@@ -118,6 +120,7 @@ class Config {
     required this.i3Config,
     required this.flashPx,
     required this.clipCmd,
+    required this.captionCmd,
     required this.env,
   });
 
@@ -234,6 +237,10 @@ class Config {
   /// Clipboard owner command + args (a fake in tests): `cmd [--text-file F]
   /// FILE...`, prints `ready` once it owns CLIPBOARD.
   final List<String> clipCmd;
+
+  /// Still captioner command + args (a fake in tests): `cmd JOBS.json`
+  /// writes every captioned image of the job list.
+  final List<String> captionCmd;
 
   /// Every `GAME_RESEARCH_*` variable, passed on to the analysis job.
   final Map<String, String> env;

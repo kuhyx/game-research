@@ -58,6 +58,10 @@ step_deps() {
 	# The clipboard helper (helpers/clip_owner.py) needs PyGObject + GTK 3.
 	/usr/bin/python3 -c 'import gi; gi.require_version("Gtk", "3.0")' 2>/dev/null ||
 		missing+=(python-gobject gtk3)
+	# The still captioner (helpers/caption_still.py): Pillow + colour emoji.
+	/usr/bin/python3 -c 'import PIL' 2>/dev/null || missing+=(python-pillow)
+	[[ -e /usr/share/fonts/noto/NotoColorEmoji.ttf ]] || missing+=(noto-fonts-emoji)
+	[[ -e /usr/share/fonts/noto/NotoSans-Regular.ttf ]] || missing+=(noto-fonts)
 	if ((${#missing[@]})); then
 		mapfile -t missing < <(printf '%s\n' "${missing[@]}" | sort -u)
 		sudo pacman -S --needed --noconfirm "${missing[@]}"
