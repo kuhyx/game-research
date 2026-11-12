@@ -83,19 +83,20 @@ List<String> gsrRecordArgs(RecordSpec s) => [
   'hevc',
   '-encoder',
   'gpu',
-  // Quality over size (kuhy): constant quality, the best preset.
+  // Constant quality; very_high (kuhy, 2026-11-12: ultra was too heavy).
   '-bm',
   'qp',
   '-q',
-  'ultra',
+  'very_high',
   // Marker clips are cut by stream copy at the keyframe before the cut.
   '-keyint',
   '1',
   '-cursor',
   'no',
   ..._audio(s.audio),
+  // gsr disables flac and warns; opus is the supported audio codec for mkv.
   '-ac',
-  'flac',
+  'opus',
   '-write-first-frame-ts',
   'yes',
   '-o',

@@ -45,16 +45,16 @@ void main() {
     // the encoder at 1-2 fps when the game drops frames (man page).
     expect(a, isNot(contains('-fm')));
     expect(a, containsAllInOrder(['-cursor', 'no']));
-    expect(a, containsAllInOrder(['-bm', 'qp', '-q', 'ultra']));
+    expect(a, containsAllInOrder(['-bm', 'qp', '-q', 'very_high']));
     expect(a, containsAllInOrder(['-c', 'mkv']));
     expect(a, containsAllInOrder(['-encoder', 'gpu']));
     expect(a, containsAllInOrder(['-write-first-frame-ts', 'yes']));
     expect(a.sublist(a.length - 2), ['-o', '/d/recording.mkv']);
   });
 
-  test('game audio from the default sink monitor, FLAC, never a mic', () {
+  test('game audio from the default sink monitor, Opus, never a mic', () {
     final a = gsrRecordArgs(spec());
-    expect(a, containsAllInOrder(['-a', 'default_output', '-ac', 'flac']));
+    expect(a, containsAllInOrder(['-a', 'default_output', '-ac', 'opus']));
     final mon = gsrRecordArgs(spec(audio: 'alsa_output.x.monitor'));
     expect(mon, containsAllInOrder(['-a', 'alsa_output.x.monitor']));
     for (final args in [a, mon]) {

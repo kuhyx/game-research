@@ -10,9 +10,9 @@ void main() {
     expect(cfg, contains('super + F3\n'));
     expect(cfg, contains('super + F4\n'));
     expect(cfg, contains('super + shift + F4\n'));
-    expect(cfg, contains('/api/marker?tag=good&src=key'));
-    expect(cfg, contains('/api/marker?tag=bad&src=key'));
-    expect(cfg, contains('/api/marker?tag=confusing&src=key'));
+    expect(cfg, contains('/api/marker?tag=good&src=key&ask=1'));
+    expect(cfg, contains('/api/marker?tag=bad&src=key&ask=1'));
+    expect(cfg, contains('/api/marker?tag=confusing&src=key&ask=1'));
     expect(cfg, contains('/api/marker?tag=note&src=key&ask=1'));
     expect(cfg, contains('/api/stop'));
   });

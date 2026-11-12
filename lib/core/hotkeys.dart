@@ -18,12 +18,13 @@ class Hotkey {
   final String path;
 }
 
-/// Mod+F1 good, Mod+F2 bad, Mod+F3 confusing, Mod+F4 note (asks for a line
-/// through dmenu), Mod+Shift+F4 stop.
+/// Mod+F1 good, Mod+F2 bad, Mod+F3 confusing, Mod+F4 note, Mod+Shift+F4
+/// stop. Every marker asks for a note line through dmenu (`ask=1`); the
+/// marker is stamped at the key press, Esc keeps it with an empty note.
 const kHotkeys = [
-  Hotkey('super + F1', '/api/marker?tag=good&src=key'),
-  Hotkey('super + F2', '/api/marker?tag=bad&src=key'),
-  Hotkey('super + F3', '/api/marker?tag=confusing&src=key'),
+  Hotkey('super + F1', '/api/marker?tag=good&src=key&ask=1'),
+  Hotkey('super + F2', '/api/marker?tag=bad&src=key&ask=1'),
+  Hotkey('super + F3', '/api/marker?tag=confusing&src=key&ask=1'),
   Hotkey('super + F4', '/api/marker?tag=note&src=key&ask=1'),
   Hotkey('super + shift + F4', '/api/stop?src=key'),
 ];

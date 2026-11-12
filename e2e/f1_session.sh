@@ -10,11 +10,18 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 echo 600 >"${ART}/game_life"
 : >"${ART}/fired.jsonl"
 
+# Every marker asks for a note line: the hotkey through dmenu, the button
+# through the in-app field. The marker is stamped at the press, so the typing
+# below does not move its offset.
 hotkey() {
 	local tag="$1" chord="$2" before
 	before="$(now)"
 	xkey "$chord"
 	fired "$tag" "$before,\"after\":$(now)" key
+	wait_for "DISPLAY=${E2E_DISPLAY} xdotool search --class dmenu >/dev/null 2>&1" 5 ||
+		fail "dmenu never opened for ${tag}"
+	DISPLAY="$E2E_DISPLAY" xdotool type --delay 20 "hotkey ${tag}"
+	xkey Return
 	sleep 1.2
 }
 
@@ -23,6 +30,10 @@ button() {
 	before="$(now)"
 	fwd tap "marker ${tag}" --contains >/dev/null || fail "no marker ${tag} button"
 	fired "$tag" "$before,\"after\":$(now)" button
+	fwd wait "note text" --timeout 5 >/dev/null || fail "note field never opened"
+	fwd tap "note text" >/dev/null
+	fwd text "button ${tag}" >/dev/null
+	fwd key Enter >/dev/null
 }
 
 step "pick ${E2E_GAME}"
@@ -38,15 +49,8 @@ step "hotkeys good, bad, confusing"
 hotkey good super+F1
 hotkey bad super+F2
 hotkey confusing super+F3
-step "hotkey note opens dmenu"
-before="$(now)"
-xkey super+F4
-wait_for "DISPLAY=${E2E_DISPLAY} xdotool search --class dmenu >/dev/null 2>&1" 5 ||
-	fail "dmenu never opened"
-fired note "$before,\"after\":$(now)" key
-DISPLAY="$E2E_DISPLAY" xdotool type --delay 20 'hotkey note'
-xkey Return
-sleep 1.2
+step "hotkey note"
+hotkey note super+F4
 step "buttons good, bad, confusing"
 button good
 sleep 1
@@ -54,12 +58,8 @@ button bad
 sleep 1
 button confusing
 sleep 1
-step "button note + text"
+step "button note"
 button note
-fwd wait "note text" --timeout 5 >/dev/null || fail "note field never opened"
-fwd tap "note text" >/dev/null
-fwd text 'button note' >/dev/null
-fwd key Enter >/dev/null
 sleep 1
 step "idle 8 s for the still detector"
 sleep 8
