@@ -120,7 +120,8 @@ class _ReportPanelState extends State<ReportPanel> {
   void _flip(int by) =>
       setState(() => _page = (_page + by).clamp(0, _pages.length - 1));
 
-  /// Esc leaves edit mode first (the edit stays, unsaved); otherwise closes.
+  /// Esc leaves edit mode first (the edit stays, unsaved); otherwise closes,
+  /// except with unsaved edits, which only the close icon may discard.
   /// Arrows and PageUp/PageDown flip pages, never while editing.
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is KeyUpEvent) return KeyEventResult.ignored;
@@ -128,7 +129,7 @@ class _ReportPanelState extends State<ReportPanel> {
     if (key == LogicalKeyboardKey.escape) {
       if (_editing) {
         _toggleEdit();
-      } else {
+      } else if (!_dirty) {
         widget.onClose();
       }
       return KeyEventResult.handled;

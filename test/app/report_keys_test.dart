@@ -39,8 +39,26 @@ void main() {
         findsOneWidget,
       );
       expect(w.docs['/t/a.md'], '# Old', reason: 'not saved either');
+    });
+
+    testWidgets('Esc in read mode never discards unsaved edits', (t) async {
+      final w = FakeWrapper()..docs['/t/a.md'] = '# Old';
+      var closed = 0;
+      await openReader(t, w, onClose: () => closed++);
+      await reveal(t);
+      await t.tap(label('edit'));
+      await t.pump();
+      await t.enterText(find.byType(TextField), '# Unsaved');
+      await t.pump();
       await t.sendKeyEvent(LogicalKeyboardKey.escape);
-      expect(closed, 1);
+      await t.pump();
+      await t.sendKeyEvent(LogicalKeyboardKey.escape);
+      await t.pump();
+      expect(closed, 0, reason: 'dirty text must survive Esc');
+      expect(
+        find.textContaining('Unsaved', findRichText: true),
+        findsOneWidget,
+      );
     });
 
     testWidgets('edit mode: arrows and paging stay in the field', (t) async {
