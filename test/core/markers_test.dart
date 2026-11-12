@@ -54,10 +54,15 @@ void main() {
       expect(ms.map((m) => m.tag), [MarkerTag.good, MarkerTag.bad]);
     });
 
-    test('parseMarkers fails closed on a broken line', () {
-      expect(() => parseMarkers('{"offset_s":1}\n'), throwsFormatException);
-      expect(() => parseMarkers('not json\n'), throwsFormatException);
-      expect(() => parseMarkers('[1]\n'), throwsFormatException);
+    test('parseMarkers skips torn, junk and non-marker lines', () {
+      final good = const Marker(
+        wallUnix: 1,
+        offsetS: 5,
+        tag: MarkerTag.good,
+      ).toLine();
+      // A power cut leaves a half line and NULs after the last whole one.
+      final text = '$good\n{"offset_s":1}\nnot json\n[1]\n{"wall_unix\x00\x00';
+      expect(parseMarkers(text).map((m) => m.offsetS), [5]);
     });
 
     test('a missing note reads as empty', () {

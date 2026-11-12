@@ -1,9 +1,9 @@
 /// Where a game's finish state lives and which sessions it merges.
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
+import 'package:game_research/core/safe_json.dart';
 import 'package:game_research/core/synthesis.dart';
 import 'package:path/path.dart' as p;
 
@@ -46,8 +46,9 @@ List<FinishSession> analysedSessions(String dataDir, String slug) {
     final meta = File(p.join(d.path, 'session.json'));
     final s3 = File(p.join(d.path, 'analysis', 'stage3.json'));
     if (!meta.existsSync() || !s3.existsSync()) continue;
-    final m = jsonDecode(meta.readAsStringSync()) as Map<String, Object?>;
-    final state = jsonDecode(s3.readAsStringSync()) as Map;
+    final m = readJsonObject(meta);
+    final state = readJsonObject(s3);
+    if (m == null || state == null) continue;
     final draft = state['draft'] ?? state['draft_en'];
     if (m['slug'] != slug || draft is! String) continue;
     if (!File(draft).existsSync()) continue;

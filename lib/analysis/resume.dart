@@ -18,7 +18,9 @@ import 'package:game_research/analysis/job.dart';
 import 'package:game_research/analysis/job_lock.dart';
 import 'package:game_research/analysis/retention.dart';
 import 'package:game_research/analysis/runner.dart';
+import 'package:game_research/core/safe_json.dart';
 import 'package:game_research/core/status.dart';
+import 'package:game_research/core/usage.dart';
 import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/recording_flag.dart';
 import 'package:game_research/desktop/sys.dart';
@@ -38,11 +40,17 @@ class _Candidate {
   /// Runs it; returns the exit code.
   final Future<int> Function() launch;
 
-  AnalysisStatus? get status => statusFile.existsSync()
-      ? AnalysisStatus.fromJson(
-          jsonDecode(statusFile.readAsStringSync()) as Map<String, Object?>,
-        )
-      : null;
+  /// The status on disk; null when missing or damaged (then the job counts as
+  /// never started and runs again).
+  AnalysisStatus? get status {
+    final json = readJsonObject(statusFile);
+    if (json == null) return null;
+    try {
+      return AnalysisStatus.fromJson(json);
+    } on Object {
+      return null;
+    }
+  }
 }
 
 /// Relaunches unfinished jobs.
@@ -53,10 +61,14 @@ class ResumeAll {
     this.sys,
     this.client, {
     this.recordingPoll = const Duration(seconds: 5),
+    this.runSession,
   });
 
   /// Settings.
   final Config config;
+
+  /// Test seam: runs one session folder's job instead of [AnalysisRunner].
+  final Future<int> Function(String dir)? runSession;
 
   /// OS seam.
   final Sys sys;
@@ -81,7 +93,11 @@ class ResumeAll {
     for (final d in dirs) {
       final meta = File(p.join(d.path, 'session.json'));
       if (!meta.existsSync()) continue;
-      final m = jsonDecode(meta.readAsStringSync()) as Map<String, Object?>;
+      final m = readJsonObject(meta);
+      if (m == null) {
+        stderr.writeln('resume: skipping ${d.path}: session.json is damaged');
+        continue;
+      }
       final status = File(p.join(d.path, 'analysis', 'status.json'));
       // A session still recording has no duration yet; one whose recording
       // is gone and whose analysis never started has nothing to analyse.
@@ -95,13 +111,15 @@ class ResumeAll {
         _Candidate(
           p.basename(d.path),
           status,
-          () => AnalysisRunner(
-            d.path,
-            config,
-            sys,
-            client,
-            recordingPoll: recordingPoll,
-          ).run(),
+          () =>
+              runSession?.call(d.path) ??
+              AnalysisRunner(
+                d.path,
+                config,
+                sys,
+                client,
+                recordingPoll: recordingPoll,
+              ).run(),
         ),
       );
     }
@@ -153,18 +171,49 @@ class ResumeAll {
       final json = s.toJson()
         ..['state'] = StageState.interrupted.name
         ..['eta_s'] = null;
-      c.statusFile.writeAsStringSync(jsonEncode(json));
+      writeAtomic(c.statusFile, jsonEncode(json));
       changed.add(c.id);
     }
     return changed;
   }
 
-  /// Applies retention, then runs every due job in turn. Exit code 0.
+  /// Marks [c] `failed` with the reason [e], keeping its stage and tokens.
+  void _markFailed(_Candidate c, Object e) {
+    stderr.writeln('resume: ${c.id} crashed: $e');
+    try {
+      final s = c.status;
+      writeAtomic(
+        c.statusFile,
+        jsonEncode(
+          AnalysisStatus(
+            stage: s?.stage ?? 0,
+            done: s?.done ?? 0,
+            total: s?.total ?? 0,
+            state: StageState.failed,
+            error: '$e',
+            tokens: s?.tokens ?? Usage.zero,
+            startedUnix: s?.startedUnix,
+          ).toJson(),
+        ),
+      );
+    } on Object catch (w) {
+      stderr.writeln('resume: cannot record the failure of ${c.id}: $w');
+    }
+  }
+
+  /// Applies retention, then runs every due job in turn. A job that throws
+  /// is marked `failed` and the next one still runs. Exit code 0, or
+  /// [JobExit.failed] when any job crashed (after all were tried).
   Future<int> run() async {
-    applyRetention(config, sys.nowUnix());
+    try {
+      applyRetention(config, sys.nowUnix());
+    } on Object catch (e) {
+      stderr.writeln('resume: retention failed: $e');
+    }
     if (_recording.live || _lock.holder() != null) return JobExit.done;
     markInterrupted();
     final tried = <String>{};
+    var crashed = false;
     while (!_recording.live) {
       final next = [
         for (final c in _candidates())
@@ -172,10 +221,17 @@ class ResumeAll {
       ];
       if (next.isEmpty) break;
       tried.add(next.first.id);
-      final code = await next.first.launch();
+      final int code;
+      try {
+        code = await next.first.launch();
+      } on Object catch (e) {
+        crashed = true;
+        _markFailed(next.first, e);
+        continue;
+      }
       // Queued behind a job that appeared meanwhile: let it finish first.
       if (code == JobExit.waiting && _lock.holder() != null) break;
     }
-    return JobExit.done;
+    return crashed ? JobExit.failed : JobExit.done;
   }
 }

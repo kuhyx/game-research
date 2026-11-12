@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:game_research/analysis/stage1.dart';
 import 'package:game_research/core/caption_batch.dart';
 import 'package:game_research/core/captions.dart';
+import 'package:game_research/core/safe_json.dart';
 import 'package:game_research/core/sampling.dart';
 import 'package:path/path.dart' as p;
 
@@ -32,21 +33,34 @@ class Stage2 {
 
   File get _captions => File(p.join(dir, 'analysis', 'captions.jsonl'));
 
-  /// Frames already captioned (by file name).
-  Set<String> done() {
-    if (!_captions.existsSync()) return {};
-    return {
-      for (final line in const LineSplitter().convert(
-        _captions.readAsStringSync(),
-      ))
-        if (line.trim().isNotEmpty)
-          CaptionRecord.fromJson(jsonDecode(line) as Map<String, Object?>)
-              .frame,
-    };
+  /// The intact rows; a torn or NUL-filled line (power cut) is dropped.
+  JsonlRead _load() => readJsonl(
+    _captions,
+    accept: (row) {
+      CaptionRecord.fromJson(row);
+      return true;
+    },
+  );
+
+  /// Frames already captioned (by file name): a frame whose line is torn is
+  /// not captioned.
+  Set<String> done() => {
+    for (final row in _load().rows) row['frame']! as String,
+  };
+
+  /// Rewrites `captions.jsonl` with only its intact rows (tmp + rename) when
+  /// a power cut damaged it, so the next append starts on a clean line.
+  /// Returns how many lines were dropped.
+  int repair() {
+    final read = _load();
+    if (read.clean) return 0;
+    writeJsonlAtomic(_captions, read.rows);
+    return read.skipped;
   }
 
   /// Captions every missing frame. Returns the frames no tier captioned.
   Future<List<String>> run(List<SampleFrame> frames, Progress progress) async {
+    repair();
     final have = done();
     final todo = [
       for (final f in frames)
@@ -71,6 +85,7 @@ class Stage2 {
           _captions.writeAsStringSync(
             '${jsonEncode(rec.toJson())}\n',
             mode: FileMode.append,
+            flush: true,
           );
           captioned++;
         } else {

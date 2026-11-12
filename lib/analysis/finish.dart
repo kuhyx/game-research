@@ -15,6 +15,7 @@ import 'package:game_research/analysis/line_cap.dart';
 import 'package:game_research/analysis/tiers.dart';
 import 'package:game_research/core/captions.dart';
 import 'package:game_research/core/finish_doc.dart';
+import 'package:game_research/core/safe_json.dart';
 import 'package:game_research/core/status.dart';
 import 'package:game_research/core/synthesis.dart';
 import 'package:game_research/core/usage.dart';
@@ -54,12 +55,11 @@ class FinishRunner {
   String get _dir => gameStateDir(config.dataDir, slug);
   File get _finish => File(p.join(_dir, 'finish.json'));
 
-  Map<String, Object?> _read() => _finish.existsSync()
-      ? jsonDecode(_finish.readAsStringSync()) as Map<String, Object?>
-      : <String, Object?>{};
+  Map<String, Object?> _read() =>
+      readJsonObject(_finish) ?? <String, Object?>{};
 
   void _write(Map<String, Object?> s) =>
-      _finish.writeAsStringSync(const JsonEncoder.withIndent(' ').convert(s));
+      writeAtomic(_finish, const JsonEncoder.withIndent(' ').convert(s));
 
   Usage _usage() {
     final s = _read();

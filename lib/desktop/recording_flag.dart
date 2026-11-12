@@ -6,6 +6,7 @@ library;
 
 import 'dart:io';
 
+import 'package:game_research/core/safe_json.dart';
 import 'package:path/path.dart' as p;
 
 /// The flag file in [dataDir].
@@ -24,8 +25,7 @@ class RecordingFlag {
 
   /// Up, owned by this process.
   void raise() {
-    Directory(dataDir).createSync(recursive: true);
-    file.writeAsStringSync('$pid');
+    writeAtomic(file, '$pid');
   }
 
   /// Down (idempotent).

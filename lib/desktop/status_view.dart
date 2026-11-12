@@ -2,19 +2,12 @@
 /// (no tokens, no eta) and of states this build does not know.
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
+import 'package:game_research/core/safe_json.dart' as safe;
+
 /// The JSON object in [f], or `{}` when missing or broken.
-Map<String, Object?> readJson(File f) {
-  if (!f.existsSync()) return {};
-  try {
-    final decoded = jsonDecode(f.readAsStringSync());
-    return decoded is Map<String, Object?> ? decoded : {};
-  } on FormatException {
-    return {};
-  }
-}
+Map<String, Object?> readJson(File f) => safe.readJsonObject(f) ?? {};
 
 const _states = {'idle', 'running', 'waiting', 'interrupted', 'done', 'failed'};
 

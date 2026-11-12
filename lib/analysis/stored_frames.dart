@@ -5,21 +5,20 @@
 /// e.g. the black lead-in) would relabel every frame and caption.
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
+import 'package:game_research/core/safe_json.dart';
 import 'package:game_research/core/sampling.dart';
 import 'package:path/path.dart' as p;
 
 /// `frames.json` under analysis folder [analysisDir], or null when it is
 /// missing, empty or unreadable (then the frames are sampled afresh).
 List<SampleFrame>? storedFrames(String analysisDir) {
-  final file = File(p.join(analysisDir, 'frames.json'));
-  if (!file.existsSync()) return null;
+  final stored = readJson(File(p.join(analysisDir, 'frames.json')));
+  if (stored is! List) return null;
   try {
     final frames = [
-      for (final j in jsonDecode(file.readAsStringSync()) as List)
-        SampleFrame.fromJson(j as Map<String, Object?>),
+      for (final j in stored) SampleFrame.fromJson(j as Map<String, Object?>),
     ];
     return frames.isEmpty ? null : frames;
   } on Object {

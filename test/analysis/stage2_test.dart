@@ -74,6 +74,43 @@ void main() {
     expect(stage.done(), {'f_0001.png'});
   });
 
+  test(
+    'a torn caption line is not captioned and the file is repaired',
+    () async {
+      final row = jsonEncode({'frame': 'f_0001.png', 't': 0});
+      final path = fx.out('captions.jsonl')
+        ..writeAsStringSync(
+          '$row\n${jsonEncode({'frame': 'f_0002.png', 't': 5})}\n'
+          '{"frame":"f_0003.png","t":9,"cap\x00\x00\x00',
+        );
+      final stage = Stage2(fx.session.path, [
+        ScriptedTier('t1', (_) => const TierResult.ok(kCaptionJson, 'm')),
+      ]);
+      expect(stage.done(), {'f_0001.png', 'f_0002.png'});
+      expect(stage.repair(), 1);
+      expect(path.readAsStringSync().split('\n').where((l) => l.isNotEmpty), [
+        row,
+        jsonEncode({'frame': 'f_0002.png', 't': 5}),
+      ]);
+      expect(File('${path.path}.tmp').existsSync(), isFalse);
+      expect(stage.repair(), 0, reason: 'a clean file is left alone');
+      await stage.run(frames, (_, _) {});
+      final lines = path.readAsLinesSync();
+      expect(lines, hasLength(3), reason: 'the torn frame is captioned again');
+      for (final l in lines) {
+        expect(jsonDecode(l), isA<Map<String, Object?>>());
+      }
+      expect(lines.last, contains('f_0003.png'));
+    },
+  );
+
+  test('a row without a frame counts as torn', () {
+    fx.out('captions.jsonl').writeAsStringSync('{"t":1}\n');
+    final stage = Stage2(fx.session.path, const []);
+    expect(stage.done(), isEmpty);
+    expect(stage.repair(), 1);
+  });
+
   test('one batch call captions the frames, one line each', () async {
     final good = ScriptedTier(
       't1',

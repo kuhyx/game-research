@@ -8,6 +8,8 @@ library;
 
 import 'dart:convert';
 
+import 'package:game_research/core/safe_json.dart';
+
 /// The four marker kinds, with the colour their border flash uses.
 enum MarkerTag {
   /// Something the game does well.
@@ -108,18 +110,17 @@ class Marker {
   String toLine() => jsonEncode(toJson());
 }
 
-/// Every marker in a `markers.jsonl` text, sorted by offset. A line that is
-/// not a valid marker throws: a half-read marker file must not look complete.
+/// Every marker in a `markers.jsonl` text, sorted by offset. A line a power
+/// cut tore, or that is not a marker, is skipped (see `parseJsonl`).
 List<Marker> parseMarkers(String text) {
   final markers = <Marker>[];
-  for (final line in const LineSplitter().convert(text)) {
-    if (line.trim().isEmpty) continue;
-    final decoded = jsonDecode(line);
-    if (decoded is! Map<String, Object?>) {
-      throw FormatException('marker line is not an object: $line');
-    }
-    markers.add(Marker.fromJson(decoded));
-  }
+  parseJsonl(
+    text,
+    accept: (row) {
+      markers.add(Marker.fromJson(row));
+      return true;
+    },
+  );
   return markers..sort((a, b) => a.offsetS.compareTo(b.offsetS));
 }
 

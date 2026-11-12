@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:game_research/core/markers.dart';
+import 'package:game_research/core/safe_json.dart' show writeAtomic;
 import 'package:game_research/core/status.dart';
 import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/status_view.dart';
@@ -34,9 +35,10 @@ class SessionStore {
       readJson(File(p.join(dir.path, 'session.json')));
 
   /// Writes `session.json` of [dir].
-  void writeMeta(Directory dir, Map<String, Object?> meta) =>
-      File(p.join(dir.path, 'session.json'))
-          .writeAsStringSync(const JsonEncoder.withIndent(' ').convert(meta));
+  void writeMeta(Directory dir, Map<String, Object?> meta) => writeAtomic(
+    File(p.join(dir.path, 'session.json')),
+    const JsonEncoder.withIndent(' ').convert(meta),
+  );
 
   /// The analysis status of [dir].
   AnalysisStatus status(Directory dir) => AnalysisStatus.fromJson(
@@ -49,11 +51,7 @@ class SessionStore {
     final markersFile = File(p.join(dir.path, 'markers.jsonl'));
     var counts = countByTag(const []);
     if (markersFile.existsSync()) {
-      try {
-        counts = countByTag(parseMarkers(markersFile.readAsStringSync()));
-      } on FormatException {
-        // a broken line: show no counts rather than fail the whole list
-      }
+      counts = countByTag(parseMarkers(markersFile.readAsStringSync()));
     }
     final stage3 = readJson(File(p.join(dir.path, 'analysis', 'stage3.json')));
     // `draft` (one per session); old sessions wrote `draft_en`.

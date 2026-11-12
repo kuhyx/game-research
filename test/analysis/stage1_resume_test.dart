@@ -27,6 +27,19 @@ void main() {
 
   void progress(int d, int t) => ticks.add((d, t));
 
+  test('a torn still.jsonl or scenes.json is detected again', () async {
+    Directory(p.join(fx.session.path, 'analysis')).createSync(recursive: true);
+    fx.out('scenes.json').writeAsStringSync('[1.5,\x00\x00');
+    fx.out('still.jsonl').writeAsStringSync('{"start_s":1,"end_s":\x00\x00');
+    await stage.run(durationS: 40, markers: const [], progress: progress);
+    expect(fake.of('ffmpeg'), isNotEmpty, reason: 'the decode pass reran');
+    expect(
+      jsonDecode(fx.out('scenes.json').readAsStringSync()),
+      isA<List<Object?>>(),
+    );
+    expect(fx.out('scenes.json.tmp').existsSync(), isFalse);
+  });
+
   test(
     'a stored frames.json is kept: a resumed job never relabels frames',
     () async {

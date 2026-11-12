@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:game_research/analysis/job_lock.dart';
+import 'package:game_research/core/safe_json.dart';
 import 'package:game_research/core/status.dart';
 import 'package:game_research/core/usage.dart';
 import 'package:game_research/desktop/config.dart';
@@ -52,23 +53,22 @@ class WaitingError implements Exception {
 /// `stage3.json` under session folder [dir]: what the session spent so far.
 Usage sessionUsage(String dir) {
   var total = Usage.zero;
+  // Torn rows and a damaged stage3.json count as nothing: this runs inside
+  // the status writer, so it must never throw.
   final captions = File(p.join(dir, 'analysis', 'captions.jsonl'));
-  if (captions.existsSync()) {
-    for (final line in const LineSplitter().convert(
-      captions.readAsStringSync(),
-    )) {
-      if (line.trim().isEmpty) continue;
-      final row = jsonDecode(line) as Map<String, Object?>;
-      total += Usage.fromJson(row['usage']);
-    }
+  for (final row in readJsonl(captions).rows) {
+    total += Usage.fromJson(row['usage']);
   }
-  final stage3 = File(p.join(dir, 'analysis', 'stage3.json'));
-  if (stage3.existsSync()) {
-    final s = jsonDecode(stage3.readAsStringSync()) as Map<String, Object?>;
-    total += Usage.fromJson({
-      ...?(s['tokens'] as Map?)?.cast<String, Object?>(),
-      'cost_usd': s['cost_usd'],
-    });
+  final s = readJsonObject(File(p.join(dir, 'analysis', 'stage3.json')));
+  if (s != null) {
+    try {
+      total += Usage.fromJson({
+        ...?(s['tokens'] as Map?)?.cast<String, Object?>(),
+        'cost_usd': s['cost_usd'],
+      });
+    } on Object {
+      // junk token fields: nothing to add
+    }
   }
   return total;
 }
@@ -179,24 +179,23 @@ class StatusWriter {
       _total = total;
     }
     final now = sys.nowUnix();
-    file
-      ..parent.createSync(recursive: true)
-      ..writeAsStringSync(
-        jsonEncode(
-          AnalysisStatus(
-            stage: stage,
-            done: _done,
-            total: _total,
-            state: state,
-            error: error,
-            tokens: usage(),
-            etaS: state == StageState.running
-                ? _clock.eta(now, done, total)
-                : null,
-            startedUnix: startedUnix,
-            retryUnix: retryAfterS == null ? null : now + retryAfterS,
-          ).toJson(),
-        ),
-      );
+    writeAtomic(
+      file,
+      jsonEncode(
+        AnalysisStatus(
+          stage: stage,
+          done: _done,
+          total: _total,
+          state: state,
+          error: error,
+          tokens: usage(),
+          etaS: state == StageState.running
+              ? _clock.eta(now, done, total)
+              : null,
+          startedUnix: startedUnix,
+          retryUnix: retryAfterS == null ? null : now + retryAfterS,
+        ).toJson(),
+      ),
+    );
   }
 }

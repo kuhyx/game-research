@@ -12,6 +12,7 @@ import 'package:game_research/analysis/job.dart';
 import 'package:game_research/analysis/line_cap.dart';
 import 'package:game_research/analysis/tiers.dart';
 import 'package:game_research/core/captions.dart';
+import 'package:game_research/core/safe_json.dart';
 import 'package:game_research/core/sampling.dart';
 import 'package:game_research/core/synthesis.dart';
 import 'package:game_research/core/usage.dart';
@@ -35,12 +36,10 @@ class Stage3 {
 
   File get _state => File(p.join(dir, 'analysis', 'stage3.json'));
 
-  Map<String, Object?> _read() => _state.existsSync()
-      ? jsonDecode(_state.readAsStringSync()) as Map<String, Object?>
-      : <String, Object?>{};
+  Map<String, Object?> _read() => readJsonObject(_state) ?? <String, Object?>{};
 
   void _write(Map<String, Object?> s) =>
-      _state.writeAsStringSync(const JsonEncoder.withIndent(' ').convert(s));
+      writeAtomic(_state, const JsonEncoder.withIndent(' ').convert(s));
 
   /// Adds [spent] to the `tokens` and `cost_usd` of [state]: a call that
   /// failed or answered badly cost tokens too.

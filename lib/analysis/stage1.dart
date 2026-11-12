@@ -7,9 +7,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:game_research/analysis/decode.dart';
+import 'package:game_research/analysis/stored_detect.dart';
 import 'package:game_research/analysis/stored_frames.dart';
 import 'package:game_research/core/ffmpeg_parse.dart';
 import 'package:game_research/core/markers.dart';
+import 'package:game_research/core/safe_json.dart';
 import 'package:game_research/core/sampling.dart';
 import 'package:game_research/desktop/sys.dart';
 import 'package:path/path.dart' as p;
@@ -77,24 +79,8 @@ class Stage1 {
   }) async {
     final scenesFile = File(p.join(_out, 'scenes.json'));
     final stillFile = File(p.join(_out, 'still.jsonl'));
-    if (scenesFile.existsSync() && stillFile.existsSync()) {
-      final scenes = (jsonDecode(scenesFile.readAsStringSync()) as List)
-          .cast<num>()
-          .map((n) => n.toDouble())
-          .toList();
-      final spans = const LineSplitter()
-          .convert(stillFile.readAsStringSync())
-          .where((l) => l.trim().isNotEmpty)
-          .map((l) => jsonDecode(l) as Map<String, Object?>)
-          .map(
-            (m) => Span(
-              (m['start_s']! as num).toDouble(),
-              (m['end_s']! as num).toDouble(),
-            ),
-          )
-          .toList();
-      return (scenes, spans);
-    }
+    final stored = storedDetect(_out);
+    if (stored != null) return stored;
     final filter =
         'scale=320:-2,freezedetect=n=-50dB:d=${stillS.toStringAsFixed(1)},'
         "select='gt(scene,$kSceneThreshold)',showinfo";
@@ -128,8 +114,11 @@ class Stage1 {
     );
     final scenes = parseSceneCuts(log);
     final spans = parseFreezes(log, durationS: durationS);
-    scenesFile.writeAsStringSync(jsonEncode(scenes));
-    stillFile.writeAsStringSync(
+    // Scenes first: a cut between the two leaves no still.jsonl, so the next
+    // run decodes again.
+    writeAtomic(scenesFile, jsonEncode(scenes));
+    writeAtomic(
+      stillFile,
       spans.map((s) => '${jsonEncode(s.toJson())}\n').join(),
     );
     return (scenes, spans);
@@ -226,8 +215,10 @@ class Stage1 {
     final frames =
         storedFrames(_out) ??
         sampleFrames(scenes: scenes, markers: markers, durationS: durationS);
-    File(p.join(_out, 'frames.json'))
-        .writeAsStringSync(const JsonEncoder.withIndent(' ').convert(frames));
+    writeAtomic(
+      File(p.join(_out, 'frames.json')),
+      const JsonEncoder.withIndent(' ').convert(frames),
+    );
     final steps = frames.length + 2;
     void step(int done) => progress(
       kDecodeUnits + ((kStageUnits - kDecodeUnits) * done / steps).round(),
