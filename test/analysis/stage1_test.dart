@@ -213,6 +213,7 @@ void main() {
       expect(fx.out('frames/${f.file}').existsSync(), isTrue);
     }
     expect(fx.out('clips/m_01_bad.mkv').existsSync(), isTrue);
+    expect(fx.out('clips/m_01_bad.jpg').lengthSync(), greaterThan(500));
     expect(
       Directory(p.join(fx.session.path, 'analysis', 'contact')).listSync(),
       isNotEmpty,

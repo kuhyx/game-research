@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:game_research/analysis/decode.dart';
+import 'package:game_research/analysis/stills.dart';
 import 'package:game_research/analysis/stored_detect.dart';
 import 'package:game_research/analysis/stored_frames.dart';
 import 'package:game_research/core/ffmpeg_parse.dart';
@@ -226,6 +227,7 @@ class Stage1 {
     );
     await extractFrames(frames, (d, _) => step(d));
     await clips(markers);
+    await extractStills(sys, dir, markers, gate: gate);
     step(frames.length + 1);
     await gate();
     await contactSheets();

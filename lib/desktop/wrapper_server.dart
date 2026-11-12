@@ -12,6 +12,7 @@ import 'package:game_research/desktop/game_api.dart';
 import 'package:game_research/desktop/recorder.dart';
 import 'package:game_research/desktop/session_controller.dart';
 import 'package:game_research/desktop/session_flow.dart';
+import 'package:game_research/desktop/share_routes.dart';
 import 'package:game_research/desktop/static_files.dart';
 import 'package:game_research/desktop/steam_library.dart';
 
@@ -19,7 +20,8 @@ import 'package:game_research/desktop/steam_library.dart';
 class WrapperServer {
   /// Creates the server.
   new({required this.webRoot, required this.flow})
-    : api = GameApi(flow.controller, flow.library);
+    : api = GameApi(flow.controller, flow.library),
+      share = ShareRoutes(flow.controller, flow.library);
 
   /// The Flutter web build.
   final String webRoot;
@@ -35,6 +37,9 @@ class WrapperServer {
 
   /// Games, finish and document endpoints.
   final GameApi api;
+
+  /// Notes, stills and clipboard copies for Discord.
+  final ShareRoutes share;
   HttpServer? _server;
 
   /// Listens on loopback [port] (0 = any, for tests); returns the port.
@@ -94,6 +99,7 @@ class WrapperServer {
       final text = await utf8.decoder.bind(req).join();
       return _reply(res, api.save(q['path'], text));
     }
+    if (await share.handle(req, res, parts)) return;
     switch ((post, parts)) {
       case (false, ['state']):
         _json(res, flow.state());

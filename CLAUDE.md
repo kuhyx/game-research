@@ -22,7 +22,7 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
 - Every side effect has an env seam (`lib/desktop/config.dart`):
   `GAME_RESEARCH_{DATA,STEAM_ROOT,STEAM_CMD,DISPLAY,OUTPUT,AUDIO,TICK_CMD,
   FAKE_LLM,ART,TODO_CMD,TARGET,SRC,ANALYZE,PORT,LOG,AUTOSTART_S,DEFAULT_APPID,
-  WINDOW_TIMEOUT_S,RELAUNCH_S,STEAM_PID,STEAM_ENV,PROC,CAPTURE}`. `ANALYZE=off`
+  WINDOW_TIMEOUT_S,RELAUNCH_S,STEAM_PID,STEAM_ENV,PROC,CAPTURE,CLIP_CMD}`. `ANALYZE=off`
   starts no analysis job. `CAPTURE=auto` records with gpu-screen-recorder
   (GPU capture + encode); it cannot run under Xvfb, so E2E and off-screen
   runs always take the x11grab fallback. Analysis jobs wait while
@@ -75,6 +75,9 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
   JSON out; exit 0 ok, 1 refused/timeout, 2 usage, 3 no wrapper.
 - HTTP: `GET /api/state|games|sessions`, `POST /api/start[?appid]`,
   `/api/stop`, `/api/autostart[?appid]`, `/api/autostart/cancel`,
-  `/api/marker?tag=`. GUI semantics labels: `start`/`stop`, `autostart`,
+  `/api/marker?tag=`, `GET /api/games/<appid>/notes`,
+  `GET /api/sessions/<stamp>/still/<i>`, `POST /api/games/<appid>/notes/<n>/copy?what=files|text`,
+  `POST /api/sessions/<stamp>/markers/<i>/copy` (clipboard via `helpers/clip_owner.py`,
+  `GAME_RESEARCH_CLIP_CMD`). GUI semantics labels: `start`/`stop`, `autostart`,
   `waiting for game`, `marker <tag>`, `note text`, game tiles by name
   (`<name>, updating` while Steam has not finished).
