@@ -234,7 +234,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: SessionList(
                   sessions: _sessions,
                   capsuleUrl: _api.capsuleUrl,
-                  onRerun: actions.rerun,
                   onOpenDraft: actions.openDraft,
                   reportReady: actions.reportReady,
                   onOpenReport: actions.openReport,

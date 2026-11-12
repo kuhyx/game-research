@@ -105,9 +105,6 @@ class ResearchApi {
   /// Picks the target project at [path].
   Future<void> pickTarget(String path) => _post('target', body: path);
 
-  /// Reruns a session's analysis.
-  Future<void> analyze(String id) => _post('sessions/$id/analyze');
-
   /// Runs the "research finished" merge for [appid].
   Future<void> finish(int appid) => _post('games/$appid/finish');
 

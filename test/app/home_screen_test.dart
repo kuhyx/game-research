@@ -87,7 +87,7 @@ void main() {
     await _end(t);
   });
 
-  testWidgets('target chip, rerun and draft buttons, ring states', (t) async {
+  testWidgets('target chip, draft button, ring states', (t) async {
     final w = FakeWrapper()
       ..sessions = [
         for (final (id, state, draft) in [
@@ -108,10 +108,8 @@ void main() {
     await t.pump();
     await t.pump();
     expect(w.calls, contains('POST /api/target /src/other'));
-    await t.tap(_label('rerun a'));
     await t.tap(_label('draft a'));
     await t.pump();
-    expect(w.calls, contains('POST /api/sessions/a/analyze'));
     expect(w.calls, contains('GET /api/doc?path=%2Fd.md'));
     expect(find.byIcon(Icons.priority_high_rounded), findsOneWidget);
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);

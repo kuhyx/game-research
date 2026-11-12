@@ -8,7 +8,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:game_research/core/markers.dart';
-import 'package:game_research/core/status.dart';
 import 'package:game_research/desktop/game_api.dart';
 import 'package:game_research/desktop/recorder.dart';
 import 'package:game_research/desktop/session_controller.dart';
@@ -172,19 +171,6 @@ class WrapperServer {
         );
       case (false, ['sessions']):
         _json(res, store.list());
-      case (true, ['sessions', final id, final action]):
-        final dir = store.dir(id);
-        if (dir == null) {
-          return _json(res, {'error': 'no session'}, HttpStatus.notFound);
-        }
-        if (action == 'analyze') {
-          // Resume a failed or unfinished job; redo a finished one.
-          final done = store.status(dir).state == StageState.done;
-          final ok = await controller.parts.analysis.launch(dir, force: done);
-          _json(res, {'ok': ok}, ok ? 200 : HttpStatus.serviceUnavailable);
-        } else {
-          _json(res, {'error': 'unknown action'}, HttpStatus.notFound);
-        }
       default:
         _json(res, {'error': 'not found'}, HttpStatus.notFound);
     }

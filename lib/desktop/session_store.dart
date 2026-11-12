@@ -125,8 +125,7 @@ class AnalysisLauncher {
   /// unit that outlives the wrapper; `inline`: a detached child (tests);
   /// `off`: nothing (off-screen agent runs must not call models or write
   /// drafts into the target repo). Returns false when it did not start.
-  Future<bool> launch(Directory dir, {bool force = false}) =>
-      _start('analyze', [dir.path, if (force) '--force']);
+  Future<bool> launch(Directory dir) => _start('analyze', [dir.path]);
 
   /// Starts the per-game "research finished" job for [slug] (merges every
   /// session draft into one document and a report).

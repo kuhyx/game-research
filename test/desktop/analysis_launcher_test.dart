@@ -36,9 +36,7 @@ void main() {
       expect(call.mode, ProcessStartMode.detached);
     });
 
-    test('force adds --force; a start failure returns false', () async {
-      await launcher({}).launch(session, force: true);
-      expect(fake.calls.single.args, [session.path, '--force']);
+    test('a start failure returns false', () async {
       fake.onStart = (_) => throw const ProcessException('x', []);
       expect(await launcher({}).launch(session), isFalse);
     });
@@ -50,7 +48,7 @@ void main() {
         'GAME_RESEARCH_ANALYZE': 'systemd',
         'GAME_RESEARCH_REPO': '/repo',
       });
-      expect(await l.launch(session, force: true), isTrue);
+      expect(await l.launch(session), isTrue);
       final call = fake.calls.single;
       expect(call.exe, 'systemd-run');
       expect(call.args, containsAllInOrder(['--user', '--collect', '--quiet']));
@@ -68,10 +66,9 @@ void main() {
         '--setenv=PATH=${root.path}/.local/bin:/usr/local/bin:/usr/bin',
       );
       expect(call.args, contains('--setenv=GAME_RESEARCH_DISPLAY=:99'));
-      expect(call.args.sublist(call.args.length - 3), [
+      expect(call.args.sublist(call.args.length - 2), [
         l.analyzer,
         session.path,
-        '--force',
       ]);
     });
 

@@ -67,9 +67,7 @@ void main() {
       await t.pump();
       expect(find.byType(ReportPanel), findsOneWidget);
       expect(w.calls, contains('GET /api/doc?path=%2Fr.md'));
-      await t.tap(find.bySemanticsLabel(RegExp(r'^rerun$')));
-      await t.pump();
-      expect(w.calls, contains('POST /api/games/1/finish'));
+      expect(find.bySemanticsLabel(RegExp(r'^rerun$')), findsNothing);
       await endHome(t);
     });
   });

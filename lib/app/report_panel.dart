@@ -12,12 +12,11 @@ import 'package:game_research/app/api.dart';
 
 /// The panel for the document at [path].
 class ReportPanel extends StatefulWidget {
-  /// Opens [path] through [api]. [onRerun] adds a rerun button (reports).
+  /// Opens [path] through [api].
   const new({
     required this.api,
     required this.path,
     required this.onClose,
-    this.onRerun,
     super.key,
   });
 
@@ -29,9 +28,6 @@ class ReportPanel extends StatefulWidget {
 
   /// Close pressed (or Esc).
   final VoidCallback onClose;
-
-  /// Rerun pressed; null hides the button.
-  final VoidCallback? onRerun;
 
   @override
   State<ReportPanel> createState() => _ReportPanelState();
@@ -101,7 +97,6 @@ class _ReportPanelState extends State<ReportPanel> {
   Widget build(BuildContext context) {
     const editSemantic = 'edit';
     const saveSemantic = 'save';
-    const rerunSemantic = 'rerun';
     const closeSemantic = 'close';
     const failedSemantic = 'document error';
     final loaded = _saved != null;
@@ -134,15 +129,6 @@ class _ReportPanelState extends State<ReportPanel> {
                   ),
                   iconSize: 32,
                 ),
-                if (widget.onRerun != null)
-                  IconButton(
-                    onPressed: widget.onRerun,
-                    icon: const Icon(
-                      Icons.refresh_rounded,
-                      semanticLabel: rerunSemantic,
-                    ),
-                    iconSize: 32,
-                  ),
                 const SizedBox(width: AppSpacing.sm),
                 if (_failed && loaded)
                   const Icon(

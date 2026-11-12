@@ -1,5 +1,5 @@
 /// Past sessions: capsule, start date and length as numbers, marker counts,
-/// the analysis ring and its numbers, rerun and draft-panel buttons. No
+/// the analysis ring and its numbers, draft and report buttons. No
 /// words.
 library;
 
@@ -16,7 +16,6 @@ class SessionList extends StatelessWidget {
   const new({
     required this.sessions,
     required this.capsuleUrl,
-    required this.onRerun,
     required this.onOpenDraft,
     this.reportReady = const {},
     this.onOpenReport,
@@ -28,9 +27,6 @@ class SessionList extends StatelessWidget {
 
   /// Capsule URL of an app id.
   final String Function(int appid) capsuleUrl;
-
-  /// Rerun pressed for a session id.
-  final ValueChanged<String> onRerun;
 
   /// Open draft pressed for a session id.
   final ValueChanged<String> onOpenDraft;
@@ -48,7 +44,6 @@ class SessionList extends StatelessWidget {
     itemBuilder: (context, i) => _Row(
       row: sessions[i],
       capsuleUrl: capsuleUrl,
-      onRerun: onRerun,
       onOpenDraft: onOpenDraft,
       onOpenReport: reportReady.contains(sessions[i].appid)
           ? onOpenReport
@@ -68,14 +63,12 @@ class _Row extends StatelessWidget {
   const new({
     required this.row,
     required this.capsuleUrl,
-    required this.onRerun,
     required this.onOpenDraft,
     required this.onOpenReport,
   });
 
   final SessionRow row;
   final String Function(int) capsuleUrl;
-  final ValueChanged<String> onRerun;
   final ValueChanged<String> onOpenDraft;
   final ValueChanged<int>? onOpenReport;
 
@@ -88,7 +81,6 @@ class _Row extends StatelessWidget {
       'waiting' || 'interrupted' => AppPalette.warning,
       _ => AppPalette.accent,
     };
-    final rerunSemantic = 'rerun ${row.id}';
     final draftSemantic = 'draft ${row.id}';
     final ringSemantic = 'analysis ${row.state}';
     final reportSemantic = 'report ${row.id}';
@@ -181,11 +173,6 @@ class _Row extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            IconButton(
-              onPressed: row.recording ? null : () => onRerun(row.id),
-              icon: Icon(Icons.refresh_rounded, semanticLabel: rerunSemantic),
-              iconSize: 32,
-            ),
             IconButton(
               onPressed: row.draft == null ? null : () => onOpenDraft(row.id),
               icon: Icon(

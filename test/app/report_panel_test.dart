@@ -13,7 +13,6 @@ Future<void> _open(
   FakeWrapper w, {
   String path = '/t/a.md',
   VoidCallback? onClose,
-  VoidCallback? onRerun,
 }) async {
   t.view
     ..physicalSize = const Size(2048, 1152)
@@ -22,12 +21,7 @@ Future<void> _open(
   await t.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        body: ReportPanel(
-          api: w.api(),
-          path: path,
-          onClose: onClose ?? () {},
-          onRerun: onRerun,
-        ),
+        body: ReportPanel(api: w.api(), path: path, onClose: onClose ?? () {}),
       ),
     ),
   );
@@ -96,20 +90,13 @@ void main() {
     expect(find.text('# New'), findsOneWidget, reason: 'edit not lost');
   });
 
-  testWidgets('close and rerun call back', (t) async {
+  testWidgets('close calls back; there is no rerun button', (t) async {
     final w = FakeWrapper()..docs['/t/a.md'] = '# A';
     var closed = 0;
-    var reran = 0;
-    await _open(t, w, onClose: () => closed++, onRerun: () => reran++);
-    await t.tap(_label('rerun'));
-    await t.tap(_label('close'));
-    expect([closed, reran], [1, 1]);
-  });
-
-  testWidgets('no rerun button without a callback', (t) async {
-    final w = FakeWrapper()..docs['/t/a.md'] = '# A';
-    await _open(t, w);
+    await _open(t, w, onClose: () => closed++);
     expect(_label('rerun'), findsNothing);
+    await t.tap(_label('close'));
+    expect(closed, 1);
   });
 
   testWidgets('a new path loads the new document', (t) async {

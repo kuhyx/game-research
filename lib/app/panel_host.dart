@@ -17,7 +17,6 @@ class PanelActions {
   /// Creates the actions.
   const new({
     required this.openDraft,
-    required this.rerun,
     required this.finish,
     required this.openReport,
     required this.reportReady,
@@ -25,9 +24,6 @@ class PanelActions {
 
   /// Opens the draft of session id.
   final ValueChanged<String> openDraft;
-
-  /// Reruns the analysis of session id.
-  final ValueChanged<String> rerun;
 
   /// The flag of a game tile: open its report, or queue the finish job.
   final ValueChanged<Game> finish;
@@ -75,19 +71,15 @@ class PanelHost extends StatefulWidget {
 }
 
 class _PanelHostState extends State<PanelHost> {
-  /// The open document; finishAppid is set for a report (rerunnable).
-  ({String path, int? finishAppid})? _panel;
+  /// Path of the open document.
+  String? _panel;
 
   void _openDraft(String id) => widget.guard.run(() {
     final draft = widget.sessions.where((r) => r.id == id).firstOrNull?.draft;
     if (draft != null) {
-      setState(() => _panel = (path: draft, finishAppid: null));
+      setState(() => _panel = draft);
     }
   });
-
-  void _rerun(String id) => widget.guard.run(
-    () => unawaited(widget.act(() => widget.api.analyze(id))),
-  );
 
   /// The report of a finished game, behind the tap guard (a stray click
   /// must not open a panel).
@@ -95,7 +87,7 @@ class _PanelHostState extends State<PanelHost> {
       g.finish?.state == 'done' && g.finish?.report != null;
 
   void _openReport(Game g) => widget.guard.run(() {
-    setState(() => _panel = (path: g.finish!.report!, finishAppid: g.appid));
+    setState(() => _panel = g.finish!.report);
   });
 
   /// Done: open the report. Otherwise always send the request (the wrapper
@@ -121,7 +113,6 @@ class _PanelHostState extends State<PanelHost> {
         widget.builder(
           PanelActions(
             openDraft: _openDraft,
-            rerun: _rerun,
             finish: _finish,
             openReport: _report,
             reportReady: {
@@ -138,15 +129,8 @@ class _PanelHostState extends State<PanelHost> {
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: ReportPanel(
                   api: widget.api,
-                  path: panel.path,
+                  path: panel,
                   onClose: () => setState(() => _panel = null),
-                  onRerun: panel.finishAppid == null
-                      ? null
-                      : () => unawaited(
-                          widget.act(
-                            () => widget.api.finish(panel.finishAppid!),
-                          ),
-                        ),
                 ),
               ),
             ),

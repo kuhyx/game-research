@@ -5,8 +5,8 @@
 /// and once 1.2 s after Steam was launched. Both are moments when a game or
 /// Steam window closes or opens over this one; a click meant for that
 /// window (a double click on the game's Quit, a click on a Steam dialog)
-/// lands on the session row that sits under the pointer. Rerun costs model
-/// tokens and draft opens a panel, so neither may fire from such a click.
+/// lands on the session row that sits under the pointer. A draft open
+/// shows a panel, so it may not fire from such a click.
 library;
 
 import 'dart:async';

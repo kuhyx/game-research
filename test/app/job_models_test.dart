@@ -100,11 +100,9 @@ void main() {
           }),
         );
         await api.stop();
-        await api.analyze('s1');
         await api.finish(4);
         expect(calls, [
           'POST http://127.0.0.1:8805/api/stop',
-          'POST http://127.0.0.1:8805/api/sessions/s1/analyze',
           'POST http://127.0.0.1:8805/api/games/4/finish',
         ]);
         expect(api.capsuleUrl(3), 'http://127.0.0.1:8805/api/capsule/3');

@@ -118,10 +118,8 @@ void main() {
       await t.pump(const Duration(seconds: 1));
       await t.pump();
       await t.tap(label('draft a'));
-      await t.tap(label('rerun a'));
       await t.pump();
       expect(w.calls.where((c) => c.contains('/api/doc')), isEmpty);
-      expect(w.calls.where((c) => c.contains('analyze')), isEmpty);
       await t.pump(const Duration(seconds: 6));
       await t.tap(label('draft a'));
       await t.pump();

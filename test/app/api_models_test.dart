@@ -35,7 +35,7 @@ void main() {
     expect(api.capsuleUrl(3), 'http://127.0.0.1:1/api/capsule/3');
   });
 
-  test('posts start, stop, markers, notes, target, analyze, finish', () async {
+  test('posts start, stop, markers, notes, target, finish', () async {
     final w = FakeWrapper();
     final api = w.api();
     await api.start(4);
@@ -43,7 +43,6 @@ void main() {
     expect(await api.marker('good'), isNull);
     await api.note(7, 'hi');
     await api.pickTarget('/src/other');
-    await api.analyze('s1');
     await api.finish(4);
     await api.stop();
     expect(w.calls, [
@@ -52,7 +51,6 @@ void main() {
       'POST /api/marker?tag=good&src=gui',
       'POST /api/note?id=7 hi',
       'POST /api/target /src/other',
-      'POST /api/sessions/s1/analyze',
       'POST /api/games/4/finish',
       'POST /api/stop',
     ]);

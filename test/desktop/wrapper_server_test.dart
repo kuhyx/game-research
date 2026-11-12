@@ -201,7 +201,7 @@ void main() {
     expect(good.status, 200);
   });
 
-  test('sessions: list, analyze and its errors', () async {
+  test('sessions: list; no analyze endpoint any more', () async {
     final dir = Directory(p.join(h.config.dataDir, '2026-s'))
       ..createSync(recursive: true);
     h.parts.store.writeMeta(dir, {'appid': 730});
@@ -209,24 +209,8 @@ void main() {
     expect(list.single, containsPair('id', '2026-s'));
 
     expect((await hit('POST', '/api/sessions/none/analyze')).status, 404);
-    final ran = await hit('POST', '/api/sessions/2026-s/analyze');
-    expect(
-      [ran.status, ran.json],
-      [
-        200,
-        {'ok': true},
-      ],
-    );
-    expect(h.fake.calls.last.args, [dir.path], reason: 'resume, not redo');
-    Directory(p.join(dir.path, 'analysis')).createSync();
-    File(p.join(dir.path, 'analysis', 'status.json')).writeAsStringSync(
-      jsonEncode({'stage': 3, 'done': 1, 'total': 1, 'state': 'done'}),
-    );
-    await hit('POST', '/api/sessions/2026-s/analyze');
-    expect(h.fake.calls.last.args, [dir.path, '--force']);
-    h.fake.onStart = (_) => throw const ProcessException('x', []);
-    expect((await hit('POST', '/api/sessions/2026-s/analyze')).status, 503);
-
+    expect((await hit('POST', '/api/sessions/2026-s/analyze')).status, 404);
+    expect(h.fake.calls, isEmpty, reason: 'no job started');
     expect((await hit('POST', '/api/sessions/2026-s/frobnicate')).status, 404);
   });
 }
