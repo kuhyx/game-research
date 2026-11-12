@@ -17,8 +17,15 @@ class ResearchApi {
   /// HTTP client (a MockClient in tests).
   final http.Client client;
 
-  Uri _u(String path, [Map<String, String>? query]) =>
-      base.replace(path: '/api/$path', queryParameters: query);
+  /// Built from scratch: `Uri.replace` would keep the page's own query
+  /// (`?autostart=1`) on every call.
+  Uri _u(String path, [Map<String, String>? query]) => Uri(
+    scheme: base.scheme,
+    host: base.host,
+    port: base.hasPort ? base.port : null,
+    path: '/api/$path',
+    queryParameters: query,
+  );
 
   Future<Object?> _get(String path) async {
     final r = await client.get(_u(path));
@@ -49,6 +56,12 @@ class ResearchApi {
     for (final g in (await _get('games'))! as List)
       Game.fromJson(g as Map<String, Object?>),
   ];
+
+  /// The "research finished" state per app id (games that ran it).
+  Future<Map<int, Finish>> finishes() async => {
+    for (final e in ((await _get('finish'))! as Map).entries)
+      int.parse('${e.key}'): Finish.fromJson(e.value as Map),
+  };
 
   /// Target projects.
   Future<TargetList> targets() async =>
@@ -95,8 +108,21 @@ class ResearchApi {
   /// Reruns a session's analysis.
   Future<void> analyze(String id) => _post('sessions/$id/analyze');
 
-  /// Opens a session's draft in the editor.
-  Future<void> openDraft(String id) => _post('sessions/$id/open-draft');
+  /// Runs the "research finished" merge for [appid].
+  Future<void> finish(int appid) => _post('games/$appid/finish');
+
+  /// The text of the draft or report at absolute [path].
+  Future<String> doc(String path) async {
+    final r = await client.get(_u('doc', {'path': path}));
+    if (r.statusCode != 200) throw ApiError(r.statusCode, r.body);
+    return ((jsonDecode(r.body) as Map)['text'] ?? '') as String;
+  }
+
+  /// Saves [text] over the draft or report at [path].
+  Future<void> saveDoc(String path, String text) async {
+    final r = await client.put(_u('doc', {'path': path}), body: text);
+    if (r.statusCode != 200) throw ApiError(r.statusCode, r.body);
+  }
 }
 
 /// A non-2xx answer.

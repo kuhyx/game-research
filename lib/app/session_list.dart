@@ -1,5 +1,6 @@
 /// Past sessions: capsule, start date and length as numbers, marker counts,
-/// the analysis ring, rerun and open-draft buttons. No words.
+/// the analysis ring and its numbers, rerun and draft-panel buttons. No
+/// words.
 library;
 
 import 'package:design_system/design_system.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:game_research/app/game_picker.dart';
 import 'package:game_research/app/marker_style.dart';
 import 'package:game_research/app/models.dart';
+import 'package:game_research/app/stat_chips.dart';
 
 /// The list.
 class SessionList extends StatelessWidget {
@@ -70,6 +72,7 @@ class _Row extends StatelessWidget {
     final ring = switch (row.state) {
       'done' => AppPalette.success,
       'failed' => AppPalette.danger,
+      'waiting' || 'interrupted' => AppPalette.warning,
       _ => AppPalette.accent,
     };
     final rerunSemantic = 'rerun ${row.id}';
@@ -120,6 +123,7 @@ class _Row extends StatelessWidget {
                         ),
                     ],
                   ),
+                  StatChips(job: row.job, fpsAvg: row.fpsAvg),
                 ],
               ),
             ),
@@ -147,6 +151,16 @@ class _Row extends StatelessWidget {
                       const Icon(
                         Icons.check_rounded,
                         color: AppPalette.success,
+                      ),
+                    if (row.state == 'waiting')
+                      const Icon(
+                        Icons.hourglass_top_rounded,
+                        color: AppPalette.warning,
+                      ),
+                    if (row.state == 'interrupted')
+                      const Icon(
+                        Icons.pause_rounded,
+                        color: AppPalette.warning,
                       ),
                   ],
                 ),

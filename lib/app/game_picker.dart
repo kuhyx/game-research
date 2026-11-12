@@ -4,7 +4,12 @@ library;
 
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
+import 'package:game_research/app/finish_button.dart';
 import 'package:game_research/app/models.dart';
+import 'package:game_research/app/procedural_capsule.dart';
+import 'package:game_research/app/stat_chips.dart';
+
+export 'package:game_research/app/procedural_capsule.dart';
 
 /// The capsule grid.
 class GamePicker extends StatelessWidget {
@@ -15,8 +20,20 @@ class GamePicker extends StatelessWidget {
     required this.onPick,
     required this.capsuleUrl,
     this.enabled = true,
+    this.finishReady = const {},
+    this.onFinish,
+    this.offline = false,
     super.key,
   });
+
+  /// The wrapper does not answer: a cloud glyph instead of the grid.
+  final bool offline;
+
+  /// App ids with at least one session draft (the finish control works).
+  final Set<int> finishReady;
+
+  /// The finish control of a game was pressed.
+  final ValueChanged<Game>? onFinish;
 
   /// Games to show.
   final List<Game> games;
@@ -35,6 +52,16 @@ class GamePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (offline) {
+      return const Center(
+        child: Icon(
+          Icons.cloud_off_rounded,
+          size: 96,
+          color: AppPalette.danger,
+          semanticLabel: 'wrapper offline',
+        ),
+      );
+    }
     if (games.isEmpty) {
       return const Center(
         child: Icon(
@@ -59,6 +86,8 @@ class GamePicker extends StatelessWidget {
         enabled: enabled,
         url: capsuleUrl(games[i].appid),
         onTap: () => onPick(games[i].appid),
+        finishReady: finishReady.contains(games[i].appid),
+        onFinish: onFinish == null ? null : () => onFinish!(games[i]),
       ),
     );
   }
@@ -71,6 +100,8 @@ class _Capsule extends StatelessWidget {
     required this.enabled,
     required this.url,
     required this.onTap,
+    required this.finishReady,
+    required this.onFinish,
   });
 
   final Game game;
@@ -78,6 +109,8 @@ class _Capsule extends StatelessWidget {
   final bool enabled;
   final String url;
   final VoidCallback onTap;
+  final bool finishReady;
+  final VoidCallback? onFinish;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +121,7 @@ class _Capsule extends StatelessWidget {
             errorBuilder: (_, _, _) => ProceduralCapsule(appid: game.appid),
           )
         : ProceduralCapsule(appid: game.appid);
-    return Semantics(
+    final tile = Semantics(
       button: true,
       selected: picked,
       label: game.updating ? '${game.name}, updating' : game.name,
@@ -135,6 +168,45 @@ class _Capsule extends StatelessWidget {
         ),
       ),
     );
+    if (onFinish == null) return tile;
+    final job = game.finish?.job;
+    // Beside the tile's semantics, not inside it: that node hides its
+    // children from assistive tech.
+    return Stack(
+      children: [
+        Positioned.fill(child: tile),
+        Positioned(
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          bottom: AppSpacing.md,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: job == null
+                    ? const SizedBox.shrink()
+                    : DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppPalette.ink.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.xs),
+                          child: StatChips(job: job),
+                        ),
+                      ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              FinishButton(
+                game: game,
+                ready: finishReady,
+                onPressed: onFinish!,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -165,37 +237,4 @@ class _Updating extends StatelessWidget {
       ),
     ],
   );
-}
-
-/// A capsule drawn from the app id: a hue band and a gamepad glyph.
-class ProceduralCapsule extends StatelessWidget {
-  /// Creates the tile.
-  const new({required this.appid, super.key});
-
-  /// App id seeding the hue.
-  final int appid;
-
-  @override
-  Widget build(BuildContext context) {
-    final hue = (appid * 47) % 360;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            HSLColor.fromAHSL(1, hue.toDouble(), 0.35, 0.32).toColor(),
-            AppPalette.inkRaised1,
-          ],
-        ),
-      ),
-      child: const Center(
-        child: Icon(
-          Icons.sports_esports_rounded,
-          size: 72,
-          color: AppPalette.textOnDark,
-        ),
-      ),
-    );
-  }
 }

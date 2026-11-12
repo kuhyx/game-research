@@ -146,6 +146,17 @@ void main() {
       expect((await s.hit('POST', '/api/games/4197610/finish')).status, 503);
     });
 
+    test('/api/finish maps app id to the state, nothing logged', () async {
+      expect((await s.hit('GET', '/api/finish')).json, <String, Object?>{});
+      const slug = 'librarian-tidy-up-the-arcane-library';
+      File(p.join(s.h.config.dataDir, 'games', slug, 'status.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync(jsonEncode({'state': 'running', 'progress': 0.3}));
+      final m = (await s.hit('GET', '/api/finish')).json! as Map;
+      expect(m['4197610'], containsPair('state', 'running'));
+      expect(s.h.events, isNot(contains('picker')));
+    });
+
     test('/api/games carries slug and the finish state', () async {
       const slug = 'librarian-tidy-up-the-arcane-library';
       var g = ((await s.hit('GET', '/api/games')).json! as List).single as Map;

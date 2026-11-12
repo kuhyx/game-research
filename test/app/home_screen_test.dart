@@ -112,7 +112,7 @@ void main() {
     await t.tap(_label('draft a'));
     await t.pump();
     expect(w.calls, contains('POST /api/sessions/a/analyze'));
-    expect(w.calls, contains('POST /api/sessions/a/open-draft'));
+    expect(w.calls, contains('GET /api/doc?path=%2Fd.md'));
     expect(find.byIcon(Icons.priority_high_rounded), findsOneWidget);
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
     await _end(t);

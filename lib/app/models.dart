@@ -1,43 +1,11 @@
 /// What the page shows, parsed from the wrapper's JSON.
 library;
 
+import 'package:game_research/app/job_models.dart';
+
+export 'package:game_research/app/game_models.dart';
+
 int _int(Object? v) => (v as num?)?.toInt() ?? 0;
-
-/// One installed game.
-class Game {
-  /// Creates a game.
-  const new({
-    required this.appid,
-    required this.name,
-    this.capsule = false,
-    this.updating = false,
-    this.progress = 1,
-  });
-
-  /// Parses one `/api/games` entry.
-  factory fromJson(Map<String, Object?> j) => Game(
-    appid: _int(j['appid']),
-    name: '${j['name'] ?? ''}',
-    capsule: j['capsule'] == true,
-    updating: j['state'] == 'updating',
-    progress: (j['progress'] as num?)?.toDouble() ?? 1,
-  );
-
-  /// Steam app id.
-  final int appid;
-
-  /// Name: accessibility label only, never drawn.
-  final String name;
-
-  /// Whether a capsule image exists.
-  final bool capsule;
-
-  /// Steam stopped mid-download; starting it lets Steam finish first.
-  final bool updating;
-
-  /// Downloaded share, 0..1.
-  final double progress;
-}
 
 /// Marker counts per tag name.
 typedef Counts = Map<String, int>;
@@ -146,14 +114,14 @@ class SessionRow {
     this.durationS = 0,
     this.recording = false,
     this.counts = const {},
-    this.progress = 0,
-    this.state = 'idle',
+    this.job = const JobStatus(),
+    this.fpsAvg,
     this.draft,
   });
 
   /// Parses one `/api/sessions` entry.
   factory fromJson(Map<String, Object?> j) {
-    final a = (j['analysis'] as Map<String, Object?>?) ?? const {};
+    final fps = j['fps'];
     return SessionRow(
       id: '${j['id']}',
       appid: _int(j['appid']),
@@ -162,8 +130,8 @@ class SessionRow {
       durationS: (j['duration_s'] as num?)?.toDouble() ?? 0,
       recording: j['recording'] == true,
       counts: _counts(j['markers']),
-      progress: (a['progress'] as num?)?.toDouble() ?? 0,
-      state: '${a['state'] ?? 'idle'}',
+      job: JobStatus.fromJson(j['analysis']),
+      fpsAvg: fps is Map ? (fps['avg'] as num?)?.toDouble() : null,
       draft: j['draft'] as String?,
     );
   }
@@ -189,11 +157,17 @@ class SessionRow {
   /// Markers per tag.
   final Counts counts;
 
-  /// Analysis progress 0..1.
-  final double progress;
+  /// The analysis job.
+  final JobStatus job;
 
-  /// idle | running | done | failed.
-  final String state;
+  /// Average game fps of the session, when logged.
+  final double? fpsAvg;
+
+  /// Analysis progress 0..1.
+  double get progress => job.progress;
+
+  /// idle | running | waiting | interrupted | done | failed.
+  String get state => job.state;
 
   /// Path of the English draft, when written.
   final String? draft;

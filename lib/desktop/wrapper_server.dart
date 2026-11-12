@@ -107,6 +107,8 @@ class WrapperServer {
           ],
         });
         _json(res, games);
+      case (false, ['finish']):
+        _json(res, api.finishJson());
       case (false, ['doc']):
         _reply(res, api.read(q['path']));
       case (true, ['games', final id, 'finish']):

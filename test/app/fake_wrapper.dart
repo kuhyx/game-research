@@ -30,6 +30,9 @@ class FakeWrapper {
   /// Session rows served by `/api/sessions`.
   List<Map<String, Object?>> sessions = [];
 
+  /// Documents served by `/api/doc`, by absolute path.
+  final docs = <String, String>{};
+
   /// When true every request throws (wrapper offline).
   bool offline = false;
 
@@ -50,6 +53,14 @@ class FakeWrapper {
       '${r.method} $path${r.url.hasQuery ? '?${r.url.query}' : ''}'
       '${r.body.isEmpty ? '' : ' ${r.body}'}',
     );
+    final docPath = r.url.queryParameters['path'];
+    if (path == '/api/doc') {
+      if (!docs.containsKey(docPath)) {
+        return http.Response('{"error":"no such document"}', 404);
+      }
+      if (r.method == 'PUT') docs[docPath!] = r.body;
+      return http.Response(jsonEncode({'text': docs[docPath]}), 200);
+    }
     Object? body;
     if (r.method == 'GET') {
       body = switch (path) {
@@ -73,6 +84,10 @@ class FakeWrapper {
             },
         },
         '/api/games' => games,
+        '/api/finish' => {
+          for (final g in games)
+            if (g['finish'] != null) '${g['appid']}': g['finish'],
+        },
         '/api/targets' => {
           'current': '/src/cleanup-plate',
           'targets': [

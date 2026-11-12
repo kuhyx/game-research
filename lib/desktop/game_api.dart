@@ -57,6 +57,13 @@ class GameApi {
       },
   ];
 
+  /// `GET /api/finish`: app id -> finish state, only for games that ran
+  /// it. Polled by the page, so it reads two small files per game.
+  Map<String, Object?> finishJson() => {
+    for (final g in library.games())
+      '${g.appid}': ?games.finish(slugify(g.name)),
+  };
+
   /// `GET /api/doc?path=`.
   ApiReply read(String? path) {
     if (path == null || path.isEmpty) return _err(400, 'path needed');

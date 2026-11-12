@@ -1,6 +1,6 @@
 /// The one window: games on the left; controls, target and past sessions on
-/// the right. Polls the wrapper once a second (state, sessions); the games
-/// and targets load once and on each session end.
+/// the right. Polls the wrapper once a second (state, sessions, finish
+/// states); games and targets load once and on each session end.
 library;
 
 import 'dart:async';
@@ -12,7 +12,9 @@ import 'package:game_research/app/api.dart';
 import 'package:game_research/app/controls.dart';
 import 'package:game_research/app/game_picker.dart';
 import 'package:game_research/app/models.dart';
+import 'package:game_research/app/panel_host.dart';
 import 'package:game_research/app/session_list.dart';
+import 'package:game_research/app/tap_guard.dart';
 import 'package:game_research/app/target_picker.dart';
 
 /// The home screen.
@@ -54,12 +56,14 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _offline = false;
   bool _armed = false;
   Timer? _timer;
-
+  final _guard = TapGuard();
   ResearchApi get _api => widget.api;
 
   @override
   void initState() {
     super.initState();
+    // A page opened by the launcher gets clicks meant for Steam's windows.
+    if (widget.autostart) _guard.hush();
     unawaited(_loadAll());
     _timer = Timer.periodic(widget.poll, (_) => unawaited(_refresh()));
   }
@@ -67,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _guard.dispose();
     super.dispose();
   }
 
@@ -95,11 +100,17 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final state = await _api.state();
       final sessions = await _api.sessions();
+      final finishes = await _finishes(); // null: an older wrapper
       if (!mounted) return;
       final ended = _state.recording && !state.recording;
+      // A game or Steam window opened or closed over this one.
+      if (state.phase != _state.phase) _guard.hush();
       setState(() {
         _state = state;
         _sessions = sessions;
+        if (finishes != null) {
+          _games = [for (final g in _games) g.withFinish(finishes[g.appid])];
+        }
         _offline = false;
         _picked = state.appid ?? state.pendingAppid ?? _picked;
         if (!state.recording) _hold = null;
@@ -107,6 +118,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (ended) unawaited(_loadAll());
     } on Exception {
       if (mounted) setState(() => _offline = true);
+    }
+  }
+
+  Future<Map<int, Finish>?> _finishes() async {
+    try {
+      return await _api.finishes();
+    } on ApiError {
+      return null;
     }
   }
 
@@ -119,8 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await _refresh();
   }
 
-  /// Every marker opens the note line (Enter saves, Esc keeps it empty). A
-  /// still-open one is closed empty first, so no marker stays held.
+  /// Every marker opens the note line; a still-open one closes empty first.
   Future<void> _marker(String tag) => _act(() async {
     final open = _hold;
     if (open != null) await _api.note(open, '');
@@ -145,82 +163,88 @@ class _HomeScreenState extends State<HomeScreen> {
           if (_state.pending) unawaited(_act(_api.cancelAutostart));
         },
       },
-      child: Focus(autofocus: true, child: _body(started)),
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          body: SafeArea(
+            child: PanelHost(
+              api: _api,
+              guard: _guard,
+              sessions: _sessions,
+              act: _act,
+              builder: (actions) => Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: _columns(started, actions),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _body(double? started) {
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _columns(double? started, PanelActions actions) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: GamePicker(
+            games: _games,
+            offline: _offline,
+            selected: _picked,
+            enabled: !_state.recording && !_state.pending,
+            capsuleUrl: _api.capsuleUrl,
+            onPick: (id) => setState(() => _picked = id),
+            finishReady: {
+              for (final r in _sessions)
+                if (r.draft != null) r.appid,
+            },
+            onFinish: actions.finish,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.lg),
+        SizedBox(
+          // 760: room for icon, count and hotkey legend per marker.
+          width: 760,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: _offline
-                    ? const Center(
-                        child: Icon(
-                          Icons.cloud_off_rounded,
-                          size: 96,
-                          color: AppPalette.danger,
-                          semanticLabel: 'wrapper offline',
-                        ),
-                      )
-                    : GamePicker(
-                        games: _games,
-                        selected: _picked,
-                        enabled: !_state.recording && !_state.pending,
-                        capsuleUrl: _api.capsuleUrl,
-                        onPick: (id) => setState(() => _picked = id),
-                      ),
+              Controls(
+                state: _state,
+                canStart: _picked != null,
+                elapsedS: started == null ? 0 : widget.now() - started,
+                noteOpen: _hold != null,
+                now: widget.now,
+                onStart: () => _act(() => _api.start(_picked!)),
+                onStop: () => _act(_api.stop),
+                onMarker: _marker,
+                onNote: _note,
               ),
-              const SizedBox(width: AppSpacing.lg),
-              SizedBox(
-                // 760: room for icon, count and hotkey legend per marker.
-                width: 760,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Controls(
-                      state: _state,
-                      canStart: _picked != null,
-                      elapsedS: started == null ? 0 : widget.now() - started,
-                      noteOpen: _hold != null,
-                      now: widget.now,
-                      onStart: () => _act(() => _api.start(_picked!)),
-                      onStop: () => _act(_api.stop),
-                      onMarker: _marker,
-                      onNote: _note,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    TargetPicker(
-                      paths: _targets.paths,
-                      current: _state.target.isEmpty
-                          ? _targets.current
-                          : _state.target,
-                      onPick: (path) => _act(() async {
-                        await _api.pickTarget(path);
-                        final targets = await _api.targets();
-                        if (mounted) setState(() => _targets = targets);
-                      }),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Expanded(
-                      child: SessionList(
-                        sessions: _sessions,
-                        capsuleUrl: _api.capsuleUrl,
-                        onRerun: (id) => _act(() => _api.analyze(id)),
-                        onOpenDraft: (id) => _act(() => _api.openDraft(id)),
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: AppSpacing.md),
+              TargetPicker(
+                paths: _targets.paths,
+                current: _state.target.isEmpty
+                    ? _targets.current
+                    : _state.target,
+                onPick: (path) => _act(() async {
+                  await _api.pickTarget(path);
+                  final targets = await _api.targets();
+                  if (mounted) setState(() => _targets = targets);
+                }),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Expanded(
+                child: SessionList(
+                  sessions: _sessions,
+                  capsuleUrl: _api.capsuleUrl,
+                  onRerun: actions.rerun,
+                  onOpenDraft: actions.openDraft,
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }
