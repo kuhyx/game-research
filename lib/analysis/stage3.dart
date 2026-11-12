@@ -1,6 +1,7 @@
 /// Stage 3: ONE Opus call per session fills the target's questions template;
-/// the drafts are written uncommitted into the target and one todo task
-/// asks kuhy to review them. `stage3.json` records each finished step, so a
+/// the draft is written uncommitted into the target (one file per session,
+/// never overwriting an earlier one) and one todo task asks kuhy to review
+/// it. `stage3.json` records each finished step and the tokens spent, so a
 /// rerun after a failed todo call does not pay for a second Opus call.
 library;
 
@@ -12,6 +13,7 @@ import 'package:game_research/analysis/tiers.dart';
 import 'package:game_research/core/captions.dart';
 import 'package:game_research/core/sampling.dart';
 import 'package:game_research/core/synthesis.dart';
+import 'package:game_research/core/usage.dart';
 import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/sys.dart';
 import 'package:path/path.dart' as p;
@@ -39,6 +41,21 @@ class Stage3 {
   void _write(Map<String, Object?> s) =>
       _state.writeAsStringSync(const JsonEncoder.withIndent(' ').convert(s));
 
+  /// Adds [spent] to the `tokens` and `cost_usd` of [state]: a call that
+  /// failed or answered badly cost tokens too.
+  void _spend(Map<String, Object?> state, Usage spent) {
+    final total =
+        Usage.fromJson({
+          ...?(state['tokens'] as Map?)?.cast<String, Object?>(),
+          'cost_usd': state['cost_usd'],
+        }) +
+        spent;
+    state
+      ..['tokens'] = total.tokens
+      ..['cost_usd'] = total.costUsd;
+    _write(state);
+  }
+
   /// The synthesis model call: Opus, or the fake.
   Future<TierResult> _synthesize(
     String prompt,
@@ -56,7 +73,7 @@ class Stage3 {
     ).ask(prompt, [dir, target]);
   }
 
-  /// Fills the drafts for [meta] (session.json) from [frames].
+  /// Fills the draft for [meta] (session.json) from [frames].
   Future<Map<String, Object?>> run(
     Map<String, Object?> meta,
     List<SampleFrame> frames,
@@ -65,20 +82,21 @@ class Stage3 {
     final game = meta['game']! as String;
     final slug = meta['slug']! as String;
     final target = meta['target']! as String;
-    final templates = templatePaths(target);
-    if (!File(templates.en).existsSync() || !File(templates.pl).existsSync()) {
+    final stamp = sessionStamp(p.basename(dir));
+    final template = templatePath(target);
+    if (!File(template).existsSync()) {
       throw StateError('no questions template in $target/docs/research');
     }
-    final drafts = draftPaths(target, slug);
-    if (state['draft_en'] == null) {
+    final draft = draftPath(target, slug, stamp);
+    if (state['draft'] == null) {
       final duration = (meta['duration_s'] as num?)?.toDouble() ?? 0;
       final picked = pickSynthesisFrames(frames, synthesisFrameCap(duration));
       final a = p.join(dir, 'analysis');
       final prompt = buildSynthesisPrompt(
         game: game,
         session: p.basename(dir),
-        templateEn: templates.en,
-        templatePl: templates.pl,
+        template: template,
+        earlier: priorDrafts(target, slug, exceptStamp: stamp),
         captions: p.join(a, 'captions.jsonl'),
         markers: p.join(dir, 'markers.jsonl'),
         stills: p.join(a, 'still.jsonl'),
@@ -87,25 +105,27 @@ class Stage3 {
       final promptFile = File(p.join(a, 'synthesis_prompt.txt'))
         ..writeAsStringSync(prompt);
       final answer = await _synthesize(prompt, promptFile.path, target);
+      _spend(state, answer.usage);
       final error = answer.error;
       if (error != null) {
         if (isRateLimited(error)) throw WaitingError('synthesis: $error');
         throw StateError('synthesis failed: $error');
       }
-      final docs = parseSynthesis(answer.text);
-      File(drafts.en)
+      final doc = parseDoc(
+        answer.text,
+        template: File(template).readAsStringSync(),
+      );
+      File(draft)
         ..parent.createSync(recursive: true)
-        ..writeAsStringSync(docs.en);
-      File(drafts.pl).writeAsStringSync(docs.pl);
+        ..writeAsStringSync(doc);
       state
-        ..['draft_en'] = drafts.en
-        ..['draft_pl'] = drafts.pl
+        ..['draft'] = draft
         ..['model'] = answer.model
         ..['frames'] = picked.length;
       _write(state);
     }
     if (state['todo'] == null) {
-      state['todo'] = await _todo(game, slug, target, drafts);
+      state['todo'] = await _todo(game, slug, target, stamp);
       _write(state);
     }
     return state;
@@ -115,7 +135,7 @@ class Stage3 {
     String game,
     String slug,
     String target,
-    Drafts d,
+    String stamp,
   ) async {
     final remote = await sys.run('git', [
       '-C',
@@ -130,8 +150,8 @@ class Stage3 {
     );
     final cmd = config.todoCmd;
     final text =
-        '${todoTaskTitle(game)}\n\nDrafts (uncommitted):\n'
-        '- ${d.en}\n- ${d.pl}\n\nSession: $dir';
+        '${todoTaskTitle(game)}\n\nDraft (uncommitted):\n'
+        '- ${draftPath(target, slug, stamp)}\n\nSession: $dir';
     final r = await sys.run(cmd.first, [
       ...cmd.skip(1),
       '--repo',
@@ -140,7 +160,7 @@ class Stage3 {
       '--by',
       'claude',
       '--done-check',
-      todoDoneCheck(slug),
+      todoDoneCheck(slug, stamp),
       '--text',
       text,
     ], workingDirectory: p.join(config.home, 'src', 'todo'));

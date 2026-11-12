@@ -88,7 +88,16 @@ void main() {
     expect(fx.status, containsPair('state', 'done'));
     expect(fx.status, containsPair('stage', 3));
     expect(fx.out('captions.jsonl').readAsLinesSync(), hasLength(1));
-    expect(File(draftPaths(fx.target.path, 'alpha').en).existsSync(), isTrue);
+    expect(
+      File(
+        draftPath(
+          fx.target.path,
+          'alpha',
+          sessionStamp(p.basename(fx.session.path)),
+        ),
+      ).existsSync(),
+      isTrue,
+    );
   });
 
   test('a rerun resumes: nothing left to do, nothing run', () async {

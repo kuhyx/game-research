@@ -14,9 +14,28 @@ import 'fakes.dart';
 /// A caption a tier can answer with.
 const kCaptionJson = '{"screen":"menu","action":"waiting","prompt":""}';
 
+/// The questions template of the fixture target (two questions).
+const kTemplate = '''
+# Research questions: {{GAME}}
+### Q1.1 First?
+- **Answer:** _(pending)_
+### Q1.2 Second?
+- **Answer:** _(pending)_
+''';
+
+/// A draft that answers [kTemplate].
+const kDraft = '''
+# Research questions: Alpha
+### Q1.1 First?
+- **Answer:** a
+- **Status:** answered
+### Q1.2 Second?
+- **Answer:** b
+- **Status:** open
+''';
+
 /// A well-formed synthesis answer.
-const kAnswer =
-    '$kEnMarker\n# English\nbody\n$kPlMarker\n# Polski\ntresc\n$kEndMarker\n';
+const kAnswer = '$kDocMarker\n$kDraft$kEndMarker\n';
 
 /// An ffmpeg log with one scene cut at 15 s and one 3 s still stretch.
 const kScenesLog = '''
@@ -67,11 +86,9 @@ class Fixture {
     session = Directory(p.join(root.path, 'data', '20261112-090025-alpha'))
       ..createSync(recursive: true);
     if (templates) {
-      final t = templatePaths(target.path);
-      File(t.en)
+      File(templatePath(target.path))
         ..parent.createSync(recursive: true)
-        ..writeAsStringSync('# Q\n');
-      File(t.pl).writeAsStringSync('# P\n');
+        ..writeAsStringSync(kTemplate);
     }
     meta = {
       'game': 'Alpha',
