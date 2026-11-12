@@ -30,7 +30,7 @@ void main() {
       expect(questionViolations(_doc()), isEmpty);
     });
 
-    test('the limits are 10, 22, 14, 14 and 800', () {
+    test('the limits are 10, 22, 14, 14 and 650', () {
       expect(
         [
           kQuestionWordCap,
@@ -39,7 +39,7 @@ void main() {
           kForWordCap,
           kReportWordCap,
         ],
-        [10, 22, 14, 14, 800],
+        [10, 22, 14, 14, 650],
       );
     });
 
@@ -111,10 +111,11 @@ void main() {
       expect(lineViolations('draft', 'x\n' * 301), ['draft: 301 lines > 250']);
     });
 
-    test('a report over 800 prose words says so; refs are free', () {
-      expect(reportViolations('# R\n${_words(799)} f_0001 07:26\n'), isEmpty);
-      expect(reportViolations('# R\n${_words(912)}\n'), [
-        'report: 913 words > 800',
+    test('a report over 650 prose words says so; refs are free', () {
+      expect(reportViolations('# R\n${_words(649)} f_0001 07:26\n'), isEmpty);
+      expect(reportViolations('# R\n${_words(649)}\n'), isEmpty);
+      expect(reportViolations('# R\n${_words(650)}\n'), [
+        'report: 651 words > 650',
       ]);
     });
 

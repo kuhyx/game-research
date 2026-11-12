@@ -206,7 +206,7 @@ void main() {
       ];
       expect(await finish(), 0);
       expect(prompts, hasLength(2));
-      expect(prompts[1], contains('- report: 913 words > 800'));
+      expect(prompts[1], contains('- report: 913 words > 650'));
       expect(prompts[1], contains('- Q1.1 question 12 > 10'));
       expect(prompts[1], contains('finish_long.txt'));
     });
@@ -218,7 +218,7 @@ void main() {
       expect(prompts, hasLength(2));
       final status = File(p.join(data, 'games', 'alpha', 'status.json'))
           .readAsStringSync();
-      expect(status, contains('report: 901 words > 800'));
+      expect(status, contains('report: 901 words > 650'));
       expect(File(reportPath(fx.target.path, 'alpha')).existsSync(), isFalse);
     });
 

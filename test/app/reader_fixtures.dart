@@ -88,7 +88,7 @@ String words(int seed, int n) {
 int wordCount(String text) =>
     text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
 
-/// A finished report of about 800 words: H1, H2 sections, bullets with refs.
+/// A finished report of about 650 words: H1, H2 sections, bullets with refs.
 String reportFixture() {
   final b = StringBuffer('# Research report: Sample Game\n\n')
     ..writeln('Session: 20261101-120000, 62 captioned frames.');
@@ -97,7 +97,7 @@ String reportFixture() {
     b.writeln('\n## $s. ${words(seed++, 3)}\n');
     for (var i = 0; i < 4; i++) {
       final f = (s * 10 + i).toString().padLeft(4, '0');
-      b.writeln('- ${words(seed++, 33)} (f_$f, 0$s:1$i)');
+      b.writeln('- ${words(seed++, 30)} (f_$f, 0$s:1$i)');
     }
   }
   return b.toString();

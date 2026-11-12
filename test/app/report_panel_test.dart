@@ -26,7 +26,7 @@ void main() {
     expect(find.byType(Scrollable), findsNothing);
   });
 
-  testWidgets('the ~800-word report is one page, 3 columns, no overflow', (
+  testWidgets('the ~650-word report is one page, 3 columns, no overflow', (
     t,
   ) async {
     for (final (size, dpr) in [

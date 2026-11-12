@@ -12,9 +12,9 @@ void main() {
   setUpAll(loadInter);
 
   for (final (w, h, dpr) in [(1920.0, 1080.0, 2.0), (3840.0, 2160.0, 1.0)]) {
-    test('the ~800-word report is one page of 3 columns at ${w}x$h', () {
+    test('the ~650-word report is one page of 3 columns at ${w}x$h', () {
       final text = reportFixture();
-      expect(wordCount(text), inInclusiveRange(750, 850));
+      expect(wordCount(text), inInclusiveRange(600, 700));
       final pages = paginate(parseDoc(text), _style(w: w, h: h, dpr: dpr));
       expect(pages, hasLength(1));
       expect(pages.single.columns, hasLength(3));

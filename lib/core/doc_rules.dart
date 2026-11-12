@@ -20,7 +20,7 @@ const kEvidenceWordCap = 14;
 const kForWordCap = 14;
 
 /// Prose words of a whole report.
-const kReportWordCap = 800;
+const kReportWordCap = 650;
 
 /// Hedges a question bullet must not use (whole words, any case). `could` is
 /// allowed.

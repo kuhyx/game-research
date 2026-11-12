@@ -84,7 +84,7 @@ void main() {
     for (final part in [
       'Answer first, one claim per bullet, no hedging',
       'at most 10 words',
-      'at most 800 words',
+      'at most 650 words',
       'quotes included',
       'ONE line',
       'Open: Q1.3, Q2.5',
