@@ -19,10 +19,13 @@
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 build() {
-	local capped="${HOME}/.claude/scripts/capped.sh"
-	(cd "$E2E_REPO" && CAP_MEM=4G CAP_CPU_PCT=20 "$capped" flutter build web --release --no-web-resources-cdn)
-	(cd "$E2E_REPO" && CAP_MEM=4G CAP_CPU_PCT=20 "$capped" dart build cli -t bin/game_research_desktop.dart -o build/cli)
-	(cd "$E2E_REPO" && CAP_MEM=4G CAP_CPU_PCT=20 "$capped" dart build cli -t bin/game_research_analyze.dart -o build/analyze)
+	# capped.sh needs the real systemd-run: the bgshim CPUAffinity property
+	# is refused for --scope. Builds are not background units anyway.
+	local capped="${HOME}/.claude/scripts/capped.sh" path="${PATH//${E2E_REPO}\/e2e\/bgshim:/}"
+	local -a run=(env "PATH=${path}" CAP_MEM=4G CAP_CPU_PCT=20 "$capped")
+	(cd "$E2E_REPO" && "${run[@]}" flutter build web --release --no-web-resources-cdn)
+	(cd "$E2E_REPO" && "${run[@]}" dart build cli -t bin/game_research_desktop.dart -o build/cli)
+	(cd "$E2E_REPO" && "${run[@]}" dart build cli -t bin/game_research_analyze.dart -o build/analyze)
 }
 
 fixtures() {
