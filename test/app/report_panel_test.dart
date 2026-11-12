@@ -111,4 +111,22 @@ void main() {
     await _open(t, w);
     expect(_label('rerun'), findsNothing);
   });
+
+  testWidgets('a new path loads the new document', (t) async {
+    final w = FakeWrapper()
+      ..docs['/t/a.md'] = '# First'
+      ..docs['/t/b.md'] = '# Second';
+    await _open(t, w);
+    await t.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportPanel(api: w.api(), path: '/t/b.md', onClose: () {}),
+        ),
+      ),
+    );
+    await t.pump();
+    await t.pump();
+    expect(find.textContaining('Second', findRichText: true), findsOneWidget);
+    expect(find.textContaining('First', findRichText: true), findsNothing);
+  });
 }

@@ -28,7 +28,7 @@ String webRootOf(Config config) => p.join(config.repo, 'build', 'web');
 
 /// The CDN art cache under the data dir; null (disk art only) in test mode
 /// and with `GAME_RESEARCH_ART=off`, so no test or off-screen run goes online.
-SteamArt? _art(Config config) =>
+SteamArt? artOf(Config config) =>
     config.testMode || config.env['GAME_RESEARCH_ART'] == 'off'
     ? null
     : SteamArt(dir: p.join(config.dataDir, 'art'), fetch: httpArtFetch);
@@ -50,7 +50,7 @@ Future<WrapperServer> serve(Config config, Sys sys, {int? port}) async {
     webRoot: webRootOf(config),
     flow: SessionFlow(
       controller,
-      SteamLibrary(config.steamRoot, art: _art(config)),
+      SteamLibrary(config.steamRoot, art: artOf(config)),
     ),
   );
   await server.start(port ?? config.port);

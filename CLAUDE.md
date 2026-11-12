@@ -21,7 +21,7 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
   (flutter-web-drive) and `GAME_RESEARCH_TEST=1`, which refuses display `:0`.
 - Every side effect has an env seam (`lib/desktop/config.dart`):
   `GAME_RESEARCH_{DATA,STEAM_ROOT,STEAM_CMD,DISPLAY,OUTPUT,AUDIO,TICK_CMD,
-  FAKE_LLM,TODO_CMD,TARGET,SRC,ANALYZE,PORT,LOG,AUTOSTART_S,DEFAULT_APPID,
+  FAKE_LLM,ART,TODO_CMD,TARGET,SRC,ANALYZE,PORT,LOG,AUTOSTART_S,DEFAULT_APPID,
   WINDOW_TIMEOUT_S,RELAUNCH_S,STEAM_PID,STEAM_ENV,PROC,CAPTURE}`. `ANALYZE=off`
   starts no analysis job. `CAPTURE=auto` records with gpu-screen-recorder
   (GPU capture + encode); it cannot run under Xvfb, so E2E and off-screen

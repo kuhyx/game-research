@@ -176,6 +176,16 @@ class _ReportPanelState extends State<ReportPanel> {
     );
   }
 
+  MarkdownStyleSheet _sheet(BuildContext context) {
+    final base = MarkdownStyleSheet.fromTheme(Theme.of(context));
+    TextStyle? bold(TextStyle? s) => s?.copyWith(fontWeight: FontWeight.w700);
+    return base.copyWith(
+      h1: bold(base.h1),
+      h2: bold(base.h2),
+      h3: bold(base.h3),
+    );
+  }
+
   Widget _body(bool loaded, String failedSemantic) {
     if (!loaded) {
       return Center(
@@ -212,7 +222,13 @@ class _ReportPanelState extends State<ReportPanel> {
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1100),
-          child: MarkdownBody(data: _field.text),
+          // Documents are read at arm's length: a larger text scale and
+          // bold headings (the theme gives h1 and h2 the same weight).
+          child: MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(1.3)),
+            child: MarkdownBody(data: _field.text, styleSheet: _sheet(context)),
+          ),
         ),
       ),
     );

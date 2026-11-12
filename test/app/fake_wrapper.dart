@@ -33,6 +33,9 @@ class FakeWrapper {
   /// Documents served by `/api/doc`, by absolute path.
   final docs = <String, String>{};
 
+  /// When true `/api/finish` is 404 (a wrapper without the finish job).
+  bool noFinish = false;
+
   /// When true every request throws (wrapper offline).
   bool offline = false;
 
@@ -53,6 +56,9 @@ class FakeWrapper {
       '${r.method} $path${r.url.hasQuery ? '?${r.url.query}' : ''}'
       '${r.body.isEmpty ? '' : ' ${r.body}'}',
     );
+    if (noFinish && path == '/api/finish') {
+      return http.Response('{}', 404);
+    }
     final docPath = r.url.queryParameters['path'];
     if (path == '/api/doc') {
       if (!docs.containsKey(docPath)) {

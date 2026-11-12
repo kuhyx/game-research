@@ -150,4 +150,37 @@ void main() {
       await endHome(t);
     });
   });
+
+  testWidgets('a wrapper without /api/finish still works', (t) async {
+    final w = FakeWrapper()..noFinish = true;
+    await pumpHome(t, w);
+    expect(find.byIcon(Icons.cloud_off_rounded), findsNothing);
+    expect(label('One'), findsOneWidget);
+    await endHome(t);
+  });
+
+  testWidgets('a second marker closes the open note line empty first', (
+    t,
+  ) async {
+    final w = FakeWrapper();
+    await pumpHome(t, w);
+    await t.tap(label('One'));
+    await t.pump();
+    await t.tap(label('start'));
+    await t.pump();
+    await t.pump();
+    await t.tap(label('marker good'));
+    await t.pump();
+    await t.pump();
+    await t.tap(label('marker bad'));
+    await t.pump();
+    await t.pump();
+    final i = w.calls.indexOf('POST /api/note?id=7');
+    expect(i, greaterThan(-1));
+    expect(
+      w.calls.indexOf('POST /api/marker?tag=bad&src=gui&hold=1'),
+      greaterThan(i),
+    );
+    await endHome(t);
+  });
 }
