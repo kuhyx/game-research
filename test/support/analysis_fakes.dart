@@ -44,7 +44,7 @@ class Fixture {
     root = tempDir();
     target = Directory(p.join(root.path, 'src', 'cleanup-plate'))
       ..createSync(recursive: true);
-    session = Directory(p.join(root.path, 'data', '2026-alpha'))
+    session = Directory(p.join(root.path, 'data', '20261112-090025-alpha'))
       ..createSync(recursive: true);
     if (templates) {
       final t = templatePaths(target.path);

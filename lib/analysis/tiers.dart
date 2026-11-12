@@ -191,7 +191,12 @@ class FakeTier implements CaptionTier {
   /// Runs the fake on [file].
   Future<TierResult> call(String file) async {
     final r = await sys.run(config.fakeLlm, [name, file]);
-    if (r.exitCode != 0) return TierResult.fail('exit ${r.exitCode}');
+    if (r.exitCode != 0) {
+      final why = _clip(r.stderr);
+      return TierResult.fail(
+        'exit ${r.exitCode}${why.isEmpty ? '' : ': $why'}',
+      );
+    }
     return TierResult.ok('${r.stdout}', 'fake:$name');
   }
 

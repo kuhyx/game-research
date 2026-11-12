@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/core/status.dart';
+import 'package:game_research/core/usage.dart';
 
 AnalysisStatus _run(AnalysisStatus Function() make) => make();
 
@@ -52,5 +53,59 @@ void main() {
       AnalysisStatus.fromJson(const {'state': 'weird'}).state,
       StageState.idle,
     );
+  });
+
+  test('tokens, cost, eta and start time round-trip', () {
+    const s = AnalysisStatus(
+      stage: 2,
+      done: 3,
+      total: 9,
+      state: StageState.waiting,
+      error: 'usage limit',
+      tokens: Usage(
+        input: 5,
+        output: 6,
+        cacheRead: 7,
+        cacheWrite: 8,
+        costUsd: 0.4,
+      ),
+      etaS: 12.5,
+      startedUnix: 1700000000,
+      retryUnix: 1700001800,
+    );
+    final json = s.toJson();
+    expect(json['tokens'], {
+      'in': 5,
+      'out': 6,
+      'cache_read': 7,
+      'cache_write': 8,
+    });
+    expect(json['cost_usd'], 0.4);
+    expect(json['eta_s'], 12.5);
+    final back = AnalysisStatus.fromJson(json);
+    expect(back.state, StageState.waiting);
+    expect(back.tokens.cacheWrite, 8);
+    expect(back.tokens.costUsd, 0.4);
+    expect(back.etaS, 12.5);
+    expect(back.startedUnix, 1700000000);
+    expect(back.retryUnix, 1700001800);
+    expect(_run(AnalysisStatus.idle).toJson()['eta_s'], isNull);
+    expect(AnalysisStatus.fromJson(const {}).tokens.isEmpty, isTrue);
+  });
+
+  test('interrupted is a state of its own', () {
+    expect(
+      AnalysisStatus.fromJson(const {'state': 'interrupted'}).state,
+      StageState.interrupted,
+    );
+  });
+
+  test('the eta needs one finished item after the first report', () {
+    final c = StageClock();
+    expect(c.eta(100, 5, 10), isNull, reason: 'baseline');
+    expect(c.eta(101, 5, 10), isNull, reason: 'nothing gained yet');
+    expect(c.eta(110, 6, 10), 40);
+    expect(c.eta(120, 7, 10), closeTo(20 * 3 / 2, 1e-9));
+    expect(c.eta(100, 8, 10), isNull, reason: 'clock went backwards');
   });
 }

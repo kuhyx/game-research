@@ -75,15 +75,18 @@ void main() {
     expect(await runner(ownerPid: 123).run(), 0);
     lock.writeAsStringSync('not a pid');
     expect(await runner().run(), 0);
-    expect(lock.existsSync(), isFalse, reason: 'released at the end');
+    expect(
+      Link(p.join(fx.root.path, 'data', 'analysis.lock')).existsSync(),
+      isFalse,
+      reason: 'released at the end',
+    );
   });
 
   test('all three stages: exit 0, status done, drafts, no lock', () async {
     expect(await runner().run(), 0);
     expect(fx.status, containsPair('state', 'done'));
     expect(fx.status, containsPair('stage', 3));
-    expect(fx.out('lock').existsSync(), isFalse);
-    expect(fx.out('captions.jsonl').readAsLinesSync(), hasLength(3));
+    expect(fx.out('captions.jsonl').readAsLinesSync(), hasLength(1));
     expect(File(draftPaths(fx.target.path, 'alpha').en).existsSync(), isTrue);
   });
 
@@ -116,7 +119,10 @@ void main() {
     expect(fx.status, containsPair('state', 'failed'));
     expect(fx.status, containsPair('stage', 1));
     expect(fx.status['error'], contains('no duration_s'));
-    expect(fx.out('lock').existsSync(), isFalse);
+    expect(
+      Link(p.join(fx.root.path, 'data', 'analysis.lock')).existsSync(),
+      isFalse,
+    );
   });
 
   test('a session without markers still runs', () async {

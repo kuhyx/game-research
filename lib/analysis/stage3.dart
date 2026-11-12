@@ -7,6 +7,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:game_research/analysis/job.dart';
 import 'package:game_research/analysis/tiers.dart';
 import 'package:game_research/core/captions.dart';
 import 'package:game_research/core/sampling.dart';
@@ -86,8 +87,10 @@ class Stage3 {
       final promptFile = File(p.join(a, 'synthesis_prompt.txt'))
         ..writeAsStringSync(prompt);
       final answer = await _synthesize(prompt, promptFile.path, target);
-      if (answer.error != null) {
-        throw StateError('synthesis failed: ${answer.error}');
+      final error = answer.error;
+      if (error != null) {
+        if (isRateLimited(error)) throw WaitingError('synthesis: $error');
+        throw StateError('synthesis failed: $error');
       }
       final docs = parseSynthesis(answer.text);
       File(drafts.en)

@@ -6,12 +6,17 @@ library;
 
 import 'dart:convert';
 
+import 'package:game_research/core/usage.dart';
+
 /// The verdict on one `claude -p` run.
 class ClaudeAnswer {
-  const new _(this.text, this.reason, [this.model]);
+  const new _(this.text, this.reason, [this.model, this.usage = Usage.zero]);
 
   /// The model that answered (`modelUsage`'s first key), when reported.
   final String? model;
+
+  /// Tokens and cost of the call (also for a failed one, when reported).
+  final Usage usage;
 
   /// The result text ('' when not [ok]).
   final String text;
@@ -49,9 +54,11 @@ ClaudeAnswer readClaudeEnvelope(String stdout) {
     return ClaudeAnswer._(
       '',
       'claude ${envelope['subtype']}: ${result ?? 'no result'}',
+      null,
+      Usage.fromClaude(envelope),
     );
   }
   final usage = envelope['modelUsage'];
   final model = usage is Map && usage.isNotEmpty ? '${usage.keys.first}' : null;
-  return ClaudeAnswer._(result, null, model);
+  return ClaudeAnswer._(result, null, model, Usage.fromClaude(envelope));
 }
