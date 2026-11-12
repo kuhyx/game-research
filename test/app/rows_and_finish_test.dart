@@ -1,6 +1,7 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:game_research/app/doc_page_view.dart';
 import 'package:game_research/app/report_panel.dart';
 
 import 'fake_wrapper.dart';
@@ -88,7 +89,11 @@ void main() {
     expect(find.byType(ReportPanel), findsOneWidget);
     expect(w.calls, contains('GET /api/doc?path=%2Fd.md'));
     expect(w.calls.where((c) => c.contains('open-draft')), isEmpty);
-    expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.byType(DocPageView), findsOneWidget);
+    final mouse = await t.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: const Offset(400, 600));
+    await mouse.moveTo(const Offset(400, 2));
+    await t.pumpAndSettle();
     await t.tap(label('close'));
     await t.pump();
     expect(find.byType(ReportPanel), findsNothing);

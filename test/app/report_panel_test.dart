@@ -1,109 +1,139 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:game_research/app/doc_blocks.dart';
+import 'package:game_research/app/doc_page_view.dart';
 import 'package:game_research/app/report_panel.dart';
 
 import 'fake_wrapper.dart';
-
-Finder _label(String l) =>
-    find.bySemanticsLabel(RegExp('^${RegExp.escape(l)}'));
-
-Future<void> _open(
-  WidgetTester t,
-  FakeWrapper w, {
-  String path = '/t/a.md',
-  VoidCallback? onClose,
-}) async {
-  t.view
-    ..physicalSize = const Size(2048, 1152)
-    ..devicePixelRatio = 1;
-  addTearDown(t.view.reset);
-  await t.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: ReportPanel(api: w.api(), path: path, onClose: onClose ?? () {}),
-      ),
-    ),
-  );
-  await t.pump();
-  await t.pump();
-}
+import 'reader_fixtures.dart';
+import 'reader_helpers.dart';
 
 void main() {
+  setUpAll(loadInter);
+  setUp(() => readerPointer = null);
+
   testWidgets('shows the markdown rendered, not as source', (t) async {
     final w = FakeWrapper()..docs['/t/a.md'] = '# Heading\n\n- **bold** item';
-    await _open(t, w);
+    await openReader(t, w);
     expect(w.calls, ['GET /api/doc?path=%2Ft%2Fa.md']);
-    expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.byType(DocPageView), findsOneWidget);
     expect(find.textContaining('Heading', findRichText: true), findsOneWidget);
     expect(find.textContaining('# Heading', findRichText: true), findsNothing);
+    expect(find.textContaining('**', findRichText: true), findsNothing);
     expect(find.byType(TextField), findsNothing);
+    expect(find.byType(Scrollable), findsNothing);
   });
 
-  testWidgets('edit toggle shows the source; save writes it back', (t) async {
-    final w = FakeWrapper()..docs['/t/a.md'] = '# Old';
-    await _open(t, w);
-    await t.tap(_label('edit'));
-    await t.pump();
-    expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('# Old'), findsOneWidget);
-    await t.enterText(find.byType(TextField), '# New');
-    await t.pump();
-    await t.tap(_label('save'));
-    await t.pump();
-    await t.pump();
-    expect(w.docs['/t/a.md'], '# New');
-    expect(w.calls.last, 'PUT /api/doc?path=%2Ft%2Fa.md # New');
-    await t.tap(_label('edit'));
-    await t.pump();
-    expect(find.textContaining('New', findRichText: true), findsOneWidget);
+  testWidgets('the ~800-word report is one page, 3 columns, no overflow', (
+    t,
+  ) async {
+    for (final (size, dpr) in [
+      (const Size(3840, 2160), 2.0),
+      (const Size(3840, 2160), 1.0),
+    ]) {
+      final w = FakeWrapper()..docs['/t/a.md'] = reportFixture();
+      await openReader(t, w, size: size, dpr: dpr);
+      expect(t.takeException(), isNull);
+      expect(find.byType(DocColumnView), findsNWidgets(3));
+      expect(blocksShown(t), parseDoc(reportFixture()).length);
+      await reveal(t);
+      expect(pageOf(t), '1/1');
+      await t.pumpWidget(const SizedBox());
+    }
   });
 
-  testWidgets('save is off until the text changed', (t) async {
-    final w = FakeWrapper()..docs['/t/a.md'] = '# Old';
-    await _open(t, w);
-    await t.tap(_label('edit'));
-    await t.pump();
-    await t.tap(_label('save'));
-    await t.pump();
-    expect(w.calls.where((c) => c.startsWith('PUT')), isEmpty);
+  testWidgets('the draft pages; every block on exactly one page', (t) async {
+    final w = FakeWrapper()..docs['/t/a.md'] = draftFixture();
+    await openReader(t, w);
+    expect(t.takeException(), isNull);
+    await reveal(t);
+    final count = int.parse(pageOf(t).split('/').last);
+    expect(count, greaterThanOrEqualTo(3));
+    var shown = 0;
+    for (var p = 1; p <= count; p++) {
+      expect(pageOf(t), '$p/$count');
+      shown += blocksShown(t);
+      expect(t.takeException(), isNull);
+      await t.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await t.pump();
+    }
+    expect(pageOf(t), '$count/$count', reason: 'no flip past the end');
+    expect(shown, parseDoc(draftFixture()).length);
   });
 
-  testWidgets('a refused or missing document shows the error glyph', (t) async {
-    await _open(t, FakeWrapper(), path: '/etc/passwd');
-    expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
-    expect(find.byType(MarkdownBody), findsNothing);
+  testWidgets('arrows and PageUp/PageDown flip, clamped at both ends', (
+    t,
+  ) async {
+    final w = FakeWrapper()..docs['/t/a.md'] = draftFixture();
+    await openReader(t, w);
+    await reveal(t);
+    await t.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await t.pump();
+    expect(pageOf(t).startsWith('1/'), isTrue);
+    await t.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await t.pump();
+    expect(pageOf(t).startsWith('2/'), isTrue);
+    await t.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await t.pump();
+    expect(pageOf(t).startsWith('3/'), isTrue);
+    await t.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await t.pump();
+    expect(pageOf(t).startsWith('2/'), isTrue);
+    await t.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await t.pump();
+    expect(pageOf(t).startsWith('1/'), isTrue);
   });
 
-  testWidgets('a failed save keeps the edit and shows the error', (t) async {
-    final w = FakeWrapper()..docs['/t/a.md'] = '# Old';
-    await _open(t, w);
-    await t.tap(_label('edit'));
+  testWidgets('the mouse wheel flips pages too', (t) async {
+    final w = FakeWrapper()..docs['/t/a.md'] = draftFixture();
+    await openReader(t, w);
+    await reveal(t);
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await t.sendEventToBinding(pointer.hover(kMiddle));
+    await t.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
     await t.pump();
-    await t.enterText(find.byType(TextField), '# New');
+    expect(pageOf(t).startsWith('2/'), isTrue);
+    await t.sendEventToBinding(pointer.scroll(const Offset(0, -120)));
     await t.pump();
-    w.docs.remove('/t/a.md');
-    await t.tap(_label('save'));
-    await t.pump();
-    await t.pump();
-    expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
-    expect(find.text('# New'), findsOneWidget, reason: 'edit not lost');
+    expect(pageOf(t).startsWith('1/'), isTrue);
   });
 
-  testWidgets('close calls back; there is no rerun button', (t) async {
-    final w = FakeWrapper()..docs['/t/a.md'] = '# A';
-    var closed = 0;
-    await _open(t, w, onClose: () => closed++);
-    expect(_label('rerun'), findsNothing);
-    await t.tap(_label('close'));
-    expect(closed, 1);
+  testWidgets('open questions collapse into one ids line', (t) async {
+    final w = FakeWrapper()..docs['/t/a.md'] = draftFixture();
+    await openReader(t, w);
+    await reveal(t);
+    final count = int.parse(pageOf(t).split('/').last);
+    var found = 0;
+    for (var p = 0; p < count; p++) {
+      found += find
+          .textContaining('Q1.4 · Q1.8 · Q2.4', findRichText: true)
+          .evaluate()
+          .length;
+      expect(find.textContaining('Status', findRichText: true), findsNothing);
+      expect(find.textContaining('STATUS', findRichText: true), findsNothing);
+      await t.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await t.pump();
+    }
+    expect(found, 1);
+  });
+
+  testWidgets('a block taller than a column renders without overflow', (
+    t,
+  ) async {
+    final w = FakeWrapper()
+      ..docs['/t/a.md'] = '# Big\n\n${words(3, 2500)}\n\nend';
+    await openReader(t, w);
+    expect(t.takeException(), isNull);
+    expect(find.byType(FittedBox), findsOneWidget);
   });
 
   testWidgets('a new path loads the new document', (t) async {
     final w = FakeWrapper()
       ..docs['/t/a.md'] = '# First'
       ..docs['/t/b.md'] = '# Second';
-    await _open(t, w);
+    await openReader(t, w);
     await t.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -115,5 +145,21 @@ void main() {
     await t.pump();
     expect(find.textContaining('Second', findRichText: true), findsOneWidget);
     expect(find.textContaining('First', findRichText: true), findsNothing);
+  });
+
+  testWidgets('the reader paints opaque #16181D over the whole window', (
+    t,
+  ) async {
+    final w = FakeWrapper()..docs['/t/a.md'] = '# A';
+    await openReader(t, w);
+    final box = t.getSize(find.byType(ReportPanel));
+    expect(box, const Size(1920, 1080));
+    final colored = find.descendant(
+      of: find.byType(ReportPanel),
+      matching: find.byWidgetPredicate(
+        (w) => w is ColoredBox && w.color == const Color(0xFF16181D),
+      ),
+    );
+    expect(colored, findsWidgets);
   });
 }

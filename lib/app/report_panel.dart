@@ -1,16 +1,23 @@
-/// The in-app viewer of a draft or report: markdown rendered, an edit toggle
-/// (plain text) and save. The wrapper only serves files under the target's
-/// `docs/research/`. Icons only; the document is the user's own content.
+/// The in-app reader of a draft or report: the document paged onto full
+/// screens (3 columns, never scrolled), an edit toggle (raw markdown) and
+/// save. The wrapper only serves files under the target's `docs/research/`.
+/// Icons and numbers only; the document is the user's own content.
 library;
 
 import 'dart:async';
 
-import 'package:design_system/design_system.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:flutter/services.dart';
 import 'package:game_research/app/api.dart';
+import 'package:game_research/app/doc_blocks.dart';
+import 'package:game_research/app/doc_page_view.dart';
+import 'package:game_research/app/doc_pager.dart';
+import 'package:game_research/app/doc_style.dart';
+import 'package:game_research/app/reader_body.dart';
+import 'package:game_research/app/reader_toolbar.dart';
 
-/// The panel for the document at [path].
+/// The panel for the document at [path]; fills the window.
 class ReportPanel extends StatefulWidget {
   /// Opens [path] through [api].
   const new({
@@ -35,10 +42,14 @@ class ReportPanel extends StatefulWidget {
 
 class _ReportPanelState extends State<ReportPanel> {
   final _field = TextEditingController();
+  final _focus = FocusNode();
   String? _saved;
   bool _editing = false;
   bool _failed = false;
   bool _justSaved = false;
+  int _page = 0;
+  List<DocPage> _pages = [DocPage()];
+  (String, double, double, double)? _laidOutFor;
 
   bool get _dirty => _saved != null && _field.text != _saved;
 
@@ -46,6 +57,9 @@ class _ReportPanelState extends State<ReportPanel> {
   void initState() {
     super.initState();
     unawaited(_load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
   }
 
   @override
@@ -54,6 +68,7 @@ class _ReportPanelState extends State<ReportPanel> {
     if (old.path != widget.path) {
       _saved = null;
       _editing = false;
+      _page = 0;
       unawaited(_load());
     }
   }
@@ -61,6 +76,7 @@ class _ReportPanelState extends State<ReportPanel> {
   @override
   void dispose() {
     _field.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -93,130 +109,125 @@ class _ReportPanelState extends State<ReportPanel> {
     }
   }
 
+  void _toggleEdit() {
+    setState(() {
+      _editing = !_editing;
+      _justSaved = false;
+    });
+    _focus.requestFocus();
+  }
+
+  void _flip(int by) =>
+      setState(() => _page = (_page + by).clamp(0, _pages.length - 1));
+
+  /// Esc leaves edit mode first (the edit stays, unsaved); otherwise closes.
+  /// Arrows and PageUp/PageDown flip pages, never while editing.
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.escape) {
+      if (_editing) {
+        _toggleEdit();
+      } else {
+        widget.onClose();
+      }
+      return KeyEventResult.handled;
+    }
+    if (_editing || _saved == null) return KeyEventResult.ignored;
+    if (key == LogicalKeyboardKey.arrowRight ||
+        key == LogicalKeyboardKey.pageDown) {
+      _flip(1);
+    } else if (key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.pageUp) {
+      _flip(-1);
+    } else {
+      return KeyEventResult.ignored;
+    }
+    return KeyEventResult.handled;
+  }
+
+  void _onWheel(PointerSignalEvent event) {
+    if (event is PointerScrollEvent && !_editing && _saved != null) {
+      _flip(event.scrollDelta.dy > 0 ? 1 : -1);
+    }
+  }
+
+  /// Pages of the text at [style]; measured again only when the text or the
+  /// window changed.
+  List<DocPage> _pagesFor(DocStyle style) {
+    final key = (_field.text, style.width, style.height, style.dpr);
+    if (_laidOutFor != key) {
+      _laidOutFor = key;
+      _pages = paginate(parseDoc(_field.text), style);
+    }
+    return _pages;
+  }
+
   @override
   Widget build(BuildContext context) {
-    const editSemantic = 'edit';
-    const saveSemantic = 'save';
-    const closeSemantic = 'close';
-    const failedSemantic = 'document error';
-    final loaded = _saved != null;
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Row(
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    return Material(
+      color: DocStyle.background,
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final style = DocStyle(
+            width: box.maxWidth,
+            height: box.maxHeight,
+            dpr: dpr,
+          );
+          final loaded = _saved != null;
+          final reading = loaded && !_editing;
+          final pages = reading ? _pagesFor(style) : const <DocPage>[];
+          final page = reading ? _page.clamp(0, pages.length - 1) : 0;
+          return Focus(
+            focusNode: _focus,
+            onKeyEvent: _onKey,
+            child: Stack(
               children: [
-                IconButton(
-                  onPressed: loaded
-                      ? () => setState(() {
-                          _editing = !_editing;
-                          _justSaved = false;
-                        })
-                      : null,
-                  icon: Icon(
-                    _editing ? Icons.visibility_rounded : Icons.edit_rounded,
-                    semanticLabel: editSemantic,
+                Positioned.fill(child: _body(style, pages, page)),
+                Positioned.fill(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: HoverToolbar(
+                      style: style,
+                      bar: ReaderBar(
+                        style: style,
+                        loaded: loaded,
+                        editing: _editing,
+                        canSave: _dirty,
+                        failed: _failed,
+                        saved: _justSaved,
+                        page: reading ? page : null,
+                        pageCount: pages.length,
+                        onEdit: _toggleEdit,
+                        onSave: _save,
+                        onClose: widget.onClose,
+                      ),
+                    ),
                   ),
-                  iconSize: 32,
-                ),
-                IconButton(
-                  onPressed: _editing && _dirty ? _save : null,
-                  icon: const Icon(
-                    Icons.save_rounded,
-                    semanticLabel: saveSemantic,
-                  ),
-                  iconSize: 32,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                if (_failed && loaded)
-                  const Icon(
-                    Icons.error_outline_rounded,
-                    color: AppPalette.danger,
-                    size: 32,
-                    semanticLabel: failedSemantic,
-                  ),
-                if (_justSaved && !_dirty)
-                  const Icon(
-                    Icons.check_rounded,
-                    color: AppPalette.success,
-                    size: 32,
-                  ),
-                const Spacer(),
-                IconButton(
-                  onPressed: widget.onClose,
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    semanticLabel: closeSemantic,
-                  ),
-                  iconSize: 32,
                 ),
               ],
             ),
-          ),
-          const Divider(height: 1),
-          Expanded(child: _body(loaded, failedSemantic)),
-        ],
+          );
+        },
       ),
     );
   }
 
-  MarkdownStyleSheet _sheet(BuildContext context) {
-    final base = MarkdownStyleSheet.fromTheme(Theme.of(context));
-    TextStyle? bold(TextStyle? s) => s?.copyWith(fontWeight: FontWeight.w700);
-    return base.copyWith(
-      h1: bold(base.h1),
-      h2: bold(base.h2),
-      h3: bold(base.h3),
-    );
-  }
-
-  Widget _body(bool loaded, String failedSemantic) {
-    if (!loaded) {
-      return Center(
-        child: _failed
-            ? Icon(
-                Icons.error_outline_rounded,
-                color: AppPalette.danger,
-                size: 96,
-                semanticLabel: failedSemantic,
-              )
-            : const CircularProgressIndicator(),
-      );
+  Widget _body(DocStyle style, List<DocPage> pages, int page) {
+    if (_saved == null) {
+      return ReaderPlaceholder(style: style, failed: _failed);
     }
     if (_editing) {
-      const fieldSemantic = 'document text';
-      return Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Semantics(
-          label: fieldSemantic,
-          child: TextField(
-            controller: _field,
-            maxLines: null,
-            expands: true,
-            textAlignVertical: TextAlignVertical.top,
-            style: const TextStyle(fontFamily: 'monospace'),
-            onChanged: (_) => setState(() => _justSaved = false),
-          ),
-        ),
+      return ReaderEditor(
+        style: style,
+        controller: _field,
+        onChanged: () => setState(() => _justSaved = false),
       );
     }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1100),
-          // Documents are read at arm's length: a larger text scale and
-          // bold headings (the theme gives h1 and h2 the same weight).
-          child: MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: const TextScaler.linear(1.3)),
-            child: MarkdownBody(data: _field.text, styleSheet: _sheet(context)),
-          ),
-        ),
-      ),
+    return Listener(
+      onPointerSignal: _onWheel,
+      child: DocPageView(page: pages[page], style: style),
     );
   }
 }

@@ -5,7 +5,6 @@ library;
 
 import 'dart:async';
 
-import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:game_research/app/api.dart';
 import 'package:game_research/app/models.dart';
@@ -123,16 +122,10 @@ class _PanelHostState extends State<PanelHost> {
         ),
         if (panel != null)
           Positioned.fill(
-            child: ColoredBox(
-              color: AppPalette.ink.withValues(alpha: 0.9),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: ReportPanel(
-                  api: widget.api,
-                  path: panel,
-                  onClose: () => setState(() => _panel = null),
-                ),
-              ),
+            child: ReportPanel(
+              api: widget.api,
+              path: panel,
+              onClose: () => setState(() => _panel = null),
             ),
           ),
       ],
