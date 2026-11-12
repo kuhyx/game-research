@@ -22,7 +22,7 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
 - Every side effect has an env seam (`lib/desktop/config.dart`):
   `GAME_RESEARCH_{DATA,STEAM_ROOT,STEAM_CMD,DISPLAY,OUTPUT,AUDIO,TICK_CMD,
   FAKE_LLM,ART,TODO_CMD,TARGET,SRC,ANALYZE,PORT,LOG,AUTOSTART_S,DEFAULT_APPID,
-  WINDOW_TIMEOUT_S,RELAUNCH_S,STEAM_PID,STEAM_ENV,PROC,CAPTURE,CLIP_CMD}`. `ANALYZE=off`
+  WINDOW_TIMEOUT_S,RELAUNCH_S,STEAM_PID,STEAM_ENV,PROC,CAPTURE,CLIP_CMD,CAPTION_CMD}`. `ANALYZE=off`
   starts no analysis job. `CAPTURE=auto` records with gpu-screen-recorder
   (GPU capture + encode); it cannot run under Xvfb, so E2E and off-screen
   runs always take the x11grab fallback. Analysis jobs wait while

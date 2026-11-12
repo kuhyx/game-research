@@ -50,3 +50,10 @@ String tagEmoji(MarkerTag tag) => switch (tag) {
   MarkerTag.confusing => '❓',
   MarkerTag.note => '📝',
 };
+
+/// `YYYY-MM-DD` of a session folder name (`YYYYMMDD-HHMMSS-slug`); the name
+/// itself when it has no date.
+String sessionDate(String id) {
+  final m = RegExp(r'^(\d{4})(\d{2})(\d{2})-').firstMatch(id);
+  return m == null ? id : '${m[1]}-${m[2]}-${m[3]}';
+}

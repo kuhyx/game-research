@@ -34,6 +34,10 @@ void main() {
     expect(c.i3Config, '/h/.config/i3/config');
     expect(c.flashPx, 12);
     expect(c.clipCmd, ['/usr/bin/python3', '/repo/helpers/clip_owner.py']);
+    expect(c.captionCmd, [
+      '/usr/bin/python3',
+      '/repo/helpers/caption_still.py',
+    ]);
     expect(c.env, isEmpty);
   });
 
@@ -126,5 +130,10 @@ void main() {
   test('GAME_RESEARCH_CLIP_CMD replaces the clipboard helper', () {
     final c = load({'GAME_RESEARCH_CLIP_CMD': 'fakeclip --x'});
     expect(c.clipCmd, ['fakeclip', '--x']);
+  });
+
+  test('GAME_RESEARCH_CAPTION_CMD replaces the still captioner', () {
+    final c = load({'GAME_RESEARCH_CAPTION_CMD': 'fakecap --x'});
+    expect(c.captionCmd, ['fakecap', '--x']);
   });
 }

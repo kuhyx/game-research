@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -75,7 +76,18 @@ void main() {
         p.join(dir, '01_good.jpg'),
         p.join(dir, '02_bad.jpg'),
       ]);
-      expect(File(p.join(dir, '02_bad.jpg')).lengthSync(), 5);
+      expect(
+        utf8.decode(
+          File(p.join(dir, '02_bad.jpg')).readAsBytesSync(),
+          allowMalformed: true,
+        ),
+        startsWith('cap|0:01:30||Librarian · 2026-11-10|'),
+      );
+      expect(x.captions.single.map((j) => j['note']), ['nice', '']);
+      expect(
+        File(p.join(dir, '..', 'librarian-1.jobs.json')).existsSync(),
+        isFalse,
+      );
       expect(x.starts.single.$2, text);
     });
 
@@ -97,7 +109,12 @@ void main() {
           p.join(dir, '02_good.jpg'),
           p.join(dir, '03_bad.jpg'),
         ]);
-        expect(File(names.first).readAsBytesSync(), [0xFF, 0xD8, 9]);
+        expect(File(names.first).readAsBytesSync().sublist(37), [
+          0xFF,
+          0xD8,
+          9,
+        ]);
+        expect(x.captions.single.first['right'], 'Librarian · 2026-11-09');
         expect(early.existsSync(), isTrue);
       },
     );
