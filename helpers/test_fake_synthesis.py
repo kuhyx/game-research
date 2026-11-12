@@ -74,3 +74,16 @@ def test_a_prompt_without_a_template_is_exit_2(tmp_path: Path) -> None:
     prompt = tmp_path / "p.txt"
     prompt.write_text("nothing")
     assert fs.main(str(prompt)) == 2
+
+
+def test_a_discord_prompt_gets_a_valid_short_version(tmp_path: Path, capsys) -> None:
+    prompt = tmp_path / "prompt.txt"
+    prompt.write_text("Compact it.\n@@@DISCORD\n<the short markdown>\n@@@END\n")
+    assert fs.main(str(prompt)) == 0
+    out = capsys.readouterr().out
+    lines = out.splitlines()
+    assert lines[0] == "@@@DISCORD"
+    assert lines[-1] == "@@@END"
+    body = "\n".join(lines[1:-1])
+    assert 0 < len(body) <= 1900
+    assert not re.search(r"^\s*\||^#{4,}", body, re.MULTILINE)

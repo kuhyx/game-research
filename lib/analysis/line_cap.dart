@@ -8,11 +8,21 @@ import 'dart:io';
 
 import 'package:game_research/core/doc_cap.dart';
 
+/// Builds the follow-up prompt of the rewrite (see [shortenPrompt], the
+/// default): the long answer's file, each violation by name, the reply shape.
+typedef ShortenPromptBuilder = String Function({
+  required String longFile,
+  required List<String> violations,
+  required String format,
+});
+
 /// Parses [raw] with [parse]. [violations] lists the broken rules of a parse
 /// result, each as a human-readable line (see `doc_cap.dart`). If there are
 /// any, [raw] is saved to [longFile] and [shorten] runs once with the
 /// follow-up prompt (it returns the new raw answer); the result must be clean
 /// now, else a [StateError] names what is left. Never a second retry.
+/// [promptFor] builds the follow-up prompt (default: [shortenPrompt]); [cap]
+/// names the limit in the error.
 Future<R> parseWithinCap<R>({
   required String raw,
   required R Function(String raw) parse,
@@ -20,6 +30,8 @@ Future<R> parseWithinCap<R>({
   required File longFile,
   required String format,
   required Future<String> Function(String prompt) shorten,
+  ShortenPromptBuilder promptFor = shortenPrompt,
+  String cap = '$kLineCap lines',
 }) async {
   var parsed = parse(raw);
   final first = violations(parsed);
@@ -27,14 +39,12 @@ Future<R> parseWithinCap<R>({
   longFile.writeAsStringSync(raw);
   parsed = parse(
     await shorten(
-      shortenPrompt(longFile: longFile.path, violations: first, format: format),
+      promptFor(longFile: longFile.path, violations: first, format: format),
     ),
   );
   final left = violations(parsed);
   if (left.isNotEmpty) {
-    throw StateError(
-      '${left.join(', ')} after one shortening call (cap $kLineCap lines)',
-    );
+    throw StateError('${left.join(', ')} after one shortening call (cap $cap)');
   }
   return parsed;
 }

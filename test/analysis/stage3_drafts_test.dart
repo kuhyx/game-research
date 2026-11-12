@@ -52,7 +52,7 @@ void main() {
       ..onRun = (c) {
         switch (c.exe) {
           case '/fake/llm':
-            return llmExit == 0 ? ok(llmAnswer) : bad('', llmExit);
+            return llmExit == 0 ? ok(llmReply(c, llmAnswer)) : bad('', llmExit);
           case 'git':
             return remote.isEmpty ? bad('no origin', 2) : ok(remote);
           case 'faketodo':
@@ -95,8 +95,9 @@ void main() {
       extra: {'GAME_RESEARCH_TODO_CMD': 'faketodo'},
     );
     final first = await stage(cfg).run(fx.meta, frames);
-    expect(first['tokens'], containsPair('in', 100));
-    expect(first['cost_usd'], 0.5);
+    // The draft call and the short version's call (it fails: same stub).
+    expect(first['tokens'], containsPair('in', 200));
+    expect(first['cost_usd'], 1.0);
     final bad = jsonEncode({
       'subtype': 'success',
       'is_error': true,

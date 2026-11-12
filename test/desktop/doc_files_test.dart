@@ -32,6 +32,24 @@ void main() {
     expect(f.readAsStringSync(), 'new');
   });
 
+  test('saving an edit deletes the stale Discord version', () {
+    final f = put('docs/research/games/g/DOCS-research-g-1.md');
+    final short = put('docs/research/games/g/DOCS-research-g-1.discord.md');
+    final other = put('docs/research/games/g/DOCS-research-g-2.discord.md');
+    docs.write(f.path, 'edited');
+    expect(f.readAsStringSync(), 'edited');
+    expect(short.existsSync(), isFalse);
+    expect(other.existsSync(), isTrue, reason: 'another doc is not touched');
+    docs.write(f.path, 'edited again'); // no sibling any more: still fine
+  });
+
+  test('the Discord version is readable and its own edits are kept', () {
+    final short = put('docs/research/g/a.discord.md', 'short');
+    expect(docs.read(short.path), 'short');
+    docs.write(short.path, 'shorter');
+    expect(short.readAsStringSync(), 'shorter');
+  });
+
   test('a path outside docs/research is refused', () {
     final other = put('docs/other.md');
     final outside = File(p.join(root.path, 'secret.md'))

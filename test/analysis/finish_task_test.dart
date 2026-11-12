@@ -49,7 +49,7 @@ void main() {
         .writeAsStringSync(jsonEncode({'draft': draft, 'todo': 't'}));
     fake = FakeSys()
       ..onRun = (c) => switch (c.exe) {
-        '/fake/llm' => ok(answer),
+        '/fake/llm' => ok(llmReply(c, answer)),
         'faketodo' => ok('task-7\n'),
         'git' => remote,
         _ => bad('x', 2),
@@ -87,14 +87,14 @@ void main() {
 
   test('a failed todo call retries without a second Opus call', () async {
     fake.onRun = (c) => switch (c.exe) {
-      '/fake/llm' => ok(answer),
+      '/fake/llm' => ok(llmReply(c, answer)),
       'git' => remote,
       _ => bad('locked', 5),
     };
     expect(await runner().run(), 1);
     fake.onRun = (c) => c.exe == 'faketodo' ? ok('t-2') : remote;
     expect(await runner().run(), 0);
-    expect(fake.of('/fake/llm'), hasLength(1));
+    expect(fake.of('/fake/llm'), hasLength(2), reason: 'merge + short, once');
     expect(fake.of('faketodo').last.args, contains('make test'));
     expect(json('finish.json'), containsPair('todo', 't-2'));
   });

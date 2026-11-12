@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/analysis/stage3.dart';
+import 'package:game_research/core/discord_doc.dart';
 import 'package:game_research/core/sampling.dart';
 import 'package:game_research/core/synthesis.dart';
 import 'package:game_research/desktop/config.dart';
@@ -51,7 +52,7 @@ void main() {
       ..onRun = (c) {
         switch (c.exe) {
           case '/fake/llm':
-            return llmExit == 0 ? ok(llmAnswer) : bad('', llmExit);
+            return llmExit == 0 ? ok(llmReply(c, llmAnswer)) : bad('', llmExit);
           case 'git':
             return remote.isEmpty ? bad('no origin', 2) : ok(remote);
           case 'faketodo':
@@ -75,8 +76,8 @@ void main() {
     expect(state.containsKey('draft_en'), isFalse);
     expect(state.containsKey('draft_pl'), isFalse);
     expect(
-      Directory(p.dirname(draft)).listSync(),
-      hasLength(1),
+      [for (final f in Directory(p.dirname(draft)).listSync()) f.path],
+      unorderedEquals([draft, discordPathOf(draft)]),
       reason: 'no -pl',
     );
     expect(state, containsPair('model', 'fake:opus'));
@@ -86,7 +87,7 @@ void main() {
       fx.out('synthesis_prompt.txt').readAsStringSync(),
       contains('f_0002.png'),
     );
-    final llm = fake.of('/fake/llm').single;
+    final llm = fake.of('/fake/llm').first;
     expect(llm.args, ['opus', fx.out('synthesis_prompt.txt').path]);
     final todo = fake.of('faketodo').single;
     expect(
@@ -131,7 +132,7 @@ void main() {
     expect(state.containsKey('todo'), isFalse);
     todoExit = 0;
     await run();
-    expect(fake.of('/fake/llm'), hasLength(1));
+    expect(fake.of('/fake/llm'), hasLength(2), reason: 'draft + short');
     expect(fake.of('faketodo'), hasLength(2));
   });
 
@@ -199,7 +200,12 @@ void main() {
       final state = await stage(cfg)
           .run({...fx.meta}..remove('duration_s'), frames);
       expect(state, containsPair('model', 'claude-opus-4-8'));
-      final call = fake.of('timeout').single;
+      expect(
+        state['discord'],
+        startsWith('failed: FormatException'),
+        reason: 'the stub answers the Discord call with a draft',
+      );
+      final call = fake.of('timeout').first;
       expect(call.args.first, '1500');
       expect(call.args, containsAllInOrder(['--model', 'opus']));
       expect(

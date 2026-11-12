@@ -95,6 +95,14 @@ def check_outputs(c: Checker, session: Path, art: Path, expect: int) -> None:
         state.get("draft") == str(doc) and "tokens" in state and "cost_usd" in state,
         json.dumps(state),
     )
+    short = doc.with_name(doc.name.removesuffix(".md") + ".discord.md")
+    c.check(
+        "discord version",
+        state.get("discord") == "ok"
+        and short.is_file()
+        and 0 < len(short.read_text()) <= 1900,
+        f"{state.get('discord')} {short.is_file()}",
+    )
     todo = (art / "todo.log").read_text() if (art / "todo.log").is_file() else ""
     c.check(
         "todo task",
@@ -109,5 +117,7 @@ def check_outputs(c: Checker, session: Path, art: Path, expect: int) -> None:
     c.check("ticks", len(ticks) == expect, f"{len(ticks)} ticks")
     llm = (art / "llm.log").read_text().splitlines()
     c.check(
-        "one opus call", sum(line.startswith("opus") for line in llm) == 1, "opus calls"
+        "two opus calls (draft, Discord version)",
+        sum(line.startswith("opus") for line in llm) == 2,
+        "opus calls",
     )

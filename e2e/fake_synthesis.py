@@ -1,6 +1,7 @@
 """Fake Opus answer for the E2E: the template with every slot filled.
 
-Reads the prompt file, finds the template path it names and prints the filled
+A prompt asking for a Discord version (`@@@DISCORD`) gets a valid short doc.
+Otherwise reads the prompt file, finds the template path it names and prints the filled
 template between marker lines (`@@@DOC` ... `@@@END` for a session, or
 `@@@MERGED` ... `@@@REPORT` ... `@@@TASK` ... `@@@CHECK` ... `@@@END` for a finish), with `_(pending)_`
 replaced and a `- **Status:** answered` line after every Answer line, so the
@@ -35,9 +36,17 @@ def fill(template: str) -> str:
     )
 
 
+def discord() -> str:
+    """A valid short version: Discord markdown, far under 1900 characters."""
+    return "@@@DISCORD\n# Dummy Game\n## Findings\n- **e2e** short version\n@@@END"
+
+
 def main(prompt_file: str) -> int:
     """Prints the fake answer; exit 2 when the template is not named."""
     prompt = Path(prompt_file).read_text(encoding="utf-8")
+    if "@@@DISCORD" in prompt:
+        print(discord())
+        return 0
     found = _TEMPLATE.findall(prompt)
     if not found:
         print("template not named in the prompt", file=sys.stderr)

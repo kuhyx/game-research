@@ -49,6 +49,9 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
 - `dart run tool/smoke_tier.dart <haiku|omniroute|ollama> <frame.png>`: one
   real caption call (synthetic frames only for OmniRoute: free providers log
   prompts). ollama needs ~40 s to load the model the first time.
+- `game_research_analyze --discord-backfill`: writes the `X.discord.md` short
+  version (<= 1900 chars, one Opus call each) of every draft and report that
+  has none; job lock, waits while recording, exit 4 at a usage limit.
 - `pre-commit run --all-files`
 
 ### Driving the app (agents)

@@ -7,6 +7,7 @@ library;
 
 import 'dart:io';
 
+import 'package:game_research/core/discord_doc.dart';
 import 'package:path/path.dart' as p;
 
 /// Largest file the panel reads or writes.
@@ -70,10 +71,15 @@ class DocFiles {
     return File(real).readAsStringSync();
   }
 
-  /// Replaces the text of the existing document [path].
+  /// Replaces the text of the existing document [path]. Its Discord version
+  /// describes the old text, so it is deleted (kuhy's own edit of a Discord
+  /// version is kept).
   void write(String path, String text) {
     final real = _allowed(path);
     if (text.length > kDocMaxBytes) throw const DocDenied('too large');
     File(real).writeAsStringSync(text, flush: true);
+    if (isDiscordPath(real)) return;
+    final stale = File(discordPathOf(real));
+    if (stale.existsSync()) stale.deleteSync();
   }
 }

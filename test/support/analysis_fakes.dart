@@ -5,6 +5,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:game_research/core/discord_doc.dart';
 import 'package:game_research/core/finish_doc.dart';
 import 'package:game_research/core/markers.dart';
 import 'package:game_research/core/synthesis.dart';
@@ -37,6 +38,17 @@ const kDraft = '''
 
 /// A well-formed synthesis answer.
 const kAnswer = '$kDocMarker\n$kDraft$kEndMarker\n';
+
+/// A short version that passes every rule.
+const kDiscordAnswer = '$kDiscordMarker\n# Short\n- **a** b\n$kEndMarker\n';
+
+/// The reply of the fake model `/fake/llm <tier> <prompt file>` call [c]: the
+/// Discord prompt (it holds `@@@DISCORD`) gets [discord], anything else
+/// [answer]. Every document now costs one extra call for its short version.
+String llmReply(Call c, String answer, {String discord = kDiscordAnswer}) =>
+    File(c.args[1]).readAsStringSync().contains(kDiscordMarker)
+    ? discord
+    : answer;
 
 /// A well-formed finish answer: merged answers, report, task body, check.
 String finishAnswer({

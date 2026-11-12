@@ -8,6 +8,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:game_research/analysis/discord_doc.dart';
 import 'package:game_research/analysis/job.dart';
 import 'package:game_research/analysis/line_cap.dart';
 import 'package:game_research/analysis/tiers.dart';
@@ -146,6 +147,13 @@ class Stage3 {
         ..['frames'] = picked.length;
       _write(state);
     }
+    // A failed short version is only noted: the analysis does not fail on it.
+    state['discord'] ??= await discordOutcome(
+      draft,
+      (q, f) async => (await _ask(state, q, f, target)).text,
+      p.join(dir, 'analysis'),
+    );
+    _write(state);
     if (state['todo'] == null) {
       state['todo'] = await _todo(game, slug, target, stamp);
       _write(state);

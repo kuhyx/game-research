@@ -3,6 +3,8 @@
 ///     game_research_analyze <session dir> [--force]   one session's job
 ///     game_research_analyze --finish <slug>           merge a game's drafts
 ///     game_research_analyze --resume-all              what the timer runs
+///     game_research_analyze --discord-backfill        Discord versions of the
+///                                                     docs that lack one
 ///
 /// Exit codes ([JobExit]): 0 done, 1 a stage failed, 2 bad arguments, 3 the
 /// job already runs, 4 waiting (queued, or a usage limit). After a job ends
@@ -12,6 +14,7 @@ library;
 
 import 'dart:io';
 
+import 'package:game_research/analysis/discord_backfill.dart';
 import 'package:game_research/analysis/finish.dart';
 import 'package:game_research/analysis/job.dart';
 import 'package:game_research/analysis/resume.dart';
@@ -23,7 +26,7 @@ import 'package:http/http.dart' as http;
 /// The usage line.
 const kUsage =
     'usage: game_research_analyze <session dir> [--force] | '
-    '--finish <slug> | --resume-all';
+    '--finish <slug> | --resume-all | --discord-backfill';
 
 /// Runs the command [args] and returns the exit code.
 Future<int> analyzeMain(
@@ -47,7 +50,15 @@ Future<int> analyzeMain(
     return await resume.run();
   }
   final int code;
-  if (flags.contains('--finish')) {
+  if (flags.contains('--discord-backfill')) {
+    if (args.length != 1) return usage();
+    code = await DiscordBackfill(
+      config,
+      sys,
+      err: err,
+      recordingPoll: recordingPoll,
+    ).run();
+  } else if (flags.contains('--finish')) {
     if (words.length != 1 || args.length != 2) return usage();
     code = await FinishRunner(
       words.single,

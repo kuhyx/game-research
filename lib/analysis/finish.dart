@@ -9,6 +9,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:game_research/analysis/discord_doc.dart';
 import 'package:game_research/analysis/finish_sessions.dart';
 import 'package:game_research/analysis/finish_todo.dart';
 import 'package:game_research/analysis/job.dart';
@@ -130,6 +131,13 @@ class FinishRunner {
         // Before any Opus spend: no repo slug, no task, fail closed.
         final repo = await targetRepo(sys, last.target);
         if (state['merged'] == null) await _merge(state, sessions, last);
+        // A failed short version is only noted: the merge does not fail on it.
+        state['report_discord'] ??= await discordOutcome(
+          '${state['report']}',
+          (q, f) async => (await _opus(state, q, f, [_dir, last.target])).text,
+          _dir,
+        );
+        _write(state);
         state['todo'] ??= await createFinishTodo(
           config: config,
           sys: sys,
@@ -218,6 +226,8 @@ class FinishRunner {
     );
     final merged = mergedPath(last.target, slug);
     final report = reportPath(last.target, slug);
+    dropDiscord(report); // the old short version describes the old report
+    state.remove('report_discord');
     File(merged)
       ..parent.createSync(recursive: true)
       ..writeAsStringSync(docs.merged);

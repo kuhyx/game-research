@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/analysis/finish.dart';
 import 'package:game_research/analysis/job_lock.dart';
+import 'package:game_research/core/discord_doc.dart';
 import 'package:game_research/core/synthesis.dart';
 import 'package:path/path.dart' as p;
 
@@ -57,7 +58,10 @@ void main() {
       ..onRun = (c) {
         switch (c.exe) {
           case '/fake/llm':
-            return llm;
+            // The report's short version is a second call.
+            return File(c.args[1]).readAsStringSync().contains(kDiscordMarker)
+                ? ok(kDiscordAnswer)
+                : llm;
           case 'faketodo':
             return ok('task-9\n');
         }
@@ -121,8 +125,15 @@ void main() {
       'usage': {'input_tokens': 70, 'output_tokens': 30},
       'total_cost_usd': 0.75,
     });
+    final shortEnv = jsonEncode({
+      ...jsonDecode(env) as Map,
+      'result': kDiscordAnswer,
+    });
     fake.onRun = (c) => switch (c.exe) {
-      'timeout' => ok(env),
+      'timeout' =>
+        c.args[c.args.indexOf('-p') + 1].contains(kDiscordMarker)
+            ? ok(shortEnv)
+            : ok(env),
       'faketodo' => ok('t-3'),
       _ => ok('git@github.com:kuhyx/cleanup-plate.git\n'),
     };
@@ -132,7 +143,8 @@ void main() {
       fake.sys,
     );
     expect(await real.run(), 0);
-    final call = fake.of('timeout').single;
+    expect(fake.of('timeout'), hasLength(2), reason: 'merge + short version');
+    final call = fake.of('timeout').first;
     expect(call.args, containsAllInOrder(['--model', 'opus']));
     expect(
       call.args,
@@ -145,8 +157,9 @@ void main() {
     );
     final done = json('finish.json');
     expect(done['model'], 'claude-opus-4-8');
-    expect(done['tokens'], containsPair('in', 70));
-    expect(done['cost_usd'], 0.75);
+    expect(done['report_discord'], 'ok');
+    expect(done['tokens'], containsPair('in', 140), reason: 'both calls');
+    expect(done['cost_usd'], 1.5);
   });
 
   test('a rerun with nothing new costs nothing', () async {
@@ -168,7 +181,7 @@ void main() {
         .writeAsStringSync(jsonEncode(fx.meta));
     analysed(second, stamp: '20261113-100000');
     expect(await runner().run(), 0);
-    expect(fake.of('/fake/llm'), hasLength(2));
+    expect(fake.of('/fake/llm'), hasLength(4), reason: '2 x (merge + short)');
     expect(json('finish.json')['sessions'], hasLength(2));
     expect(json('finish.json')['tokens'], first['tokens']);
   });

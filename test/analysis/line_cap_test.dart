@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/analysis/finish.dart';
 import 'package:game_research/analysis/stage3.dart';
+import 'package:game_research/core/discord_doc.dart';
 import 'package:game_research/core/doc_cap.dart';
 import 'package:game_research/core/sampling.dart';
 import 'package:game_research/core/synthesis.dart';
@@ -50,7 +51,10 @@ void main() {
     fake = FakeSys()
       ..onRun = (c) {
         if (c.exe == '/fake/llm') {
-          prompts.add(File(c.args.last).readAsStringSync());
+          final prompt = File(c.args.last).readAsStringSync();
+          // The short version's call is not part of the cap flows.
+          if (prompt.contains(kDiscordMarker)) return ok(kDiscordAnswer);
+          prompts.add(prompt);
           return ok(answers.removeAt(0));
         }
         return c.exe == 'faketodo'
