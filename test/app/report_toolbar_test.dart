@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/app/doc_page_view.dart';
+import 'package:game_research/app/reader_toolbar.dart';
 
 import 'fake_wrapper.dart';
 import 'reader_fixtures.dart';
@@ -28,6 +29,20 @@ void main() {
       await g.moveTo(kMiddle);
       await t.pumpAndSettle();
       expect(toolbarBottom(t), lessThanOrEqualTo(0));
+    });
+
+    testWidgets('a visible handle at the top edge marks the hidden bar', (
+      t,
+    ) async {
+      final w = FakeWrapper()..docs['/t/a.md'] = '# A';
+      await openReader(t, w);
+      final handle = find.byKey(kReaderHandleKey);
+      expect(handle, findsOneWidget);
+      expect(t.getTopLeft(handle).dy, greaterThanOrEqualTo(0));
+      expect(t.getBottomLeft(handle).dy, lessThan(60));
+      expect(t.widget<AnimatedOpacity>(handle).opacity, 1);
+      await reveal(t);
+      expect(t.widget<AnimatedOpacity>(handle).opacity, 0);
     });
 
     testWidgets('edit toggle shows the source; save writes it back', (t) async {

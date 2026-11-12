@@ -1,5 +1,6 @@
 /// The reader's controls: hidden above the top edge, slid in while the mouse
-/// is in a thin strip there (or over the bar), slid out when it leaves.
+/// is in a strip there (or over the bar), slid out when it leaves. A chevron
+/// in the strip shows where the bar is hiding.
 /// Icons and numbers only.
 library;
 
@@ -10,6 +11,9 @@ import 'package:game_research/app/doc_style.dart';
 
 /// Key of the bar itself (its position tells whether it is out).
 const kReaderToolbarKey = ValueKey<String>('reader-toolbar');
+
+/// Key of the always-visible cue at the top edge (fades while the bar is in).
+const kReaderHandleKey = ValueKey<String>('reader-handle');
 
 /// Reveals [bar] under the pointer at the top edge.
 class HoverToolbar extends StatefulWidget {
@@ -35,32 +39,50 @@ class _HoverToolbarState extends State<HoverToolbar> {
   Widget build(BuildContext context) {
     final style = widget.style;
     final barHeight = style.px(96);
+    const handleSemantic = 'toolbar';
     return MouseRegion(
       onEnter: (_) => _set(shown: true),
       onExit: (_) => _set(shown: false),
       child: SizedBox(
-        height: _shown ? barHeight : style.px(24),
+        height: _shown ? barHeight : style.px(48),
         width: double.infinity,
-        child: OverflowBox(
+        child: Stack(
           alignment: Alignment.topCenter,
-          minHeight: barHeight,
-          maxHeight: barHeight,
-          child: IgnorePointer(
-            ignoring: !_shown,
-            child: ExcludeSemantics(
-              excluding: !_shown,
-              child: AnimatedSlide(
-                offset: _shown ? Offset.zero : const Offset(0, -1),
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOutCubic,
-                child: SizedBox(
-                  key: kReaderToolbarKey,
-                  height: barHeight,
-                  child: widget.bar,
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedOpacity(
+              key: kReaderHandleKey,
+              opacity: _shown ? 0 : 1,
+              duration: const Duration(milliseconds: 160),
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: DocStyle.muted,
+                size: style.px(48),
+                semanticLabel: handleSemantic,
+              ),
+            ),
+            OverflowBox(
+              alignment: Alignment.topCenter,
+              minHeight: barHeight,
+              maxHeight: barHeight,
+              child: IgnorePointer(
+                ignoring: !_shown,
+                child: ExcludeSemantics(
+                  excluding: !_shown,
+                  child: AnimatedSlide(
+                    offset: _shown ? Offset.zero : const Offset(0, -1),
+                    duration: const Duration(milliseconds: 160),
+                    curve: Curves.easeOutCubic,
+                    child: SizedBox(
+                      key: kReaderToolbarKey,
+                      height: barHeight,
+                      child: widget.bar,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
