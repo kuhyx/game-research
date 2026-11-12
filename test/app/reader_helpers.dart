@@ -18,6 +18,7 @@ Future<void> openReader(
   FakeWrapper w, {
   String path = '/t/a.md',
   VoidCallback? onClose,
+  VoidCallback? onNotes,
   Size size = const Size(3840, 2160),
   double dpr = 2,
 }) async {
@@ -28,7 +29,12 @@ Future<void> openReader(
   await t.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        body: ReportPanel(api: w.api(), path: path, onClose: onClose ?? () {}),
+        body: ReportPanel(
+          api: w.api(),
+          path: path,
+          onClose: onClose ?? () {},
+          onNotes: onNotes,
+        ),
       ),
     ),
   );

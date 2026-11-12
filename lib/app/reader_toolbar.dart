@@ -5,6 +5,7 @@ library;
 
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
+import 'package:game_research/app/copy_icon.dart';
 import 'package:game_research/app/doc_style.dart';
 
 /// Key of the bar itself (its position tells whether it is out).
@@ -66,7 +67,8 @@ class _HoverToolbarState extends State<HoverToolbar> {
   }
 }
 
-/// The bar's content: edit, save, state glyphs, page position, close.
+/// The bar's content: edit, save, copy short, notes, state glyphs, page
+/// position, close.
 class ReaderBar extends StatelessWidget {
   /// The bar for the current state.
   const new({
@@ -81,6 +83,8 @@ class ReaderBar extends StatelessWidget {
     required this.onEdit,
     required this.onSave,
     required this.onClose,
+    this.onCopyShort,
+    this.onNotes,
     super.key,
   });
 
@@ -117,11 +121,18 @@ class ReaderBar extends StatelessWidget {
   /// Close pressed.
   final VoidCallback onClose;
 
+  /// Copies the Discord version; null = there is none (the icon is off).
+  final Future<void> Function()? onCopyShort;
+
+  /// Opens the game's notes; null = no game behind this document.
+  final VoidCallback? onNotes;
+
   @override
   Widget build(BuildContext context) {
     const editSemantic = 'edit';
     const saveSemantic = 'save';
     const closeSemantic = 'close';
+    const notesSemantic = 'my notes';
     const failedSemantic = 'document error';
     const pageSemantic = 'page';
     final size = style.px(48);
@@ -147,6 +158,17 @@ class ReaderBar extends StatelessWidget {
               iconSize: size,
               icon: const Icon(Icons.save_rounded, semanticLabel: saveSemantic),
             ),
+            CopyIcon(semantic: 'copy short', size: size, onCopy: onCopyShort),
+            if (onNotes != null)
+              IconButton(
+                onPressed: onNotes,
+                color: DocStyle.body,
+                iconSize: size,
+                icon: const Icon(
+                  Icons.sticky_note_2_rounded,
+                  semanticLabel: notesSemantic,
+                ),
+              ),
             if (failed && loaded)
               Icon(
                 Icons.error_outline_rounded,

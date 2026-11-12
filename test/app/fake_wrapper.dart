@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:game_research/app/api.dart';
@@ -33,6 +34,15 @@ class FakeWrapper {
   /// Documents served by `/api/doc`, by absolute path.
   final docs = <String, String>{};
 
+  /// Paths of documents that have a Discord version (`short` in `/api/doc`).
+  final shorts = <String>{};
+
+  /// Parts served by `/api/games/<id>/notes`.
+  List<Map<String, Object?>> noteParts = [];
+
+  /// When set, every copy POST waits for it.
+  Completer<void>? copyGate;
+
   /// When true `/api/finish` is 404 (a wrapper without the finish job).
   bool noFinish = false;
 
@@ -65,8 +75,10 @@ class FakeWrapper {
         return http.Response('{"error":"no such document"}', 404);
       }
       if (r.method == 'PUT') docs[docPath!] = r.body;
-      return http.Response(jsonEncode({'text': docs[docPath]}), 200);
+      final reply = {'text': docs[docPath], 'short': shorts.contains(docPath)};
+      return http.Response(jsonEncode(reply), 200);
     }
+    if (r.method == 'POST' && path.endsWith('/copy')) await copyGate?.future;
     Object? body;
     if (r.method == 'GET') {
       body = switch (path) {
@@ -102,6 +114,7 @@ class FakeWrapper {
           ],
         },
         '/api/sessions' => sessions,
+        '/api/games/1/notes' => {'slug': 'one', 'parts': noteParts},
         _ => null,
       };
       return http.Response(jsonEncode(body), body == null ? 404 : getStatus);

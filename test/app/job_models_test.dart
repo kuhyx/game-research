@@ -112,7 +112,7 @@ void main() {
     test('doc reads and saves through /api/doc', () async {
       final w = FakeWrapper()..docs['/t/a.md'] = '# a';
       final api = w.api();
-      expect(await api.doc('/t/a.md'), '# a');
+      expect((await api.doc('/t/a.md')).text, '# a');
       await api.saveDoc('/t/a.md', '# b');
       expect(w.docs['/t/a.md'], '# b');
       expect(w.calls, [

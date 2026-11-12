@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:game_research/app/api.dart';
 import 'package:game_research/app/models.dart';
+import 'package:game_research/app/notes_panel.dart';
 import 'package:game_research/app/report_panel.dart';
 import 'package:game_research/app/tap_guard.dart';
 
@@ -73,10 +74,19 @@ class _PanelHostState extends State<PanelHost> {
   /// Path of the open document.
   String? _panel;
 
+  /// App id of the game whose report is open (a draft has none).
+  int? _panelApp;
+
+  /// App id whose notes are open over the report.
+  int? _notes;
+
   void _openDraft(String id) => widget.guard.run(() {
     final draft = widget.sessions.where((r) => r.id == id).firstOrNull?.draft;
     if (draft != null) {
-      setState(() => _panel = draft);
+      setState(() {
+        _panel = draft;
+        _panelApp = null;
+      });
     }
   });
 
@@ -86,7 +96,10 @@ class _PanelHostState extends State<PanelHost> {
       g.finish?.state == 'done' && g.finish?.report != null;
 
   void _openReport(Game g) => widget.guard.run(() {
-    setState(() => _panel = g.finish!.report);
+    setState(() {
+      _panel = g.finish!.report;
+      _panelApp = g.appid;
+    });
   });
 
   /// Done: open the report. Otherwise always send the request (the wrapper
@@ -107,6 +120,8 @@ class _PanelHostState extends State<PanelHost> {
   @override
   Widget build(BuildContext context) {
     final panel = _panel;
+    final app = _panelApp;
+    final notes = _notes;
     return Stack(
       children: [
         widget.builder(
@@ -126,6 +141,19 @@ class _PanelHostState extends State<PanelHost> {
               api: widget.api,
               path: panel,
               onClose: () => setState(() => _panel = null),
+              onNotes: app == null ? null : () => setState(() => _notes = app),
+            ),
+          ),
+        if (panel != null && notes != null)
+          // Its own scope: closing hands the keys back to the report.
+          Positioned.fill(
+            child: FocusScope(
+              autofocus: true,
+              child: NotesPanel(
+                api: widget.api,
+                appid: notes,
+                onClose: () => setState(() => _notes = null),
+              ),
             ),
           ),
       ],

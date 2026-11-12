@@ -4,6 +4,7 @@ library;
 import 'dart:convert';
 
 import 'package:game_research/app/models.dart';
+import 'package:game_research/app/notes_models.dart';
 import 'package:http/http.dart' as http;
 
 /// What the GUI needs from the wrapper.
@@ -108,12 +109,37 @@ class ResearchApi {
   /// Runs the "research finished" merge for [appid].
   Future<void> finish(int appid) => _post('games/$appid/finish');
 
-  /// The text of the draft or report at absolute [path].
-  Future<String> doc(String path) async {
+  /// The text of the draft or report at absolute [path], and whether a
+  /// Discord version sits next to it.
+  Future<DocText> doc(String path) async {
     final r = await client.get(_u('doc', {'path': path}));
     if (r.statusCode != 200) throw ApiError(r.statusCode, r.body);
-    return ((jsonDecode(r.body) as Map)['text'] ?? '') as String;
+    final j = jsonDecode(r.body) as Map;
+    return (text: '${j['text'] ?? ''}', short: j['short'] == true);
   }
+
+  /// Puts the Discord version of the document at [path] on the clipboard.
+  Future<void> copyDoc(String path) => _post('doc/copy', query: {'path': path});
+
+  /// kuhy's marker notes of game [appid], in message parts.
+  Future<List<NotePart>> notes(int appid) async => [
+    for (final p
+        in ((await _get('games/$appid/notes'))! as Map)['parts'] as List)
+      NotePart.fromJson(p as Map<String, Object?>),
+  ];
+
+  /// Copies part [n] of game [appid]: its stills (`what` = `files`) or its
+  /// text (`text`). One paste carries one or the other.
+  Future<void> copyPart(int appid, int n, String what) =>
+      _post('games/$appid/notes/$n/copy', query: {'what': what});
+
+  /// Copies marker [i] of session [stamp]: its still and its line.
+  Future<void> copyMarker(String stamp, int i) =>
+      _post('sessions/$stamp/markers/$i/copy');
+
+  /// The still of marker [i] of session [stamp] (a JPEG).
+  String stillUrl(String stamp, int i) =>
+      _u('sessions/$stamp/still/$i').toString();
 
   /// Saves [text] over the draft or report at [path].
   Future<void> saveDoc(String path, String text) async {

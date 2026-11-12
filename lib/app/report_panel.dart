@@ -24,6 +24,7 @@ class ReportPanel extends StatefulWidget {
     required this.api,
     required this.path,
     required this.onClose,
+    this.onNotes,
     super.key,
   });
 
@@ -36,6 +37,9 @@ class ReportPanel extends StatefulWidget {
   /// Close pressed (or Esc).
   final VoidCallback onClose;
 
+  /// Opens the game's notes (the report of a game); null = no icon.
+  final VoidCallback? onNotes;
+
   @override
   State<ReportPanel> createState() => _ReportPanelState();
 }
@@ -47,6 +51,7 @@ class _ReportPanelState extends State<ReportPanel> {
   bool _editing = false;
   bool _failed = false;
   bool _justSaved = false;
+  bool _short = false;
   int _page = 0;
   List<DocPage> _pages = [DocPage()];
   (String, double, double, double)? _laidOutFor;
@@ -82,11 +87,12 @@ class _ReportPanelState extends State<ReportPanel> {
 
   Future<void> _load() async {
     try {
-      final text = await widget.api.doc(widget.path);
+      final doc = await widget.api.doc(widget.path);
       if (!mounted) return;
       setState(() {
-        _saved = text;
-        _field.text = text;
+        _saved = doc.text;
+        _short = doc.short;
+        _field.text = doc.text;
         _failed = false;
       });
     } on Exception {
@@ -101,6 +107,7 @@ class _ReportPanelState extends State<ReportPanel> {
       if (!mounted) return;
       setState(() {
         _saved = text;
+        _short = false; // the wrapper drops the now stale Discord version
         _failed = false;
         _justSaved = true;
       });
@@ -203,6 +210,10 @@ class _ReportPanelState extends State<ReportPanel> {
                         onEdit: _toggleEdit,
                         onSave: _save,
                         onClose: widget.onClose,
+                        onNotes: widget.onNotes,
+                        onCopyShort: loaded && _short
+                            ? () => widget.api.copyDoc(widget.path)
+                            : null,
                       ),
                     ),
                   ),

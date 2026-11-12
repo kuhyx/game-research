@@ -109,4 +109,77 @@ void main() {
       expect(find.byIcon(Icons.check_rounded), findsOneWidget);
     });
   });
+
+  group('copy short and notes', () {
+    testWidgets('copy short posts the doc path when a Discord version exists', (
+      t,
+    ) async {
+      final w = FakeWrapper()
+        ..docs['/t/a.md'] = '# A'
+        ..shorts.add('/t/a.md');
+      await openReader(t, w);
+      await reveal(t);
+      await t.tap(label('copy short'));
+      await t.pump();
+      await t.pump();
+      expect(w.calls.last, 'POST /api/doc/copy?path=%2Ft%2Fa.md');
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      await t.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('copy short is off without a Discord version', (t) async {
+      final w = FakeWrapper()..docs['/t/a.md'] = '# A';
+      await openReader(t, w);
+      await reveal(t);
+      await t.tap(label('copy short'), warnIfMissed: false);
+      await t.pump();
+      expect(w.calls.where((c) => c.startsWith('POST')), isEmpty);
+      expect(find.byIcon(Icons.content_copy_rounded), findsOneWidget);
+    });
+
+    testWidgets('copy short is off while loading or after a failed load', (
+      t,
+    ) async {
+      await openReader(t, FakeWrapper(), path: '/etc/passwd');
+      await reveal(t);
+      final copy = t.widget<IconButton>(
+        find.ancestor(
+          of: label('copy short'),
+          matching: find.byType(IconButton),
+        ),
+      );
+      expect(copy.onPressed, isNull);
+    });
+
+    testWidgets('saving an edit drops the stale Discord version', (t) async {
+      final w = FakeWrapper()
+        ..docs['/t/a.md'] = '# A'
+        ..shorts.add('/t/a.md');
+      await openReader(t, w);
+      await reveal(t);
+      await t.tap(label('edit'));
+      await t.pump();
+      await t.enterText(find.byType(TextField), '# B');
+      await t.pump();
+      await t.tap(label('save'));
+      await t.pump();
+      await t.pump();
+      await t.tap(label('copy short'), warnIfMissed: false);
+      await t.pump();
+      expect(w.calls.where((c) => c.startsWith('POST')), isEmpty);
+    });
+
+    testWidgets('the notes icon exists only with a callback', (t) async {
+      final w = FakeWrapper()..docs['/t/a.md'] = '# A';
+      await openReader(t, w);
+      await reveal(t);
+      expect(label('my notes'), findsNothing);
+      await t.pumpWidget(const SizedBox());
+      var opened = 0;
+      await openReader(t, w, onNotes: () => opened++);
+      await reveal(t);
+      await t.tap(label('my notes'));
+      expect(opened, 1);
+    });
+  });
 }
