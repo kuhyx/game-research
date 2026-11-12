@@ -57,7 +57,7 @@ class Harness {
       recorder: Recorder(config, sys),
       hotkeys: HotkeyService(config, sys),
       overlay: Overlay(config, sys),
-      asker: NoteAsker(config, sys),
+      asker: NoteAsker(config, sys, retryAfter: Duration.zero),
       launcher: GameLauncher(config, sys, scan, log),
       watcher: watcher,
       store: SessionStore(config),
@@ -110,6 +110,13 @@ class Harness {
   /// What the flash helper prints on stdout.
   String overlayOut = '';
 
+  /// Successive dmenu answers (before [dmenuText] takes over); a `''` is Esc
+  /// or an empty Enter.
+  final dmenuAnswers = <String>[];
+
+  /// How often dmenu was opened.
+  int get dmenuOpens => fake.of('dmenu').length;
+
   /// Keep dmenu open until killed.
   bool dmenuHangs = false;
 
@@ -156,7 +163,12 @@ class Harness {
       'dmenu' =>
         dmenuHangs
             ? FakeProcess()
-            : FakeProcess(exit: 0, stdoutText: dmenuText),
+            : FakeProcess(
+                exit: 0,
+                stdoutText: dmenuAnswers.isEmpty
+                    ? dmenuText
+                    : dmenuAnswers.removeAt(0),
+              ),
       _ => null,
     };
   }

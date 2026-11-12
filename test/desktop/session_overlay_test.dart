@@ -119,9 +119,47 @@ void main() {
       expect(await asker().ask(), '');
     });
 
-    test('a missing dmenu gives an empty note', () async {
+    test('a missing dmenu gives null', () async {
       fake.onStart = (_) => throw const ProcessException('dmenu', []);
-      expect(await asker().ask(), '');
+      expect(await asker().ask(), isNull);
+    });
+
+    group('askNote', () {
+      NoteAsker quick() =>
+          NoteAsker(testConfig(root), fake.sys, retryAfter: Duration.zero);
+
+      test('Esc and empty lines ask again until a note arrives', () async {
+        final answers = ['', '\n', ' \n', 'real\n'];
+        fake.onStart = (_) =>
+            FakeProcess(exit: 0, stdoutText: answers.removeAt(0));
+        expect(await quick().askNote(() => false), 'real');
+        expect(fake.of('dmenu'), hasLength(4));
+      });
+
+      test('an empty line after stop is kept empty, not asked again', () async {
+        fake.onStart = (_) => FakeProcess(exit: 1);
+        expect(await quick().askNote(() => true), '');
+        expect(fake.of('dmenu'), hasLength(1));
+      });
+
+      test('stop between two asks ends the loop', () async {
+        var stopped = false;
+        fake.onStart = (_) {
+          final p = FakeProcess(exit: 1);
+          stopped = true;
+          return p;
+        };
+        expect(
+          await quick().askNote(() => stopped && fake.of('dmenu').length > 1),
+          '',
+        );
+      });
+
+      test('a missing dmenu does not loop', () async {
+        fake.onStart = (_) => throw const ProcessException('dmenu', []);
+        expect(await quick().askNote(() => false), '');
+        expect(fake.of('dmenu'), hasLength(1));
+      });
     });
 
     test('cancelAll closes an open line', () async {
