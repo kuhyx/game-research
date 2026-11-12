@@ -3,6 +3,7 @@ library;
 
 import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/event_log.dart';
+import 'package:game_research/desktop/fps_session.dart';
 import 'package:game_research/desktop/game_watcher.dart';
 import 'package:game_research/desktop/proc_scan.dart';
 import 'package:game_research/desktop/recorder.dart';
@@ -29,7 +30,8 @@ class SessionParts {
     required this.targets,
     required this.log,
     required this.window,
-  });
+    FpsSession? fps,
+  }) : fps = fps ?? FpsSession(config, sys, log);
 
   /// The real parts for [config] and [sys].
   factory real(Config config, Sys sys) {
@@ -49,6 +51,7 @@ class SessionParts {
       targets: Targets(config),
       log: log,
       window: GameWindow(config, sys, scan),
+      fps: FpsSession(config, sys, log),
     );
   }
 
@@ -90,4 +93,7 @@ class SessionParts {
 
   /// Finds the game's window.
   final GameWindow window;
+
+  /// MangoHud launch option and frame-rate logs.
+  final FpsSession fps;
 }

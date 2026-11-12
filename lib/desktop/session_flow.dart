@@ -147,6 +147,7 @@ class SessionFlow {
       // A second URI for a running game only gets Steam's error toast.
       _parts.log.event('already_running', {'appid': appid});
     } else {
+      _parts.fps.prepareLaunch(appid);
       try {
         await _parts.launcher.launch(appid);
       } on StartError catch (e) {

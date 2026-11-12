@@ -1,0 +1,8 @@
+# game-research: frame-time logging for the games it studies. Owned by the
+# app (rendered from tool/mangohud.conf.in by install.sh and the wrapper);
+# kuhy's own MangoHud.conf is never touched. No HUD, one CSV per game run in
+# the spool; every frame is logged (log_interval=0) so 1% lows are real.
+no_display
+autostart_log=1
+log_interval=0
+output_folder=@SPOOL@
