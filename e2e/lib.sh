@@ -11,6 +11,11 @@
 
 set -euo pipefail
 
+# Every unit this suite starts (Xvfb, wrapper, chromium, the wrapper's own
+# units) goes through bgshim/systemd-run: background CCD, SCHED_IDLE.
+PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bgshim:${PATH}"
+export PATH
+
 E2E_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly E2E_REPO
 readonly E2E_ROOT="${HOME}/data/claude-scratch/e2e/game-research"
@@ -21,6 +26,7 @@ readonly E2E_APPID=4242
 readonly E2E_GAME="Dummy Game"
 readonly E2E_UNITS=(gr-e2e-wrapper gr-e2e-xvfb "playstudy-steam-${E2E_PORT}")
 readonly E2E_FWD_APP=game-research-e2e
+readonly E2E_BG_CPUS="6-11,18-23"
 
 die() {
 	echo "e2e: $*" >&2

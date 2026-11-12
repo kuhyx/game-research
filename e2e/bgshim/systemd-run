@@ -1,0 +1,11 @@
+#!/bin/bash
+# systemd-run with the background properties on every unit it creates, so the
+# e2e stack never competes with a game on the same PC (kuhy's decision
+# 2026-11-12). First on PATH for run.sh, the flutter-web-drive chromium unit
+# and the wrapper (whose steam/sxhkd/analysis units are children of the user
+# manager, not of the wrapper). CPUAffinity, not AllowedCPUs: the cpuset
+# controller is not delegated to the user manager. 6-11,18-23 is the CCD
+# without the 3D V-cache (7900X3D); ffmpeg inherits from the wrapper unit.
+exec /usr/bin/systemd-run \
+	-p "CPUAffinity=6-11 18-23" -p CPUSchedulingPolicy=idle -p Nice=19 \
+	-p IOSchedulingClass=idle -p IOSchedulingPriority=7 "$@"

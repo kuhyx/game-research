@@ -48,7 +48,7 @@ wrapper_env() {
 		"GAME_RESEARCH_TICK_CMD=${E2E_REPO}/e2e/fake_tick.sh" \
 		"GAME_RESEARCH_FAKE_LLM=${E2E_REPO}/e2e/fake_llm.sh" \
 		"GAME_RESEARCH_TODO_CMD=${E2E_REPO}/e2e/fake_todo.sh" \
-		"GAME_RESEARCH_E2E_ART=${ART}" "PATH=${shim}${HOME}/.local/bin:/usr/local/bin:/usr/bin" \
+		"GAME_RESEARCH_E2E_ART=${ART}" "PATH=${shim}${E2E_REPO}/e2e/bgshim:${HOME}/.local/bin:/usr/local/bin:/usr/bin" \
 		"HOME=${HOME}"; do
 		printf -- '--setenv=%s\n' "$e"
 	done
@@ -84,6 +84,8 @@ up() {
 	fwd start --url "http://127.0.0.1:${E2E_PORT}/" --profile "${ART}/profile" \
 		--cdp-port "$E2E_CDP" --size 2560x1440 >/dev/null
 	fwd wait "$E2E_GAME" --timeout 30 >/dev/null || fail "game tile never showed"
+	step "background check"
+	"${E2E_REPO}/e2e/bg_check.sh"
 	echo "UP ${ART}"
 }
 
