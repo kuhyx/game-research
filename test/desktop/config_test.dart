@@ -33,6 +33,7 @@ void main() {
     expect(c.ollamaModel, 'qwen3-vl:30b-a3b-instruct');
     expect(c.i3Config, '/h/.config/i3/config');
     expect(c.flashPx, 12);
+    expect(c.clipCmd, ['/usr/bin/python3', '/repo/helpers/clip_owner.py']);
     expect(c.env, isEmpty);
   });
 
@@ -120,5 +121,10 @@ void main() {
     final c = load({'GAME_RESEARCH_TEST': '1', 'GAME_RESEARCH_DISPLAY': ':42'});
     expect(c.testMode, isTrue);
     expect(c.display, ':42');
+  });
+
+  test('GAME_RESEARCH_CLIP_CMD replaces the clipboard helper', () {
+    final c = load({'GAME_RESEARCH_CLIP_CMD': 'fakeclip --x'});
+    expect(c.clipCmd, ['fakeclip', '--x']);
   });
 }

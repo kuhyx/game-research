@@ -35,7 +35,7 @@ declare -A PKGS=(
 	["xrandr"]=xorg-xrandr ["paplay"]=libpulse ["xdotool"]=xdotool
 	["Xvfb"]=xorg-server-xvfb ["xvfb-run"]=xorg-server-xvfb ["curl"]=curl
 	["desktop-file-validate"]=desktop-file-utils ["xdg-open"]=xdg-utils
-	["pre-commit"]=python-pre-commit ["jq"]=jq
+	["pre-commit"]=python-pre-commit ["jq"]=jq ["xclip"]=xclip
 	["gpu-screen-recorder"]=gpu-screen-recorder
 )
 readonly PKGS
@@ -55,6 +55,9 @@ step_deps() {
 		command -v "$cmd" >/dev/null 2>&1 || missing+=("${PKGS[$cmd]}")
 	done
 	/usr/bin/python3 -c 'import tkinter' 2>/dev/null || missing+=(tk)
+	# The clipboard helper (helpers/clip_owner.py) needs PyGObject + GTK 3.
+	/usr/bin/python3 -c 'import gi; gi.require_version("Gtk", "3.0")' 2>/dev/null ||
+		missing+=(python-gobject gtk3)
 	if ((${#missing[@]})); then
 		mapfile -t missing < <(printf '%s\n' "${missing[@]}" | sort -u)
 		sudo pacman -S --needed --noconfirm "${missing[@]}"

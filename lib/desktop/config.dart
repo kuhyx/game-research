@@ -25,6 +25,7 @@ class Config {
 
     final share = p.join(home, '.local', 'share', 'game-research');
     final data = get('DATA', p.join(home, 'data', 'game-research'));
+    final clipHelper = p.join(get('REPO', cwd), 'helpers', 'clip_owner.py');
     final config = Config._(
       home: home,
       repo: get('REPO', cwd),
@@ -67,6 +68,7 @@ class Config {
       ollamaModel: get('OLLAMA_MODEL', 'qwen3-vl:30b-a3b-instruct'),
       i3Config: get('I3_CONFIG', p.join(home, '.config', 'i3', 'config')),
       flashPx: int.tryParse(get('FLASH_PX', '')) ?? 12,
+      clipCmd: _words(get('CLIP_CMD', '/usr/bin/python3 $clipHelper')),
       env: {
         for (final e in env.entries)
           if (e.key.startsWith('GAME_RESEARCH_')) e.key: e.value,
@@ -115,6 +117,7 @@ class Config {
     required this.ollamaModel,
     required this.i3Config,
     required this.flashPx,
+    required this.clipCmd,
     required this.env,
   });
 
@@ -227,6 +230,10 @@ class Config {
 
   /// Flash border thickness, pixels.
   final int flashPx;
+
+  /// Clipboard owner command + args (a fake in tests): `cmd [--text-file F]
+  /// FILE...`, prints `ready` once it owns CLIPBOARD.
+  final List<String> clipCmd;
 
   /// Every `GAME_RESEARCH_*` variable, passed on to the analysis job.
   final Map<String, String> env;
