@@ -15,6 +15,7 @@ import 'package:game_research/analysis/job.dart';
 import 'package:game_research/analysis/line_cap.dart';
 import 'package:game_research/analysis/tiers.dart';
 import 'package:game_research/core/captions.dart';
+import 'package:game_research/core/doc_cap.dart';
 import 'package:game_research/core/finish_doc.dart';
 import 'package:game_research/core/safe_json.dart';
 import 'package:game_research/core/status.dart';
@@ -198,11 +199,11 @@ class FinishRunner {
     final docs = await parseWithinCap(
       raw: raw.text,
       parse: (r) => parseFinish(r, template: templateText),
-      docs: (d) => {
-        'merged answers': d.merged,
-        'report': d.report,
-        'task': d.task,
-      },
+      violations: (d) => [
+        ...docViolations('merged answers', d.merged),
+        ...reportViolations(d.report),
+        ...lineViolations('task', d.task),
+      ],
       longFile: File(p.join(_dir, 'finish_long.txt')),
       format:
           '$kMergedMarker\n<the shortened merged markdown>\n'

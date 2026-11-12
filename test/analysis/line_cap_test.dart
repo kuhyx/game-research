@@ -17,6 +17,15 @@ import '../support/fakes.dart';
 String _answer(int extraLines, {String blank = ''}) =>
     '$kDocMarker\n$kDraft${'x\n' * extraLines}$blank$kEndMarker\n';
 
+String _words(int n) => List.filled(n, 'w').join(' ');
+
+/// [kTemplate]'s two questions with the first one's answer and evidence set.
+String _draftWith({String answer = 'a', String evidence = 'f_0001'}) =>
+    '# Research questions: Alpha\n'
+    '### Q1.1 First?\n- **Answer:** $answer\n- **Evidence:** $evidence\n'
+    '- **Status:** answered\n'
+    '### Q1.2 Second?\n- **Answer:** b\n- **Status:** open\n';
+
 const _frames = [SampleFrame(t: 12, kind: FrameKind.marker, file: 'f.png')];
 
 void main() {
@@ -81,7 +90,7 @@ void main() {
         expect(prompts, hasLength(2));
         expect(prompts[1], contains('synthesis_long.txt'));
         expect(prompts[1], contains('at most $kShortenTo'));
-        expect(prompts[1], contains('draft (30'));
+        expect(prompts[1], contains('draft: 30'));
         expect(
           fx.out('synthesis_long.txt').readAsStringSync(),
           contains('x\nx'),
@@ -91,6 +100,45 @@ void main() {
       },
     );
 
+    test('word-rule violations get one call listing each by name', () async {
+      final bad = _draftWith(answer: _words(31), evidence: 'probably f_0001');
+      answers = ['$kDocMarker\n$bad$kEndMarker\n', kAnswer];
+      await stage3();
+      expect(prompts, hasLength(2));
+      expect(prompts[1], contains('- Q1.1 Answer 31 > 22'));
+      expect(prompts[1], contains('- Q1.1 Evidence hedge "probably"'));
+      expect(prompts[1], isNot(contains('lines >')));
+      expect(
+        fx.out('synthesis_long.txt').readAsStringSync(),
+        contains('probably'),
+      );
+      expect(draft(), kDraft);
+    });
+
+    test('a violation left after the one retry fails closed', () async {
+      final bad = '$kDocMarker\n${_draftWith(answer: _words(25))}$kEndMarker\n';
+      answers = [bad, bad];
+      await expectLater(
+        stage3(),
+        throwsA(
+          isA<StateError>().having(
+            (e) => '$e',
+            'message',
+            allOf(
+              contains('Q1.1 Answer 25 > 22'),
+              contains('after one shortening'),
+            ),
+          ),
+        ),
+      );
+      expect(prompts, hasLength(2), reason: 'never a third call');
+      expect(
+        File(draftPath(fx.target.path, 'alpha', '20261112-090025'))
+            .existsSync(),
+        isFalse,
+      );
+    });
+
     test('a second overflow fails closed and writes nothing', () async {
       answers = [_answer(300), _answer(280)];
       await expectLater(
@@ -99,7 +147,7 @@ void main() {
           isA<StateError>().having(
             (e) => '$e',
             'message',
-            allOf(contains('draft has 28'), contains('after one shortening')),
+            allOf(contains('draft: 28'), contains('after one shortening')),
           ),
         ),
       );
@@ -142,12 +190,36 @@ void main() {
       answers = [sized(10, 300), sized(10, 40)];
       expect(await finish(), 0);
       expect(prompts, hasLength(2));
-      expect(prompts[1], contains('report (30'));
-      expect(prompts[1], isNot(contains('merged answers (')));
+      expect(prompts[1], contains('report: 30'));
+      expect(prompts[1], isNot(contains('merged answers:')));
       expect(
         lineCount(File(reportPath(fx.target.path, 'alpha')).readAsStringSync()),
         lessThanOrEqualTo(kLineCap),
       );
+    });
+
+    test('a long report and a long heading are both named once', () async {
+      final longHead = kDraft.replaceFirst('First?', _words(12));
+      answers = [
+        finishAnswer(merged: longHead, report: '# R\n${_words(912)}\n'),
+        sized(0, 0),
+      ];
+      expect(await finish(), 0);
+      expect(prompts, hasLength(2));
+      expect(prompts[1], contains('- report: 913 words > 800'));
+      expect(prompts[1], contains('- Q1.1 question 12 > 10'));
+      expect(prompts[1], contains('finish_long.txt'));
+    });
+
+    test('a rule still broken after the retry fails the job', () async {
+      final bad = finishAnswer(report: '# R\n${_words(900)}\n');
+      answers = [bad, bad];
+      expect(await finish(), 1);
+      expect(prompts, hasLength(2));
+      final status = File(p.join(data, 'games', 'alpha', 'status.json'))
+          .readAsStringSync();
+      expect(status, contains('report: 901 words > 800'));
+      expect(File(reportPath(fx.target.path, 'alpha')).existsSync(), isFalse);
     });
 
     test('a second overflow fails the job with the reason', () async {
@@ -155,7 +227,7 @@ void main() {
       expect(await finish(), 1);
       final status = File(p.join(data, 'games', 'alpha', 'status.json'))
           .readAsStringSync();
-      expect(status, contains('merged answers has 29'));
+      expect(status, contains('merged answers: 29'));
       expect(File(mergedPath(fx.target.path, 'alpha')).existsSync(), isFalse);
       expect(File(reportPath(fx.target.path, 'alpha')).existsSync(), isFalse);
     });

@@ -4,13 +4,14 @@
 /// analyzer writes the file itself, so a malformed answer fails closed instead
 /// of leaving a half-written draft in the target repo. Each session writes its
 /// own draft, never overwriting an earlier one; the prompt carries the earlier
-/// drafts so settled questions are copied forward and only open ones are
-/// re-answered. English only (kuhy, 2026-11-12).
+/// drafts so settled questions are carried forward (restated within the word
+/// caps) and only open ones are re-answered. English only (kuhy, 2026-11-12).
 library;
 
 import 'dart:io';
 
 import 'package:game_research/core/doc_cap.dart';
+import 'package:game_research/core/doc_rules.dart';
 import 'package:path/path.dart' as p;
 
 /// A pair of paths. Only `en` is used any more; the pair stays because
@@ -201,19 +202,22 @@ Rules:
   `- **Status:** answered`, `- **Status:** partial` or `- **Status:** open`
   (answered: the evidence settles it; partial: some evidence, gaps remain;
   open: nothing yet). Every question gets one.
-- Earlier drafts: copy forward, unchanged, the Answer, Evidence, For
-  cleanup-plate and Status of every question an earlier draft marked
-  answered, unless this session has new evidence on it. Re-answer only the
-  questions that are open or partial, or where this session adds evidence;
-  then keep the earlier evidence that still holds and add this session's.
+- Earlier drafts: carry forward, restated within these limits, the Answer,
+  Evidence, For cleanup-plate and Status of every question an earlier draft
+  marked answered, unless this session has new evidence on it. Re-answer
+  only the questions that are open or partial, or where this session adds
+  evidence; then keep the earlier evidence that still holds and add this
+  session's. Earlier drafts run long: shorten them, never copy them.
 - Answer from the evidence only; when nothing shows for a question, say so.
 - Evidence cites marker offsets as mm:ss and frame file names.
-- Markers are kuhy's own judgement: weigh "bad" and "confusing" heavily and
-  quote his notes verbatim.
+- Markers are kuhy's own judgement: weigh "bad" and "confusing" heavily; a
+  note of his is cited by its mm:ss, not quoted.
 - Under "Open threads" list what the session raised that no question covers.
 - The file stays at 250 lines or fewer (the target repo's commit gate): drop
   the blank lines between questions and keep evidence short rather than
   dropping a question.
+
+$kWritingRules
 
 Reply with exactly this and nothing else, each marker alone on its line:
 $kDocMarker

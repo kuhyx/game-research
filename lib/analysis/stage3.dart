@@ -12,6 +12,7 @@ import 'package:game_research/analysis/job.dart';
 import 'package:game_research/analysis/line_cap.dart';
 import 'package:game_research/analysis/tiers.dart';
 import 'package:game_research/core/captions.dart';
+import 'package:game_research/core/doc_cap.dart';
 import 'package:game_research/core/safe_json.dart';
 import 'package:game_research/core/sampling.dart';
 import 'package:game_research/core/synthesis.dart';
@@ -127,7 +128,7 @@ class Stage3 {
       final doc = await parseWithinCap(
         raw: raw.text,
         parse: (r) => parseDoc(r, template: templateText),
-        docs: (d) => {'draft': d},
+        violations: (d) => docViolations('draft', d),
         longFile: File(p.join(a, 'synthesis_long.txt')),
         format: '$kDocMarker\n<the shortened English markdown>\n$kEndMarker',
         shorten: (q) async {

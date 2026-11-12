@@ -3,6 +3,7 @@
 /// marker lines like stage 3, checked by code; English only.
 library;
 
+import 'package:game_research/core/doc_rules.dart';
 import 'package:game_research/core/synthesis.dart';
 
 /// The marker line before the merged answers.
@@ -108,12 +109,20 @@ Write two English documents, then a task and a check.
    file. Directly after each Answer line add exactly one line
    `- **Status:** answered`, `- **Status:** partial` or `- **Status:** open`
    (answered if any draft settled it, partial if only partial, else open).
+   Drafts run long: restate each answer within the limits below, never copy.
+
+$kWritingRules
 
 2. REPORT: a human-readable report for kuhy, starting with a `# ` heading,
    with these sections: What $game does well; What it does badly; What
    confused kuhy (quote his notes verbatim with session stamp and mm:ss);
    What cleanup-plate should copy; What cleanup-plate should avoid; Open
-   questions (the questions still open or partial, one line each).
+   questions. The whole report has at most $kReportWordCap words, quotes
+   included (frame files, mm:ss and stamps do not count). Answer first, one
+   claim per bullet, no hedging (the hedge words above are banned here too,
+   outside kuhy's verbatim quotes). Open questions is ONE line listing only
+   the ids of the questions still open or partial, for example `Open: Q1.3, Q2.5`
+   (`Open: none` when all are answered).
 
 3. TASK: the body of one todo task for an implementer agent who works in
    the target repo ($target) and has not read the report: the do and avoid

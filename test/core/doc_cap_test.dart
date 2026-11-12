@@ -22,11 +22,13 @@ void main() {
   test('the shorten prompt names the file, the sizes and the target', () {
     final text = shortenPrompt(
       longFile: '/x/long.txt',
-      over: {'draft': 301},
+      violations: ['draft: 301 lines > 250', 'Q1.1 Answer 31 > 22'],
       format: '@@@DOC\n<md>\n@@@END',
     );
     expect(text, contains('/x/long.txt'));
-    expect(text, contains('draft (301 lines)'));
+    expect(text, contains('- draft: 301 lines > 250'));
+    expect(text, contains('- Q1.1 Answer 31 > 22'));
+    expect(text, contains('at most 10 words'));
     expect(text, contains('at most $kShortenTo'));
     expect(text, contains('@@@DOC'));
   });

@@ -101,13 +101,16 @@ void main() {
       'still.jsonl',
       'f_0001.png',
       '- **Status:** answered',
-      'copy forward',
+      'carry forward, restated within these limits',
+      'Answer first, one claim per bullet, no hedging',
+      'at most 10 words',
       '250 lines',
       '@@@DOC',
       '@@@END',
     ]) {
       expect(prompt.replaceAll('\n  ', ' '), contains(part));
     }
+    expect(prompt, isNot(contains('copy forward')));
     expect(prompt, isNot(contains('Polish')));
     expect(prompt, isNot(contains('@@@PL')));
   });

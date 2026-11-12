@@ -80,6 +80,17 @@ void main() {
     expect(prompt, contains('MERGED ANSWERS'));
     expect(prompt, contains('/src/cleanup-plate'));
     expect(prompt, contains('CLAUDE.md'));
+    final flat = prompt.replaceAll(RegExp(r'\s+'), ' ');
+    for (final part in [
+      'Answer first, one claim per bullet, no hedging',
+      'at most 10 words',
+      'at most 800 words',
+      'quotes included',
+      'ONE line',
+      'Open: Q1.3, Q2.5',
+    ]) {
+      expect(flat, contains(part));
+    }
     expect(prompt.indexOf(kTaskMarker), lessThan(prompt.indexOf(kCheckMarker)));
   });
 }
