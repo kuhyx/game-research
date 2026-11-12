@@ -17,6 +17,9 @@ dependencies:
       path: design_system
   flutter:
     sdk: flutter
+  # Renders the research drafts and reports in the panel (the maintained
+  # successor of the discontinued flutter_markdown).
+  flutter_markdown_plus: 1.0.12
   # The page talks to the wrapper; the wrapper talks to OmniRoute and ollama.
   http: 1.6.0
   path: 1.9.1

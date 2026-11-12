@@ -119,9 +119,13 @@ class _HomeScreenState extends State<HomeScreen> {
     await _refresh();
   }
 
+  /// Every marker opens the note line (Enter saves, Esc keeps it empty). A
+  /// still-open one is closed empty first, so no marker stays held.
   Future<void> _marker(String tag) => _act(() async {
-    final hold = await _api.marker(tag, hold: tag == 'note');
-    if (hold != null) setState(() => _hold = hold);
+    final open = _hold;
+    if (open != null) await _api.note(open, '');
+    final hold = await _api.marker(tag, hold: true);
+    setState(() => _hold = hold);
   });
 
   Future<void> _note(String text) {

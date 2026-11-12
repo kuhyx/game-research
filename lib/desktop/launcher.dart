@@ -13,6 +13,7 @@ import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/session_controller.dart';
 import 'package:game_research/desktop/session_flow.dart';
 import 'package:game_research/desktop/session_parts.dart';
+import 'package:game_research/desktop/steam_art.dart';
 import 'package:game_research/desktop/steam_library.dart';
 import 'package:game_research/desktop/sys.dart';
 import 'package:game_research/desktop/wrapper_server.dart';
@@ -24,6 +25,13 @@ SessionController buildController(Config config, Sys sys) =>
 
 /// Where the web build is: `build/web` of the checkout.
 String webRootOf(Config config) => p.join(config.repo, 'build', 'web');
+
+/// The CDN art cache under the data dir; null (disk art only) in test mode
+/// and with `GAME_RESEARCH_ART=off`, so no test or off-screen run goes online.
+SteamArt? _art(Config config) =>
+    config.testMode || config.env['GAME_RESEARCH_ART'] == 'off'
+    ? null
+    : SteamArt(dir: p.join(config.dataDir, 'art'), fetch: httpArtFetch);
 
 /// Starts the server on [Config.port] (0 in tests); returns it.
 Future<WrapperServer> serve(Config config, Sys sys, {int? port}) async {
@@ -40,10 +48,10 @@ Future<WrapperServer> serve(Config config, Sys sys, {int? port}) async {
   });
   final server = WrapperServer(
     webRoot: webRootOf(config),
-    flow: SessionFlow(controller, SteamLibrary(config.steamRoot)),
-    open: (path) async {
-      await sys.start('xdg-open', [path], mode: ProcessStartMode.detached);
-    },
+    flow: SessionFlow(
+      controller,
+      SteamLibrary(config.steamRoot, art: _art(config)),
+    ),
   );
   await server.start(port ?? config.port);
   return server;

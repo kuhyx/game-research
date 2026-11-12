@@ -1,21 +1,27 @@
 /// Installed Steam games and their capsule images, read from disk.
 ///
-/// Read-only: nothing here talks to Steam or its CDN. A game with no cached
-/// capsule gets a procedural tile in the GUI instead.
+/// Reads Steam's own librarycache; only [SteamLibrary.art] may reach the CDN
+/// (through [SteamArt]) for a game Steam never cached. A game with no image
+/// at all gets a procedural tile in the GUI.
 library;
 
 import 'dart:io';
 
 import 'package:game_research/core/steam.dart';
+import 'package:game_research/desktop/steam_art.dart';
 import 'package:path/path.dart' as p;
 
 /// The library under one Steam root.
 class SteamLibrary {
-  /// Reads [steamRoot] (`~/.local/share/Steam`).
-  const new(this.steamRoot);
+  /// Reads [steamRoot] (`~/.local/share/Steam`); [art] downloads the art
+  /// Steam never cached (null: disk only).
+  const new(this.steamRoot, {SteamArt? art}) : downloads = art;
 
   /// Steam's root folder.
   final String steamRoot;
+
+  /// The CDN download cache.
+  final SteamArt? downloads;
 
   /// Every `steamapps/` folder: the root's, plus each library folder.
   List<String> _steamappsDirs() {
@@ -57,18 +63,61 @@ class SteamLibrary {
     return null;
   }
 
-  /// The best cached capsule image of [appid], or null.
-  File? capsule(int appid) {
-    final cache = p.join(steamRoot, 'appcache', 'librarycache');
-    for (final rel in capsuleCandidates(appid)) {
-      final f = File(p.join(cache, rel));
-      if (f.existsSync()) return f;
-    }
-    // Newer clients may nest the art one hashed folder deeper.
-    final appDir = Directory(p.join(cache, '$appid'));
+  /// Portrait art Steam cached: flat `<id>_library_600x900.jpg`, or inside
+  /// `<id>/` (also one hashed folder deeper, the newer layout).
+  File? localPortrait(int appid) =>
+      _find(appid, const ['library_600x900', 'library_capsule']);
+
+  /// Landscape header, then the icon-sized `<id>/<hash>.jpg`: poor tiles,
+  /// used only when nothing better exists.
+  File? localFallback(int appid) {
+    final header = _find(appid, const ['library_header', 'header']);
+    if (header != null) return header;
+    final appDir = Directory(p.join(_cache, '$appid'));
     if (!appDir.existsSync()) return null;
-    for (final e in appDir.listSync(recursive: true).whereType<File>()) {
-      if (p.basename(e.path).startsWith('library_600x900')) return e;
+    for (final e in appDir.listSync().whereType<File>()) {
+      if (e.path.endsWith('.jpg')) return e;
+    }
+    return null;
+  }
+
+  /// The best image on disk (portrait, else fallback), or null. Never
+  /// touches the network.
+  File? capsule(int appid) => localPortrait(appid) ?? localFallback(appid);
+
+  /// The image to serve: a local portrait, else the download cache (fetching
+  /// when allowed), else the local fallback.
+  Future<File?> art(int appid) async {
+    final local = localPortrait(appid);
+    if (local != null) return local;
+    final loaded = await downloads?.get(appid);
+    return loaded ?? localFallback(appid);
+  }
+
+  /// Whether [art] may yield an image (the `capsule` flag of `/api/games`):
+  /// something on disk, a cached download, or a download not ruled out.
+  bool capsuleExpected(int appid) {
+    if (capsule(appid) != null) return true;
+    final a = downloads;
+    return a != null && (a.cached(appid) != null || !a.missActive(appid));
+  }
+
+  String get _cache => p.join(steamRoot, 'appcache', 'librarycache');
+
+  File? _find(int appid, List<String> prefixes) {
+    for (final prefix in prefixes) {
+      final flat = File(p.join(_cache, '${appid}_$prefix.jpg'));
+      if (flat.existsSync()) return flat;
+    }
+    final appDir = Directory(p.join(_cache, '$appid'));
+    if (!appDir.existsSync()) return null;
+    final files = appDir.listSync(recursive: true).whereType<File>().toList()
+      ..sort((a, b) => a.path.compareTo(b.path));
+    for (final prefix in prefixes) {
+      for (final f in files) {
+        final name = p.basename(f.path);
+        if (name.startsWith(prefix) && name.endsWith('.jpg')) return f;
+      }
     }
     return null;
   }

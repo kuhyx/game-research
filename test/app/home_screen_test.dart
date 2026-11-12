@@ -55,6 +55,14 @@ void main() {
     expect(find.text('01:05'), findsOneWidget);
     await t.tap(_label('marker good'));
     await t.pump();
+    await t.pump();
+    expect(w.calls, contains('POST /api/marker?tag=good&src=gui&hold=1'));
+    expect(find.byType(TextField), findsOneWidget, reason: 'every tag asks');
+    await t.showKeyboard(find.byType(TextField));
+    await t.sendKeyEvent(LogicalKeyboardKey.escape);
+    await t.pump();
+    await t.pump();
+    expect(w.calls, contains('POST /api/note?id=7'));
     await t.tap(_label('marker note'));
     await t.pump();
     await t.pump();

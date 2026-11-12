@@ -10,18 +10,9 @@ import 'dart:io';
 import 'package:game_research/core/markers.dart';
 import 'package:game_research/core/status.dart';
 import 'package:game_research/desktop/config.dart';
+import 'package:game_research/desktop/status_view.dart';
 import 'package:game_research/desktop/sys.dart';
 import 'package:path/path.dart' as p;
-
-Map<String, Object?> _readJson(File f) {
-  if (!f.existsSync()) return {};
-  try {
-    final decoded = jsonDecode(f.readAsStringSync());
-    return decoded is Map<String, Object?> ? decoded : {};
-  } on FormatException {
-    return {};
-  }
-}
 
 /// Reads and writes session folders under [Config.dataDir].
 class SessionStore {
@@ -40,7 +31,7 @@ class SessionStore {
 
   /// `session.json` of [dir].
   Map<String, Object?> meta(Directory dir) =>
-      _readJson(File(p.join(dir.path, 'session.json')));
+      readJson(File(p.join(dir.path, 'session.json')));
 
   /// Writes `session.json` of [dir].
   void writeMeta(Directory dir, Map<String, Object?> meta) =>
@@ -49,7 +40,7 @@ class SessionStore {
 
   /// The analysis status of [dir].
   AnalysisStatus status(Directory dir) => AnalysisStatus.fromJson(
-    _readJson(File(p.join(dir.path, 'analysis', 'status.json'))),
+    readJson(File(p.join(dir.path, 'analysis', 'status.json'))),
   );
 
   /// One `/api/sessions` entry.
@@ -64,8 +55,9 @@ class SessionStore {
         // a broken line: show no counts rather than fail the whole list
       }
     }
-    final stage3 = _readJson(File(p.join(dir.path, 'analysis', 'stage3.json')));
-    final draft = stage3['draft_en'] as String?;
+    final stage3 = readJson(File(p.join(dir.path, 'analysis', 'stage3.json')));
+    // `draft` (one per session); old sessions wrote `draft_en`.
+    final draft = (stage3['draft'] ?? stage3['draft_en']) as String?;
     return {
       'id': p.basename(dir.path),
       'appid': meta['appid'],
@@ -75,7 +67,10 @@ class SessionStore {
       'ended_by': meta['ended_by'],
       'recording': meta['state'] == 'recording',
       'markers': {for (final e in counts.entries) e.key.name: e.value},
-      'analysis': status(dir).toJson(),
+      'analysis': statusView(
+        readJson(File(p.join(dir.path, 'analysis', 'status.json'))),
+      ),
+      'fps': meta['fps'],
       'draft': draft != null && File(draft).existsSync() ? draft : null,
     };
   }
@@ -121,9 +116,16 @@ class AnalysisLauncher {
   /// unit that outlives the wrapper; `inline`: a detached child (tests);
   /// `off`: nothing (off-screen agent runs must not call models or write
   /// drafts into the target repo). Returns false when it did not start.
-  Future<bool> launch(Directory dir, {bool force = false}) async {
+  Future<bool> launch(Directory dir, {bool force = false}) =>
+      _start('analyze', [dir.path, if (force) '--force']);
+
+  /// Starts the per-game "research finished" job for [slug] (merges every
+  /// session draft into one document and a report).
+  Future<bool> launchFinish(String slug) =>
+      _start('finish', ['--finish', slug]);
+
+  Future<bool> _start(String kind, List<String> args) async {
     if (config.analyzeMode == 'off') return false;
-    final args = [dir.path, if (force) '--force'];
     if (config.analyzeMode == 'inline') {
       try {
         await sys.start(analyzer, args, mode: ProcessStartMode.detached);
@@ -144,7 +146,7 @@ class AnalysisLauncher {
       '--collect',
       '--quiet',
       '--unit',
-      'game-research-analyze-$stamp',
+      'game-research-$kind-$stamp',
       '-p',
       'WorkingDirectory=${config.repo}',
       // Never compete with a game: idle CPU and IO class, lowest priority.

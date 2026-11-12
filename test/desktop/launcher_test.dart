@@ -78,7 +78,7 @@ void main() {
     expect(controller.parts.sys, same(fake.sys));
   });
 
-  test('serve releases stale keys, serves the page and opens drafts', () async {
+  test('serve releases stale keys and serves the page', () async {
     final config = configOn(0);
     final server = await serve(config, fake.sys, port: 0);
     addTearDown(server.close);
@@ -87,23 +87,6 @@ void main() {
     final second = await serve(config, fake.sys, port: port);
     addTearDown(second.close);
     expect(await get(port, '/'), '<html>page</html>');
-
-    final dir = Directory(p.join(config.dataDir, '2026-s'))
-      ..createSync(recursive: true);
-    final draft = File(p.join(root.path, 'draft.md'))..writeAsStringSync('#');
-    File(p.join(dir.path, 'session.json')).writeAsStringSync('{}');
-    Directory(p.join(dir.path, 'analysis')).createSync();
-    File(p.join(dir.path, 'analysis', 'stage3.json'))
-        .writeAsStringSync(jsonEncode({'draft_en': draft.path}));
-    final client = HttpClient();
-    addTearDown(() => client.close(force: true));
-    final req = await client.postUrl(
-      Uri.parse('http://127.0.0.1:$port/api/sessions/2026-s/open-draft'),
-    );
-    await (await req.close()).drain<void>();
-    final open = fake.of('xdg-open').single;
-    expect(open.args, [draft.path]);
-    expect(open.mode, ProcessStartMode.detached);
   });
 
   test('--serve-only serves and holds without a window', () async {

@@ -80,6 +80,33 @@ void main() {
     });
   });
 
+  group('finish', () {
+    test('inline: the analyzer with --finish <slug>', () async {
+      expect(await launcher({}).launchFinish('librarian'), isTrue);
+      expect(fake.calls.single.args, ['--finish', 'librarian']);
+      expect(fake.calls.single.mode, ProcessStartMode.detached);
+    });
+
+    test('systemd: its own unit name, same limits', () async {
+      final l = launcher({'GAME_RESEARCH_ANALYZE': 'systemd'});
+      expect(await l.launchFinish('librarian'), isTrue);
+      final args = fake.calls.single.args;
+      expect(args, contains('game-research-finish-1700000000500'));
+      expect(args, contains('IOSchedulingClass=idle'));
+      expect(args.sublist(args.length - 3), [
+        l.analyzer,
+        '--finish',
+        'librarian',
+      ]);
+    });
+
+    test('mode off starts nothing', () async {
+      final l = launcher({'GAME_RESEARCH_ANALYZE': 'off'});
+      expect(await l.launchFinish('x'), isFalse);
+      expect(fake.calls, isEmpty);
+    });
+  });
+
   test('mode off starts nothing (off-screen runs)', () async {
     final dir = Directory(root.path);
     expect(

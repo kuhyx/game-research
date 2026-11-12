@@ -25,8 +25,6 @@ void main() {
   late HttpClient client;
   late int port;
   late Directory web;
-  late List<String> opened;
-  var openFails = false;
 
   Future<Reply> hit(String method, String path, {String body = ''}) async {
     final req = await client.openUrl(
@@ -61,8 +59,6 @@ void main() {
       p.join(h.config.steamRoot, 'appcache', 'librarycache', '730'),
     )..createSync(recursive: true);
     File(p.join(cache.path, 'library_600x900.jpg')).writeAsStringSync('jpg');
-    opened = [];
-    openFails = false;
     server = WrapperServer(
       webRoot: web.path,
       flow: flow = SessionFlow(
@@ -70,10 +66,6 @@ void main() {
         SteamLibrary(h.config.steamRoot),
         every: const Duration(milliseconds: 10),
       ),
-      open: (path) async {
-        if (openFails) throw StateError('no editor');
-        opened.add(path);
-      },
     );
     port = await server.start(0);
     client = HttpClient();
@@ -84,11 +76,7 @@ void main() {
   });
 
   test('close before start is harmless', () async {
-    await WrapperServer(
-      webRoot: web.path,
-      flow: flow,
-      open: (_) async {},
-    ).close();
+    await WrapperServer(webRoot: web.path, flow: flow).close();
   });
 
   test('static files: index, assets, 404, and no path escape', () async {
@@ -110,9 +98,22 @@ void main() {
   test('games list marks which have a cached capsule', () async {
     final games = (await hit('GET', '/api/games')).json! as List;
     const installed = {'state': 'installed', 'progress': 1.0};
+    Map<String, Object?> none(String slug) => {'slug': slug, 'finish': null};
     expect(games, [
-      {'appid': 730, 'name': 'Alpha', ...installed, 'capsule': true},
-      {'appid': 731, 'name': 'Beta', ...installed, 'capsule': false},
+      {
+        'appid': 730,
+        'name': 'Alpha',
+        ...installed,
+        'capsule': true,
+        ...none('alpha'),
+      },
+      {
+        'appid': 731,
+        'name': 'Beta',
+        ...installed,
+        'capsule': false,
+        ...none('beta'),
+      },
     ]);
     expect(h.events.last, 'picker');
   });
@@ -200,7 +201,7 @@ void main() {
     expect(good.status, 200);
   });
 
-  test('sessions: list, analyze, open-draft and its errors', () async {
+  test('sessions: list, analyze and its errors', () async {
     final dir = Directory(p.join(h.config.dataDir, '2026-s'))
       ..createSync(recursive: true);
     h.parts.store.writeMeta(dir, {'appid': 730});
@@ -227,18 +228,5 @@ void main() {
     expect((await hit('POST', '/api/sessions/2026-s/analyze')).status, 503);
 
     expect((await hit('POST', '/api/sessions/2026-s/frobnicate')).status, 404);
-    expect((await hit('POST', '/api/sessions/2026-s/open-draft')).status, 404);
-
-    final draft = File(p.join(h.root.path, 'draft.md'))..writeAsStringSync('#');
-    Directory(p.join(dir.path, 'analysis')).createSync();
-    File(p.join(dir.path, 'analysis', 'stage3.json'))
-        .writeAsStringSync(jsonEncode({'draft_en': draft.path}));
-    expect((await hit('POST', '/api/sessions/2026-s/open-draft')).status, 200);
-    expect(opened, [draft.path]);
-
-    openFails = true;
-    final broken = await hit('POST', '/api/sessions/2026-s/open-draft');
-    expect(broken.status, 500);
-    expect(broken.json, containsPair('error', contains('no editor')));
   });
 }

@@ -9,19 +9,18 @@ import 'dart:io';
 
 import 'package:game_research/core/markers.dart';
 import 'package:game_research/core/status.dart';
+import 'package:game_research/desktop/game_api.dart';
 import 'package:game_research/desktop/recorder.dart';
 import 'package:game_research/desktop/session_controller.dart';
 import 'package:game_research/desktop/session_flow.dart';
 import 'package:game_research/desktop/static_files.dart';
 import 'package:game_research/desktop/steam_library.dart';
 
-/// Opens a file in kuhy's editor (xdg-open). Replaced in tests.
-typedef FileOpener = Future<void> Function(String path);
-
 /// The HTTP server.
 class WrapperServer {
   /// Creates the server.
-  new({required this.webRoot, required this.flow, required this.open});
+  new({required this.webRoot, required this.flow})
+    : api = GameApi(flow.controller, flow.library);
 
   /// The Flutter web build.
   final String webRoot;
@@ -35,8 +34,8 @@ class WrapperServer {
   /// Installed and updating games.
   SteamLibrary get library => flow.library;
 
-  /// Opens a draft.
-  final FileOpener open;
+  /// Games, finish and document endpoints.
+  final GameApi api;
   HttpServer? _server;
 
   /// Listens on loopback [port] (0 = any, for tests); returns the port.
@@ -67,7 +66,7 @@ class WrapperServer {
     } finally {
       // Every action is logged with its answer: a click that "did nothing"
       // shows up here with the status it got.
-      if (req.method == 'POST') {
+      if (req.method != 'GET') {
         controller.parts.log.event('api', {
           'path': req.uri.path,
           'query': req.uri.queryParameters,
@@ -85,26 +84,35 @@ class WrapperServer {
       ..write(jsonEncode(body));
   }
 
+  void _reply(HttpResponse res, ApiReply r) => _json(res, r.body, r.status);
+
   Future<void> _api(HttpRequest req, HttpResponse res, String path) async {
     final q = req.uri.queryParameters;
     final post = req.method == 'POST';
     final parts = path.split('/');
     final store = controller.parts.store;
+    if (req.method == 'PUT' && path == 'doc') {
+      final text = await utf8.decoder.bind(req).join();
+      return _reply(res, api.save(q['path'], text));
+    }
     switch ((post, parts)) {
       case (false, ['state']):
         _json(res, flow.state());
       case (false, ['games']):
-        final games = library.games();
+        final games = api.gamesJson();
         controller.parts.log.event('picker', {
           'steam_root': library.steamRoot,
-          'games': [for (final g in games) g.toJson()],
+          'games': [
+            for (final g in games) {...g}..remove('finish'),
+          ],
         });
-        _json(res, [
-          for (final g in games)
-            {...g.toJson(), 'capsule': library.capsule(g.appid) != null},
-        ]);
+        _json(res, games);
+      case (false, ['doc']):
+        _reply(res, api.read(q['path']));
+      case (true, ['games', final id, 'finish']):
+        _reply(res, await api.finish(int.tryParse(id) ?? -1));
       case (false, ['capsule', final id]):
-        final file = library.capsule(int.tryParse(id) ?? -1);
+        final file = await library.art(int.tryParse(id) ?? -1);
         if (file == null) {
           res.statusCode = HttpStatus.notFound;
         } else {
@@ -167,13 +175,6 @@ class WrapperServer {
           final done = store.status(dir).state == StageState.done;
           final ok = await controller.parts.analysis.launch(dir, force: done);
           _json(res, {'ok': ok}, ok ? 200 : HttpStatus.serviceUnavailable);
-        } else if (action == 'open-draft') {
-          final draft = store.summary(dir)['draft'] as String?;
-          if (draft == null) {
-            return _json(res, {'error': 'no draft'}, HttpStatus.notFound);
-          }
-          await open(draft);
-          _json(res, {'ok': true});
         } else {
           _json(res, {'error': 'unknown action'}, HttpStatus.notFound);
         }
