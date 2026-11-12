@@ -1,14 +1,17 @@
-/// Stage 2: one caption per sampled frame through the tier chain.
+/// Stage 2: captions for the frames stage 3 will look at, [kCaptionBatch]
+/// frames per model call through the tier chain.
 ///
 /// `captions.jsonl` gets one line per captioned frame as it happens, so a
 /// rerun captions only the frames that are still missing. A frame no tier
-/// could caption is not written; the stage then fails closed.
+/// could caption is not written; the stage then fails closed after the batch
+/// that could not caption it (no point hammering a rate-limited chain).
 library;
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:game_research/analysis/stage1.dart';
+import 'package:game_research/core/caption_batch.dart';
 import 'package:game_research/core/captions.dart';
 import 'package:game_research/core/sampling.dart';
 import 'package:path/path.dart' as p;
@@ -45,25 +48,38 @@ class Stage2 {
   /// Captions every missing frame. Returns the frames no tier captioned.
   Future<List<String>> run(List<SampleFrame> frames, Progress progress) async {
     final have = done();
-    final failed = <String>[];
-    for (var i = 0; i < frames.length; i++) {
-      final f = frames[i];
-      if (!have.contains(f.file)) {
-        await gate();
-        final rec = await captionWithFallback(
-          tiers,
-          p.join(dir, 'analysis', 'frames', f.file),
-          t: f.t,
-        );
+    final todo = [
+      for (final f in frames)
+        if (!have.contains(f.file)) f,
+    ];
+    var captioned = frames.length - todo.length;
+    progress(captioned, frames.length);
+    for (var i = 0; i < todo.length; i += kCaptionBatch) {
+      final batch = todo.skip(i).take(kCaptionBatch).toList();
+      await gate();
+      final records = await captionFrames(tiers, [
+        for (final f in batch)
+          FrameRef(
+            file: f.file,
+            path: p.join(dir, 'analysis', 'frames', f.file),
+            t: f.t,
+          ),
+      ]);
+      final failed = <String>[];
+      for (final rec in records) {
         if (rec.ok) {
-          final line = jsonEncode({...rec.toJson(), 'frame': f.file});
-          _captions.writeAsStringSync('$line\n', mode: FileMode.append);
+          _captions.writeAsStringSync(
+            '${jsonEncode(rec.toJson())}\n',
+            mode: FileMode.append,
+          );
+          captioned++;
         } else {
-          failed.add('${f.file} (${rec.skipped.join('; ')})');
+          failed.add('${rec.frame} (${rec.skipped.join('; ')})');
         }
       }
-      progress(i + 1, frames.length);
+      progress(captioned, frames.length);
+      if (failed.isNotEmpty) return failed;
     }
-    return failed;
+    return const [];
   }
 }
