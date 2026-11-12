@@ -236,6 +236,7 @@ class SessionController {
       meta['error'] = '$e';
       lastError = '$e';
     }
+    parts.fps.finish(a.dir, a.t0, meta);
     parts.store.writeMeta(a.dir, meta);
     parts.log.event('record_stop', {
       'session': p.basename(a.dir.path),
