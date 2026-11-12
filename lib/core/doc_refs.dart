@@ -4,10 +4,11 @@
 /// run-in labels of a question's bullets.
 library;
 
-/// A frame file (`f_0013`), an offset (`07:26`, `1:02:03`) or a session
-/// stamp (`20261111-185105`).
+/// A frame file (`f_0013`), an offset (`07:26`, `112:13`, `1:02:03`) or a
+/// session stamp (`20261111-185105`, or its short form `185105`).
 final refPattern = RegExp(
-  r'\bf_\d+\b|\b\d{8}-\d{6}\b|\b\d{1,2}:\d{2}(?::\d{2})?\b',
+  r'\bf_\d+\b|\b\d{8}-\d{6}\b|\b\d{6}\b'
+  r'|\b\d{1,3}:\d{2}(?::\d{2})?\b',
 );
 
 /// A labelled bullet: group 1 the label (`Answer`, `Evidence`, `Status`,
