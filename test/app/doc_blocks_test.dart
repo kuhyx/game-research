@@ -23,6 +23,13 @@ void main() {
     expect(blocks, hasLength(6));
   });
 
+  test('older drafts: "Why we ask:" lines are hidden', () {
+    expect(_kinds('### Q1.1 Where?\nWhy we ask: because\n- **Answer:** x'), [
+      BlockKind.h3,
+      BlockKind.label,
+    ]);
+  });
+
   test('comments, rules and blank lines are skipped', () {
     expect(_kinds('<!-- a -->\n<!--\nb\n-->\n---\n\ntext'), [
       BlockKind.paragraph,

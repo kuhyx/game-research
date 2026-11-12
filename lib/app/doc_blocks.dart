@@ -66,7 +66,11 @@ List<DocBlock> _scan(String markdown) {
       inComment = !line.contains('-->');
       continue;
     }
-    if (line.trim().isEmpty || _rule.hasMatch(line)) {
+    // Drafts written before the writing rules still copy the template's
+    // `Why we ask:` lines; the reader leaves them out like tidyDoc does.
+    if (line.trim().isEmpty ||
+        _rule.hasMatch(line) ||
+        line.startsWith('Why we ask:')) {
       open = false;
       continue;
     }
