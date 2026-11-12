@@ -1,0 +1,16 @@
+[Unit]
+Description=game-research: relaunch unfinished analysis jobs
+
+[Service]
+# One sweep: every unfinished session and finish job, one at a time, never
+# while a recording runs. Stage 3 alone can take 25 minutes.
+Type=oneshot
+TimeoutStartSec=infinity
+WorkingDirectory=@REPO@
+# The user manager PATH lacks ~/.local/bin (dart, claude).
+Environment=PATH=@HOME@/.local/bin:/usr/local/bin:/usr/bin
+# Never compete with a game: idle CPU and IO class, lowest priority.
+Nice=19
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle
+ExecStart=@REPO@/build/analyze/bundle/bin/game_research_analyze --resume-all
