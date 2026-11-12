@@ -44,7 +44,7 @@ class _HoverToolbarState extends State<HoverToolbar> {
       onEnter: (_) => _set(shown: true),
       onExit: (_) => _set(shown: false),
       child: SizedBox(
-        height: _shown ? barHeight : style.px(48),
+        height: _shown ? barHeight : style.px(80),
         width: double.infinity,
         child: Stack(
           alignment: Alignment.topCenter,
@@ -57,7 +57,7 @@ class _HoverToolbarState extends State<HoverToolbar> {
               child: Icon(
                 Icons.keyboard_arrow_down_rounded,
                 color: DocStyle.muted,
-                size: style.px(48),
+                size: style.px(80),
                 semanticLabel: handleSemantic,
               ),
             ),
