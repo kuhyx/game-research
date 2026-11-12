@@ -30,9 +30,29 @@ void main() {
         [r.status, r.json],
         [
           200,
-          {'text': '# draft'},
+          {'text': '# draft', 'short': false},
         ],
       );
+    });
+
+    test('short is true while the .discord.md sibling exists', () async {
+      final f = await doc('games/g/DOCS-research-g-1.md');
+      Future<Object?> short(String path) async =>
+          ((await s.hit('GET', '/api/doc?path=${q(path)}')).json!
+              as Map)['short'];
+      expect(await short(f.path), isFalse);
+      final sibling = await doc(
+        'games/g/DOCS-research-g-1.discord.md',
+        '**s**',
+      );
+      expect(await short(f.path), isTrue);
+      expect(await short(sibling.path), isFalse, reason: 'no sibling of one');
+      final outside = File(p.join(s.h.root.path, 'outside.md'))
+        ..writeAsStringSync('x');
+      await doc('games/g/out.md');
+      Link(p.join(s.researchDir, 'games/g/out.discord.md'))
+          .createSync(outside.path);
+      expect(await short(p.join(s.researchDir, 'games/g/out.md')), isFalse);
     });
 
     test('PUT saves the edited text to the same file', () async {

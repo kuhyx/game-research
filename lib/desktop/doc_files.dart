@@ -71,6 +71,21 @@ class DocFiles {
     return File(real).readAsStringSync();
   }
 
+  /// The text of the Discord version next to document [path] (`X.md` ->
+  /// `X.discord.md`), null when there is none or it may not be read. Throws
+  /// like [read] when [path] itself is not allowed.
+  String? readShort(String path) {
+    _allowed(path);
+    if (isDiscordPath(path)) return null;
+    try {
+      return read(discordPathOf(path));
+    } on DocMissing {
+      return null;
+    } on DocDenied {
+      return null;
+    }
+  }
+
   /// Replaces the text of the existing document [path]. Its Discord version
   /// describes the old text, so it is deleted (kuhy's own edit of a Discord
   /// version is kept).

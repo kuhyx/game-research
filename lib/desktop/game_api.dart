@@ -62,11 +62,14 @@ class GameApi {
       '${g.appid}': ?games.finish(slugify(g.name)),
   };
 
-  /// `GET /api/doc?path=`.
+  /// `GET /api/doc?path=`; `short`: a Discord version sits next to it.
   ApiReply read(String? path) {
     if (path == null || path.isEmpty) return _err(400, 'path needed');
     try {
-      return ApiReply(200, {'text': docs.read(path)});
+      return ApiReply(200, {
+        'text': docs.read(path),
+        'short': docs.readShort(path) != null,
+      });
     } on DocDenied catch (e) {
       return _err(HttpStatus.forbidden, e.message);
     } on DocMissing {

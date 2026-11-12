@@ -1,6 +1,7 @@
 /// The HTTP routes that hand kuhy's marker notes and stills to a Discord DM:
 /// the notes of a game cut into message parts, a still as an image, and
-/// "copy" actions that put a part or a single marker on the clipboard.
+/// "copy" actions that put a part, a single marker or the Discord version of
+/// a document on the clipboard.
 ///
 /// Only text kuhy typed is offered. Copying is refused while a session
 /// records (the helper and the stills must not compete with the game).
@@ -12,6 +13,7 @@ import 'dart:io';
 import 'package:game_research/core/slug.dart';
 import 'package:game_research/core/steam.dart';
 import 'package:game_research/desktop/clip_owner.dart';
+import 'package:game_research/desktop/doc_files.dart';
 import 'package:game_research/desktop/notes_api.dart';
 import 'package:game_research/desktop/session_controller.dart';
 import 'package:game_research/desktop/steam_library.dart';
@@ -26,7 +28,8 @@ class ShareRoutes {
         controller.parts.store,
         controller.parts.log,
       ),
-      clip = ClipOwner(controller.parts.config, controller.parts.sys);
+      clip = ClipOwner(controller.parts.config, controller.parts.sys),
+      docs = DocFiles(controller.parts.targets.list);
 
   /// The session state machine (is a session recording?).
   final SessionController controller;
@@ -39,6 +42,9 @@ class ShareRoutes {
 
   /// The clipboard.
   final ClipOwner clip;
+
+  /// Guarded draft files (their Discord versions).
+  final DocFiles docs;
 
   /// Answers [req] when it is one of the share routes; false = not ours.
   /// [parts] is the path below `/api/`.
@@ -57,6 +63,8 @@ class ShareRoutes {
         await _copyPart(res, id, n, what);
       case ('POST', ['sessions', final id, 'markers', final i, 'copy']):
         await _copyMarker(res, id, i);
+      case ('POST', ['doc', 'copy']):
+        await _copyDoc(res, req.uri.queryParameters['path']);
       default:
         return false;
     }
@@ -125,6 +133,23 @@ class ShareRoutes {
       return _err(res, HttpStatus.notFound, 'no such still');
     }
     await _copy(res, [file.path], line);
+  }
+
+  /// The Discord version of the document at [path], text only.
+  Future<void> _copyDoc(HttpResponse res, String? path) async {
+    if (path == null || path.isEmpty) {
+      return _err(res, HttpStatus.badRequest, 'path needed');
+    }
+    final String? text;
+    try {
+      text = docs.readShort(path);
+    } on DocDenied catch (e) {
+      return _err(res, HttpStatus.forbidden, e.message);
+    } on DocMissing {
+      return _err(res, HttpStatus.notFound, 'no such document');
+    }
+    if (text == null) return _err(res, HttpStatus.notFound, 'no short version');
+    await _copy(res, const [], text);
   }
 
   Future<void> _copy(HttpResponse res, List<String> files, String text) async {

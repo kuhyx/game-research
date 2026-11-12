@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 import '../support/fakes.dart';
+import '../support/server_harness.dart';
 import '../support/share_harness.dart';
 
 const String _id = ShareHarness.id;
@@ -111,6 +114,48 @@ void main() {
       final failed = await x.post('$_copy/1/copy?what=text');
       expect(failed.status, 500);
       expect(failed.body, contains('boom'));
+    });
+  });
+
+  group('POST doc copy', () {
+    String doc(String name) => p.join(x.s.researchDir, name);
+    Future<Reply> copy(String path) =>
+        x.post('/api/doc/copy?path=${Uri.encodeQueryComponent(path)}');
+
+    setUp(() {
+      File(doc('a.md'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('long');
+    });
+
+    test('the Discord sibling goes out as text only', () async {
+      File(doc('a.discord.md')).writeAsStringSync('**short**');
+      final r = await copy(doc('a.md'));
+      expect(
+        [r.status, r.json],
+        [
+          200,
+          {'ok': true, 'files': 0, 'chars': 9},
+        ],
+      );
+      expect(x.starts.single.$1, isEmpty);
+      expect(x.starts.single.$2, '**short**');
+    });
+
+    test('no sibling is 404, no path 400, outside the docs 403', () async {
+      expect((await copy(doc('a.md'))).status, 404);
+      expect((await copy(doc('gone.md'))).status, 404);
+      expect((await copy('/etc/passwd')).status, 403);
+      expect((await x.post('/api/doc/copy')).status, 400);
+      expect(x.starts, isEmpty);
+    });
+
+    test('409 while a session records, 409 without a display', () async {
+      File(doc('a.discord.md')).writeAsStringSync('s');
+      x.helper = (_) => FakeProcess(exit: 3);
+      expect((await copy(doc('a.md'))).status, 409);
+      await x.startRecording();
+      expect((await copy(doc('a.md'))).status, 409);
     });
   });
 }
