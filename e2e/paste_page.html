@@ -1,0 +1,29 @@
+<!doctype html>
+<!-- Stands in for Vesktop's message box (F5): a contenteditable that receives
+     Ctrl+V. Every paste writes `P<n>:<base64 of {files,names,text}>` into
+     the window title, which `xdotool getwindowname` reads (e2e/check_paste.py
+     decodes it). The title starts as `P0:`. Test page only. -->
+<meta charset="utf-8">
+<title>P0:</title>
+<body style="margin:0;background:#16181d">
+<div id="box" contenteditable="true" autofocus
+     style="width:100vw;height:100vh;outline:none"></div>
+<script>
+  let n = 0;
+  document.getElementById('box').focus();
+  document.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const data = e.clipboardData;
+    const files = Array.from(data.files);
+    const seen = {
+      files: files.length,
+      names: files.map((f) => f.name),
+      text: data.getData('text/plain'),
+    };
+    const bytes = new TextEncoder().encode(JSON.stringify(seen));
+    let bin = '';
+    bytes.forEach((b) => { bin += String.fromCharCode(b); });
+    n += 1;
+    document.title = 'P' + n + ':' + btoa(bin);
+  });
+</script>

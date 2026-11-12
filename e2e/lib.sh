@@ -24,7 +24,7 @@ readonly E2E_PORT="${E2E_PORT:-8806}"
 readonly E2E_CDP="${E2E_CDP:-9361}"
 readonly E2E_APPID=4242
 readonly E2E_GAME="Dummy Game"
-readonly E2E_UNITS=(gr-e2e-wrapper gr-e2e-xvfb "playstudy-steam-${E2E_PORT}")
+readonly E2E_UNITS=(gr-e2e-wrapper gr-e2e-xvfb gr-e2e-paste "playstudy-steam-${E2E_PORT}")
 readonly E2E_FWD_APP=game-research-e2e
 readonly E2E_BG_CPUS="6-11,18-23"
 

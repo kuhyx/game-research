@@ -8,7 +8,7 @@
 - **Driver:** flutter-web-drive (headless chromium) + private `Xvfb :147`
   (xdotool hotkeys, dmenu, flash, x11grab) + fake Steam / models / todo
 - **Run one flow:** `e2e/run.sh build`, `e2e/run.sh up`, then `e2e/run.sh F1`,
-  `e2e/run.sh F1-check`, `e2e/run.sh F2`, `E2E_LAYOUT=dual e2e/run.sh up` + `e2e/run.sh F4`, `e2e/run.sh down`
+  `e2e/run.sh F1-check`, `e2e/run.sh F2`, `e2e/run.sh F5` (after F1 + F1-check), `E2E_LAYOUT=dual e2e/run.sh up` + `e2e/run.sh F4`, `e2e/run.sh down`
 - **Artefacts:** `~/data/claude-scratch/e2e/game-research/<run>/`
 
 ## Feature map
@@ -39,15 +39,19 @@
 | Discord notes (API) | `GET /api/games/<appid>/notes` | kuhy's own marker notes of every session of the game (analysed or not), oldest first, cut into message parts: header `**<game>** · my notes n/of`, a `__YYYY-MM-DD__` line per session (repeated when a session continues into the next part), one line `<emoji> \`h:mm:ss\` <note>` per marker (👍 👎 ❓ 📝, no trailing space for an empty note); at most 10 markers and under 2000 chars per part; a note too long for one message is cut with `…`; JSON `{slug, parts:[{n, of, text, markers:[{session, i, tag, time, note, line, still}]}]}`; reading it also queues the missing stills of older sessions (one ffmpeg at a time, never while `recording.pid` is live; `still:false` until cut) |
 | Marker still | `GET /api/sessions/<stamp>/still/<i>` | `image/jpeg` of marker `i` (1-based, the clip numbering) or 404 |
 | Copy to clipboard | `POST /api/games/<appid>/notes/<n>/copy?what=files\|text`, `POST /api/sessions/<stamp>/markers/<i>/copy` | `helpers/clip_owner.py` (killed and restarted per copy) owns CLIPBOARD on `GAME_RESEARCH_DISPLAY` with `text/uri-list` + `x-special/gnome-copied-files` (the stills) and `text/plain`/`UTF8_STRING`; `files` = the part's stills (+ text), `text` = text only, marker copy = its line + its still; reply `{ok, files, chars}`; 404 missing (a files copy with no stills yet too), 400 bad `what`, 409 while a session records or the display cannot be opened, 500 helper failed. Spike 2026-11-12 (Chromium on Xvfb): a paste with files offered delivers the files and drops the text in the same paste event, so Discord gets files or text per paste, not both |
+| Copy short | copy icon in the reader bar (`copy short`) | `GET /api/doc` answers `short` (a sibling `X.discord.md` exists); `POST /api/doc/copy?path=<doc>` puts the sibling's text on the clipboard (text only, same helper; 404 without a sibling, 403 outside `docs/research`, 409 while recording or without a display); the icon is off while `short` is false and after a save (the save deleted the sibling) |
+| My notes view | notes icon (`my notes`) in the toolbar of a game's report (not of a draft) | full-window panel over the report: per message part a card with `n/of` and two copy icons (`copy notes <n> files` = the stills, `copy notes <n> text`; one paste carries files OR text, so two pastes), then a row per marker: tag icon in the marker colour, `h:mm:ss`, the note kuhy typed, a thumbnail from `/api/sessions/<stamp>/still/<i>` (hourglass until cut: the list is re-read every 2 s, at most 60 times) and `copy marker <stamp> <i>`; session dates as `YYYY-MM-DD` rows; Esc or the close icon returns to the report; icons only |
+| Copy icon | every copy control | copy glyph, spinner while the POST runs, check for 1.5 s on 200, error glyph (until the next tap) on 404/409/500 or no wrapper; off when there is nothing to copy |
 
 ## Core flows (3-5)
 
 | id | goal | command | last green |
 |---|---|---|---|
-| F1 | GUI start, 4 hotkey + 4 button markers, stop by Mod+Shift+F4, full analysis with stub models | `e2e/run.sh F1 && e2e/run.sh F1-check` | 2026-11-11 (68 checks) |
+| F1 | GUI start, 4 hotkey + 4 button markers, stop by Mod+Shift+F4, full analysis with stub models | `e2e/run.sh F1 && e2e/run.sh F1-check` | 2026-11-12 (72 checks) |
 | F2 | session stops by itself when the game exits | `e2e/run.sh F2` | 2026-11-11 |
 | F3 | real Steam + Librarian off-screen: open, ring, Steam starts, game window, recording, CLI markers, game exit stops it | manual, CLAUDE.md "Driving the app" | 2026-11-11 (Xvfb :148) |
 | F4 | the recording grabs the monitor the game window is on (DP-0 + HDMI-0 layout, game on HDMI-0 -> 2560x1440 video) | `E2E_LAYOUT=dual e2e/run.sh up`, `e2e/run.sh F4` | 2026-11-11 (Xvfb :147, monitors listed by `e2e/shim/xrandr`) |
+| F5 | Discord share: finish the research, open the report, open my notes, tap the copy icons; each copy is pasted into a second non-headless Chromium on the Xvfb (`e2e/paste_page.html` writes `{files,names,text}` into its title, `e2e/check_paste.py` decodes it): files -> 8 `m_NN_<tag>.jpg`, text -> starts with `**`, one marker -> 1 file, `copy short` on the draft -> <= 1900 chars, no `\|` | after F1 + F1-check: `e2e/run.sh F5` (4K screenshots: `SHOTS_DIR=<dir> e2e/run.sh F5-shots`) | 2026-11-12 (Xvfb :147) |
 
 F1-check asserts: 8 chapters at the marker offsets, each marker offset within
 0.5 s of the moment the input was sent, the border flash visible in the

@@ -38,7 +38,7 @@ class NotesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = style.px(56);
+    final size = style.px(64);
     final rows = <Widget>[];
     String? date;
     for (final m in part.markers) {
@@ -49,7 +49,7 @@ class NotesCard extends StatelessWidget {
       rows.add(_MarkerRow(api: api, marker: m, style: style));
     }
     return Container(
-      width: style.px(1100),
+      width: style.px(1700),
       padding: EdgeInsets.all(style.px(32)),
       decoration: BoxDecoration(
         color: const Color(0xFF20232A),
@@ -65,7 +65,7 @@ class NotesCard extends StatelessWidget {
                 '${part.n}/${part.of}',
                 style: TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: style.px(44),
+                  fontSize: style.px(52),
                   color: DocStyle.heading,
                   fontFeatures: _tabular,
                 ),
@@ -109,14 +109,14 @@ class _DateRow extends StatelessWidget {
           Icon(
             Icons.calendar_today_rounded,
             color: DocStyle.muted,
-            size: style.px(36),
+            size: style.px(40),
           ),
           SizedBox(width: style.px(16)),
           Text(
             date,
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: style.px(36),
+              fontSize: style.px(40),
               color: DocStyle.muted,
               fontFeatures: _tabular,
             ),
@@ -142,15 +142,15 @@ class _MarkerRow extends StatelessWidget {
     );
     final text = TextStyle(
       fontFamily: 'Inter',
-      fontSize: style.px(36),
+      fontSize: style.px(44),
       color: DocStyle.body,
       fontFeatures: _tabular,
     );
     return SizedBox(
-      height: style.px(150),
+      height: style.px(164),
       child: Row(
         children: [
-          Icon(look.icon, color: look.color, size: style.px(56)),
+          Icon(look.icon, color: look.color, size: style.px(64)),
           SizedBox(width: style.px(20)),
           Text(marker.time, style: text),
           SizedBox(width: style.px(24)),
@@ -165,7 +165,7 @@ class _MarkerRow extends StatelessWidget {
           _Thumb(api: api, marker: marker, style: style),
           CopyIcon(
             semantic: 'copy marker ${marker.session} ${marker.i}',
-            size: style.px(56),
+            size: style.px(64),
             onCopy: marker.still
                 ? () => api.copyMarker(marker.session, marker.i)
                 : null,
@@ -185,8 +185,8 @@ class _Thumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final w = style.px(224);
-    final h = style.px(126);
+    final w = style.px(256);
+    final h = style.px(144);
     Widget placeholder(IconData icon, Color color) => Container(
       width: w,
       height: h,

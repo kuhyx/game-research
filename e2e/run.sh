@@ -8,6 +8,9 @@
 #   e2e/run.sh F2         session that stops itself when the game exits
 #   e2e/run.sh F4         records the monitor the game window is on (needs
 #                         E2E_LAYOUT=dual at `up`: DP-0 + HDMI-0 like kuhy's)
+#   e2e/run.sh F5         Discord share: copy icons pasted into a second Chromium
+#                         (after F1 + F1-check)
+#   e2e/run.sh F5-shots   4K screenshots of the notes view and the reader bar
 #   e2e/run.sh down       stop units, the dummy game and the browser
 #
 # Artefacts: ~/data/claude-scratch/e2e/game-research/<run>/ (latest -> newest).
@@ -31,6 +34,8 @@ fixtures() {
 		"${steam}/appcache/librarycache/${E2E_APPID}/library_600x900.jpg"
 	cp "${E2E_REPO}/test/fixtures/DOCS-research-questions.md" "$target/"
 	git -C "${ART}/target" init -q
+	# The finish job derives the todo repo from origin (a throwaway URL, never fetched).
+	git -C "${ART}/target" remote add origin https://github.com/kuhyx/e2e-target.git
 }
 
 wrapper_env() {
@@ -120,7 +125,9 @@ main() {
 	F1-check) FLOW=F1 ART="$(art_dir)" bash "${E2E_REPO}/e2e/f1_check.sh" ;;
 	F2) FLOW=F2 ART="$(art_dir)" bash "${E2E_REPO}/e2e/f2_autostop.sh" ;;
 	F4) FLOW=F4 ART="$(art_dir)" bash "${E2E_REPO}/e2e/f4_monitor.sh" ;;
-	*) die "usage: e2e/run.sh build|up|F1|F1-check|F2|F4|down" ;;
+	F5) FLOW=F5 ART="$(art_dir)" bash "${E2E_REPO}/e2e/f5_share.sh" ;;
+	F5-shots) FLOW=F5 ART="$(art_dir)" bash "${E2E_REPO}/e2e/f5_shots.sh" ;;
+	*) die "usage: e2e/run.sh build|up|F1|F1-check|F2|F4|F5|F5-shots|down" ;;
 	esac
 }
 
