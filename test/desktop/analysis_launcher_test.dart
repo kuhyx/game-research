@@ -60,6 +60,8 @@ void main() {
       expect(call.args, containsAllInOrder(['-p', 'Nice=19']));
       expect(call.args, contains('CPUSchedulingPolicy=idle'));
       expect(call.args, contains('IOSchedulingClass=idle'));
+      // ...and stays off the V-cache CCD (CPUs 0-5 and 12-17).
+      expect(call.args, containsAllInOrder(['-p', 'CPUAffinity=6-11 18-23']));
       expect(call.args, contains('--setenv=HOME=${root.path}'));
       expect(
         call.args.firstWhere((a) => a.startsWith('--setenv=PATH=')),
@@ -93,6 +95,7 @@ void main() {
       final args = fake.calls.single.args;
       expect(args, contains('game-research-finish-1700000000500'));
       expect(args, contains('IOSchedulingClass=idle'));
+      expect(args, contains('CPUAffinity=6-11 18-23'));
       expect(args.sublist(args.length - 3), [
         l.analyzer,
         '--finish',

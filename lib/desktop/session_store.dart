@@ -110,6 +110,17 @@ class AnalysisLauncher {
     'game_research_analyze',
   );
 
+  /// Never compete with a game: idle CPU and IO class, lowest priority, and
+  /// off the 7900X3D V-cache CCD (CPUs 0-5 and 12-17). Mirrors
+  /// e2e/bgshim/systemd-run. CPUAffinity, not AllowedCPUs: the cpuset
+  /// controller is not delegated to the user manager.
+  static const backgroundProps = [
+    'CPUAffinity=6-11 18-23',
+    'Nice=19',
+    'CPUSchedulingPolicy=idle',
+    'IOSchedulingClass=idle',
+  ];
+
   /// Starts the job for [dir]. `systemd`: a `systemd-run --user --collect`
   /// unit that outlives the wrapper; `inline`: a detached child (tests);
   /// `off`: nothing (off-screen agent runs must not call models or write
@@ -147,12 +158,7 @@ class AnalysisLauncher {
       'game-research-$kind-$stamp',
       '-p',
       'WorkingDirectory=${config.repo}',
-      // Never compete with a game: idle CPU and IO class, lowest priority.
-      for (final prop in const [
-        'Nice=19',
-        'CPUSchedulingPolicy=idle',
-        'IOSchedulingClass=idle',
-      ]) ...['-p', prop],
+      for (final prop in backgroundProps) ...['-p', prop],
       for (final e in env.entries) '--setenv=${e.key}=${e.value}',
       analyzer,
       ...args,
