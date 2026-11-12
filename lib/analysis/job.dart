@@ -153,9 +153,13 @@ class StatusWriter {
   final double startedUnix;
 
   int _stage = 0;
+  int _done = 0;
+  int _total = 0;
   StageClock _clock = StageClock();
 
-  /// Writes one status; the ETA comes from the stage's own progress.
+  /// Writes one status; the ETA comes from the stage's own progress. A
+  /// `waiting` status in the stage that last reported keeps that stage's
+  /// done/total, so the ring does not fall back to the stage's start.
   void write(
     int stage,
     int done,
@@ -166,7 +170,13 @@ class StatusWriter {
   }) {
     if (stage != _stage) {
       _stage = stage;
+      _done = _total = 0;
       _clock = StageClock();
+    }
+    final held = state == StageState.waiting && _total > 0;
+    if (!held) {
+      _done = done;
+      _total = total;
     }
     final now = sys.nowUnix();
     file
@@ -175,8 +185,8 @@ class StatusWriter {
         jsonEncode(
           AnalysisStatus(
             stage: stage,
-            done: done,
-            total: total,
+            done: _done,
+            total: _total,
             state: state,
             error: error,
             tokens: usage(),

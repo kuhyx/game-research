@@ -11,6 +11,7 @@ import 'dart:io';
 
 import 'package:game_research/analysis/finish_sessions.dart';
 import 'package:game_research/analysis/job.dart';
+import 'package:game_research/analysis/line_cap.dart';
 import 'package:game_research/analysis/tiers.dart';
 import 'package:game_research/core/captions.dart';
 import 'package:game_research/core/finish_doc.dart';
@@ -125,6 +126,29 @@ class FinishRunner {
     return code;
   }
 
+  /// One Opus call; its tokens go into [state] whatever the answer, a usage
+  /// limit makes the job wait, any other error fails it.
+  Future<TierResult> _opus(
+    Map<String, Object?> state,
+    String prompt,
+    String file,
+    List<String> dirs,
+  ) async {
+    final answer = await _ask(prompt, file, dirs);
+    final spent = _usage() + answer.usage;
+    state
+      ..['state'] = 'running'
+      ..['tokens'] = spent.tokens
+      ..['cost_usd'] = spent.costUsd;
+    _write(state);
+    final error = answer.error;
+    if (error != null) {
+      if (isRateLimited(error)) throw WaitingError('finish: $error');
+      throw StateError('finish failed: $error');
+    }
+    return answer;
+  }
+
   Future<void> _merge(
     Map<String, Object?> state,
     List<FinishSession> sessions,
@@ -145,24 +169,22 @@ class FinishRunner {
     );
     final promptFile = File(p.join(_dir, 'finish_prompt.txt'))
       ..writeAsStringSync(prompt);
-    final answer = await _ask(prompt, promptFile.path, [
-      last.target,
-      for (final s in sessions) s.dir,
-    ]);
-    final spent = _usage() + answer.usage;
-    state
-      ..['state'] = 'running'
-      ..['tokens'] = spent.tokens
-      ..['cost_usd'] = spent.costUsd;
-    _write(state);
-    final error = answer.error;
-    if (error != null) {
-      if (isRateLimited(error)) throw WaitingError('finish: $error');
-      throw StateError('finish failed: $error');
-    }
-    final docs = parseFinish(
-      answer.text,
-      template: File(template).readAsStringSync(),
+    final dirs = [last.target, for (final s in sessions) s.dir, _dir];
+    final templateText = File(template).readAsStringSync();
+    final raw = await _opus(state, prompt, promptFile.path, dirs);
+    final docs = await parseWithinCap(
+      raw: raw.text,
+      parse: (r) => parseFinish(r, template: templateText),
+      docs: (d) => {'merged answers': d.merged, 'report': d.report},
+      longFile: File(p.join(_dir, 'finish_long.txt')),
+      format:
+          '$kMergedMarker\n<the shortened merged markdown>\n'
+          '$kReportMarker\n<the shortened report markdown>\n$kEndMarker',
+      shorten: (q) async {
+        final file = File(p.join(_dir, 'finish_shorten_prompt.txt'))
+          ..writeAsStringSync(q);
+        return (await _opus(state, q, file.path, dirs)).text;
+      },
     );
     final merged = mergedPath(last.target, slug);
     final report = reportPath(last.target, slug);
@@ -173,7 +195,7 @@ class FinishRunner {
     state
       ..['merged'] = merged
       ..['report'] = report
-      ..['model'] = answer.model;
+      ..['model'] = raw.model;
     _write(state);
   }
 

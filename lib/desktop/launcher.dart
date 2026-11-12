@@ -7,6 +7,7 @@ library;
 
 import 'dart:io';
 
+import 'package:game_research/analysis/resume.dart';
 import 'package:game_research/desktop/browser.dart';
 import 'package:game_research/desktop/cli.dart';
 import 'package:game_research/desktop/config.dart';
@@ -17,6 +18,7 @@ import 'package:game_research/desktop/steam_art.dart';
 import 'package:game_research/desktop/steam_library.dart';
 import 'package:game_research/desktop/sys.dart';
 import 'package:game_research/desktop/wrapper_server.dart';
+import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
 /// Builds the controller from [config] and [sys].
@@ -38,6 +40,11 @@ Future<WrapperServer> serve(Config config, Sys sys, {int? port}) async {
   final controller = buildController(config, sys);
   // A wrapper that crashed mid-session may have left its keys grabbed.
   await controller.parts.hotkeys.stop();
+  // Jobs whose process died (shutdown, crash) show as interrupted at once,
+  // not as running until the resume timer fires.
+  final client = http.Client();
+  final interrupted = ResumeAll(config, sys, client).markInterrupted();
+  client.close();
   controller.parts.log.event('app_start', {
     'port': port ?? config.port,
     'display': config.display,
@@ -46,6 +53,9 @@ Future<WrapperServer> serve(Config config, Sys sys, {int? port}) async {
     'steam_cmd': config.steamCmd,
     'pid': pid,
   });
+  if (interrupted.isNotEmpty) {
+    controller.parts.log.event('jobs_interrupted', {'jobs': interrupted});
+  }
   final server = WrapperServer(
     webRoot: webRootOf(config),
     flow: SessionFlow(

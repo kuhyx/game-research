@@ -32,20 +32,31 @@ class FinishSession {
   String get stamp => sessionStamp(p.basename(dir));
 }
 
-/// The analysed sessions of [slug] under [dataDir], oldest first.
+/// The analysed sessions of [slug] under [dataDir], oldest first. A v1
+/// session's `stage3.json` has the flat `draft_en` instead of `draft`; v1
+/// sessions of one game share that file, so a path counts once, for the
+/// newest session that names it.
 List<FinishSession> analysedSessions(String dataDir, String slug) {
   final root = Directory(dataDir);
   if (!root.existsSync()) return const [];
-  final out = <FinishSession>[];
-  for (final d in root.listSync().whereType<Directory>()) {
+  final byDraft = <String, FinishSession>{};
+  final dirs = root.listSync().whereType<Directory>().toList()
+    ..sort((a, b) => a.path.compareTo(b.path));
+  for (final d in dirs) {
     final meta = File(p.join(d.path, 'session.json'));
     final s3 = File(p.join(d.path, 'analysis', 'stage3.json'));
     if (!meta.existsSync() || !s3.existsSync()) continue;
     final m = jsonDecode(meta.readAsStringSync()) as Map<String, Object?>;
-    final draft = (jsonDecode(s3.readAsStringSync()) as Map)['draft'];
+    final state = jsonDecode(s3.readAsStringSync()) as Map;
+    final draft = state['draft'] ?? state['draft_en'];
     if (m['slug'] != slug || draft is! String) continue;
     if (!File(draft).existsSync()) continue;
-    out.add(FinishSession(d.path, '${m['game']}', '${m['target']}', draft));
+    byDraft[draft] = FinishSession(
+      d.path,
+      '${m['game']}',
+      '${m['target']}',
+      draft,
+    );
   }
-  return out..sort((a, b) => a.dir.compareTo(b.dir));
+  return byDraft.values.toList()..sort((a, b) => a.dir.compareTo(b.dir));
 }

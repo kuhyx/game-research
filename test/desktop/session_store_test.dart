@@ -79,7 +79,7 @@ void main() {
       final draft = File(p.join(root.path, 'draft.md'))..writeAsStringSync('#');
       Directory(p.join(dir.path, 'analysis')).createSync();
       File(p.join(dir.path, 'analysis', 'stage3.json'))
-          .writeAsStringSync(jsonEncode({'draft_en': draft.path}));
+          .writeAsStringSync(jsonEncode({'draft': draft.path}));
       final s = store.summary(dir);
       expect((s['markers']! as Map)['bad'], 1);
       expect(s['recording'], isTrue);
@@ -92,7 +92,7 @@ void main() {
       File(p.join(dir.path, 'markers.jsonl')).writeAsStringSync('not json\n');
       Directory(p.join(dir.path, 'analysis')).createSync();
       File(p.join(dir.path, 'analysis', 'stage3.json'))
-          .writeAsStringSync(jsonEncode({'draft_en': '/gone.md'}));
+          .writeAsStringSync(jsonEncode({'draft': '/gone.md'}));
       final s = store.summary(dir);
       expect((s['markers']! as Map)['bad'], 0);
       expect(s['draft'], isNull);

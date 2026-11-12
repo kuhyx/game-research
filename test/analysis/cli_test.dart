@@ -129,6 +129,20 @@ void main() {
     other.release();
   });
 
+  test('a queued --force keeps its force through the drain', () async {
+    expect(await run([fx.session.path]), 0);
+    final other = JobLock(data, selfPid: pid)..acquire('someone-else');
+    fake.calls.clear();
+    expect(await run([fx.session.path, '--force']), 4);
+    expect(fake.calls, isEmpty);
+    other.release();
+    expect(await run(['--resume-all']), 0);
+    expect(fake.of('ffmpeg'), isNotEmpty, reason: 'redone from scratch');
+    fake.calls.clear();
+    expect(await run(['--resume-all']), 0);
+    expect(fake.calls, isEmpty, reason: 'the force is spent');
+  });
+
   test('a job that already runs is exit 3 with no drain', () async {
     final held = JobLock(data, selfPid: pid)
       ..acquire(p.basename(fx.session.path));

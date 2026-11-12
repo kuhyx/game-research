@@ -99,6 +99,10 @@ class JobStatus {
   /// Whether the job works or waits for a retry.
   bool get active => state == 'running' || state == 'waiting';
 
+  /// Whether `done/total` means something to read: stage 1 counts ffmpeg
+  /// time in 1000 units (the ring carries it) and a one-call stage is 0/1.
+  bool get showsItems => stage >= 2 && total > 1;
+
   /// Minutes left, rounded up; null when unknown or zero.
   int? get etaMin {
     final e = etaS;

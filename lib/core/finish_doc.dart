@@ -52,8 +52,9 @@ ${markers.map((m) => '  - ${m.stamp}: ${m.path}').join('\n')}
 
 Write two English documents.
 
-1. MERGED ANSWERS: the template filled in once. Keep every heading, question
-   id and "Why we ask" line. For each question take the best-supported
+1. MERGED ANSWERS: the template filled in once. Keep every heading and
+   question id; do NOT copy the "Why we ask:" lines (they stay in the
+   template). For each question take the best-supported
    answer across the drafts; a later session wins only with new evidence.
    Evidence cites the session stamp and the marker offset (mm:ss) or frame
    file. Directly after each Answer line add exactly one line

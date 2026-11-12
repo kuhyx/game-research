@@ -10,6 +10,7 @@ library;
 
 import 'dart:io';
 
+import 'package:game_research/core/doc_cap.dart';
 import 'package:path/path.dart' as p;
 
 /// A pair of paths. Only `en` is used any more; the pair stays because
@@ -72,7 +73,7 @@ String sliceDoc(String raw, String from, List<String> until) {
     if (until.contains(lines[i])) end = i;
   }
   if (end < 0) throw FormatException('synthesis answer lacks ${until.first}');
-  final text = lines.sublist(start + 1, end).join('\n').trim();
+  final text = tidyDoc(lines.sublist(start + 1, end).join('\n'));
   if (!text.startsWith('# ')) {
     throw FormatException('synthesis $from doc is missing or not a doc');
   }
@@ -192,9 +193,10 @@ ${earlier.isEmpty ? '  (none: this is the first session)' : earlier.map((f) => '
 ${frames.map((f) => '  - $f').join('\n')}
 
 Rules:
-- Write ONE English document: the template filled in. Keep every heading,
-  question id and "Why we ask" line. Replace {{GAME}} with "$game",
-  {{SESSION}} with "$session", and every _(pending)_ with your answer.
+- Write ONE English document: the template filled in. Keep every heading
+  and question id; do NOT copy the "Why we ask:" lines (they stay in the
+  template). Replace {{GAME}} with "$game", {{SESSION}} with "$session", and
+  every _(pending)_ with your answer.
 - Directly after each question's Answer line add exactly one line
   `- **Status:** answered`, `- **Status:** partial` or `- **Status:** open`
   (answered: the evidence settles it; partial: some evidence, gaps remain;

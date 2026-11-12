@@ -14,6 +14,9 @@ fwd tap "$E2E_GAME" >/dev/null || fail "game tile not tappable"
 fwd tap start >/dev/null || fail "no start button"
 wait_phase 20 recording || fail "never reached recording"
 step "game exits after 5 s, session stops itself"
+# The GUI polls the state: wait for its stop button first, else the stale
+# start button of the idle page ends the wait at once.
+fwd wait stop --timeout 10 >/dev/null || fail "GUI never showed the stop button"
 fwd wait start --timeout 25 >/dev/null || fail "session did not stop on game exit"
 session="$(find "${ART}/data" -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
 step "session.json says game-exit"

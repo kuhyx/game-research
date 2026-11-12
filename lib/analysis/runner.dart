@@ -64,7 +64,12 @@ class AnalysisRunner {
     procRoot: config.procRoot,
   ).waitClear(recordingPoll);
 
+  /// A forced rerun that got queued leaves this file; the run that finally
+  /// starts clears the outputs (and with them the file) once.
+  File get _forceFlag => File(p.join(_a, 'force'));
+
   /// Runs every stage not yet done ([force]: redo all). Returns the exit code.
+  /// A forced run queued behind another job remembers its force for the drain.
   Future<int> run({bool force = false}) async {
     final metaFile = File(p.join(dir, 'session.json'));
     if (!metaFile.existsSync()) return JobExit.usage;
@@ -74,13 +79,16 @@ class AnalysisRunner {
       sys,
       () => sessionUsage(dir),
     );
+    final redo = force || _forceFlag.existsSync();
+    var started = false;
     final code = await runLocked(
       job: p.basename(dir),
       config: config,
       status: status,
       ownerPid: ownerPid,
       body: (stage) async {
-        if (force) _clear();
+        started = true;
+        if (redo) _clear();
         final meta =
             jsonDecode(metaFile.readAsStringSync()) as Map<String, Object?>;
         final markersFile = File(p.join(dir, 'markers.jsonl'));
@@ -120,6 +128,9 @@ class AnalysisRunner {
         status.write(3, 1, 1, StageState.done);
       },
     );
+    if (redo && !started && code == JobExit.waiting) {
+      _forceFlag.writeAsStringSync('');
+    }
     return code;
   }
 

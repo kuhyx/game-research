@@ -89,6 +89,28 @@ void main() {
     expect(await get(port, '/'), '<html>page</html>');
   });
 
+  test(
+    'serve marks a dead running job interrupted before the UI asks',
+    () async {
+      final dir = Directory(p.join(root.path, 'data', '20261111-185105-alpha'))
+        ..createSync(recursive: true);
+      File(p.join(dir.path, 'session.json'))
+          .writeAsStringSync(jsonEncode({'duration_s': 40, 'slug': 'alpha'}));
+      File(p.join(dir.path, 'recording.mkv')).writeAsStringSync('v');
+      final status = File(p.join(dir.path, 'analysis', 'status.json'))
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          jsonEncode({'stage': 2, 'done': 1, 'total': 4, 'state': 'running'}),
+        );
+      final server = await serve(configOn(0), fake.sys, port: 0);
+      addTearDown(server.close);
+      expect(
+        (jsonDecode(status.readAsStringSync()) as Map)['state'],
+        'interrupted',
+      );
+    },
+  );
+
   test('--serve-only serves and holds without a window', () async {
     final port = await freePort();
     final code = await run(['--serve-only'], configOn(port));

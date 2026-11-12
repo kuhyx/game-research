@@ -32,7 +32,7 @@ class StatChips extends StatelessWidget {
           _Chip(Icons.attach_money_rounded, cost.toStringAsFixed(2), 'cost'),
         if (job.active && job.stage > 0)
           _Chip(Icons.layers_rounded, '${job.stage}', 'stage'),
-        if (job.active && job.total > 0)
+        if (job.active && job.showsItems)
           _Chip(Icons.checklist_rounded, '${job.done}/${job.total}', 'items'),
         if (job.active && eta != null)
           _Chip(Icons.timer_outlined, '$eta', 'minutes left'),

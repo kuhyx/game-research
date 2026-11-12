@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:game_research/analysis/job.dart';
+import 'package:game_research/analysis/line_cap.dart';
 import 'package:game_research/analysis/tiers.dart';
 import 'package:game_research/core/captions.dart';
 import 'package:game_research/core/sampling.dart';
@@ -73,6 +74,24 @@ class Stage3 {
     ).ask(prompt, [dir, target]);
   }
 
+  /// One synthesis call: its tokens are tallied in [state] whatever the
+  /// answer, a usage limit makes the stage wait, any other error fails it.
+  Future<TierResult> _ask(
+    Map<String, Object?> state,
+    String prompt,
+    String promptFile,
+    String target,
+  ) async {
+    final answer = await _synthesize(prompt, promptFile, target);
+    _spend(state, answer.usage);
+    final error = answer.error;
+    if (error != null) {
+      if (isRateLimited(error)) throw WaitingError('synthesis: $error');
+      throw StateError('synthesis failed: $error');
+    }
+    return answer;
+  }
+
   /// Fills the draft for [meta] (session.json) from [frames].
   Future<Map<String, Object?>> run(
     Map<String, Object?> meta,
@@ -104,23 +123,26 @@ class Stage3 {
       );
       final promptFile = File(p.join(a, 'synthesis_prompt.txt'))
         ..writeAsStringSync(prompt);
-      final answer = await _synthesize(prompt, promptFile.path, target);
-      _spend(state, answer.usage);
-      final error = answer.error;
-      if (error != null) {
-        if (isRateLimited(error)) throw WaitingError('synthesis: $error');
-        throw StateError('synthesis failed: $error');
-      }
-      final doc = parseDoc(
-        answer.text,
-        template: File(template).readAsStringSync(),
+      final templateText = File(template).readAsStringSync();
+      final raw = await _ask(state, prompt, promptFile.path, target);
+      final doc = await parseWithinCap(
+        raw: raw.text,
+        parse: (r) => parseDoc(r, template: templateText),
+        docs: (d) => {'draft': d},
+        longFile: File(p.join(a, 'synthesis_long.txt')),
+        format: '$kDocMarker\n<the shortened English markdown>\n$kEndMarker',
+        shorten: (q) async {
+          final file = File(p.join(a, 'synthesis_shorten_prompt.txt'))
+            ..writeAsStringSync(q);
+          return (await _ask(state, q, file.path, target)).text;
+        },
       );
       File(draft)
         ..parent.createSync(recursive: true)
         ..writeAsStringSync(doc);
       state
         ..['draft'] = draft
-        ..['model'] = answer.model
+        ..['model'] = raw.model
         ..['frames'] = picked.length;
       _write(state);
     }
