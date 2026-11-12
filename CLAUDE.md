@@ -77,7 +77,8 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
   `/api/stop`, `/api/autostart[?appid]`, `/api/autostart/cancel`,
   `/api/marker?tag=`, `GET /api/games/<appid>/notes`,
   `GET /api/sessions/<stamp>/still/<i>`, `POST /api/games/<appid>/notes/<n>/copy?what=files|text`,
-  `POST /api/sessions/<stamp>/markers/<i>/copy` (clipboard via `helpers/clip_owner.py`,
-  `GAME_RESEARCH_CLIP_CMD`). GUI semantics labels: `start`/`stop`, `autostart`,
+  `POST /api/sessions/<stamp>/markers/<i>/copy`, `POST /api/sessions/<stamp>/markers/<i>/note`
+  body `{note}` (clipboard via `helpers/clip_owner.py`, `GAME_RESEARCH_CLIP_CMD`;
+  images captioned by `helpers/caption_still.py`, `GAME_RESEARCH_CAPTION_CMD`). GUI semantics labels: `start`/`stop`, `autostart`,
   `waiting for game`, `marker <tag>`, `note text`, game tiles by name
   (`<name>, updating` while Steam has not finished).
