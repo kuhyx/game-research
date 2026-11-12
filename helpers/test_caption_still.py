@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from PIL import Image, ImageDraw
 
 from helpers import caption_still as cs
@@ -19,13 +18,15 @@ def make_job(tmp_path: Path, **over: str) -> dict:
     job = {
         "src": str(src),
         "out": str(tmp_path / "out" / "o.jpg"),
-        "tag": "good",
-        "time": "0:01:05",
         "note": "nice shelf",
-        "right": "Librarian · 2026-11-10",
     }
     job.update(over)
     return job
+
+
+def band_height(job: dict) -> int:
+    cs.render(job)
+    return Image.open(job["out"]).height - H
 
 
 def test_band_is_added_below_and_game_pixels_stay(tmp_path: Path) -> None:
@@ -35,37 +36,35 @@ def test_band_is_added_below_and_game_pixels_stay(tmp_path: Path) -> None:
     assert out.width == W
     assert out.height > H
     assert out.getpixel((W // 2, H // 2))[0] > 150  # still untouched
-    assert sum(out.getpixel((W - 5, H + 5))) < 120  # dark band
+    assert sum(out.getpixel((W - 5, out.height - 5))) < 120  # dark band
+    # the note is drawn: light pixels in the band
+    band = out.crop((0, H, W, out.height))
+    assert any(sum(p) > 500 for p in band.get_flattened_data())
 
 
-@pytest.mark.parametrize("tag", ["good", "bad", "confusing", "note"])
-def test_emoji_is_colour_not_tofu(tag: str) -> None:
-    img = cs.emoji_image(tag, 60)
-    assert img.size == (60, 60)
-    saturated = [
-        p
-        for p in img.convert("RGBA").getdata()
-        if p[3] > 200 and max(p[:3]) - min(p[:3]) > 60
-    ]
-    assert len(saturated) > 200
+def test_band_grows_with_the_note_and_nothing_is_cut(tmp_path: Path) -> None:
+    short = band_height(make_job(tmp_path, note="short"))
+    words = " ".join(f"word{k}" for k in range(120))
+    long_job = make_job(tmp_path, note=words)
+    assert band_height(long_job) > short * 3
+    draw = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    font = cs.text_font(max(W // 40, 18))
+    lines = cs.wrap(draw, words, font, W - W // 40)
+    assert " ".join(lines).split() == words.split()
+    assert not any("…" in ln for ln in lines)
+    assert all(draw.textlength(ln, font=font) <= W - W // 40 for ln in lines)
 
 
-def test_note_wraps_to_two_lines_with_ellipsis() -> None:
+def test_a_word_wider_than_the_band_is_broken_not_cut() -> None:
     draw = ImageDraw.Draw(Image.new("RGB", (10, 10)))
     font = cs.text_font(30)
-    short = cs.wrap(draw, "two words", font, 900)
-    assert short == ["two words"]
-    long = cs.wrap(draw, "word " * 80, font, 400)
-    assert len(long) == 2
-    assert long[-1].endswith("…")
-    assert draw.textlength(long[-1], font=font) <= 400
-    assert cs.wrap(draw, "x" * 200, font, 300)[-1].endswith("…")
+    lines = cs.wrap(draw, "ab " + "x" * 200 + " cd", font, 300)
+    assert "".join(lines).replace(" ", "") == "ab" + "x" * 200 + "cd"
+    assert all(draw.textlength(ln, font=font) <= 300 for ln in lines)
 
 
-def test_empty_note_and_no_right_text_still_render(tmp_path: Path) -> None:
-    job = make_job(tmp_path, note="", right="")
-    cs.render(job)
-    assert Image.open(job["out"]).height > H
+def test_empty_note_gives_only_padding(tmp_path: Path) -> None:
+    assert 0 < band_height(make_job(tmp_path, note="")) < 60
 
 
 def test_quality_92_jpeg(tmp_path: Path) -> None:
@@ -73,8 +72,7 @@ def test_quality_92_jpeg(tmp_path: Path) -> None:
     cs.render(job)
     img = Image.open(job["out"])
     assert img.format == "JPEG"
-    # luminance table of quality 92: first entry is 5 (libjpeg scale 16)
-    assert img.quantization[0][0] == 3
+    assert img.quantization[0][0] == 3  # luminance table of quality 92
 
 
 def test_main_renders_jobs_file_and_checks_usage(tmp_path: Path) -> None:
