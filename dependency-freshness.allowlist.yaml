@@ -1,0 +1,13 @@
+# Repo-local additions to the fleet-wide allowlist in ~/src/utils.
+exceptions:
+  - ecosystem: toolchain
+    package: flutter
+    pinned: "3.47.9"
+    latest_known: "3.50.0"
+    reason: >-
+      The SDK is the AUR package flutter-bin (/usr/bin/flutter), still
+      3.47.9-1 there on 2026-11-12. Bumping .fvmrc alone would claim a
+      version the tests never run on. When the package lands:
+      yay -S flutter-bin, then bump .fvmrc and drop this entry.
+    blocked_by: aur:flutter-bin
+    expires: "2026-11-26"
