@@ -2,6 +2,7 @@
 /// file with progress, tokens and ETA, and the token tally of a folder.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -88,13 +89,18 @@ class StageRef {
 /// job live makes this one `waiting` ([JobExit.waiting]), to be started by the
 /// next job to finish or the resume timer. A [WaitingError] from the body is
 /// `waiting` with a retry time; any other error is `failed`. The body writes
-/// the `done` status itself.
+/// the `done` status itself. SIGTERM or SIGINT while the body runs (a unit
+/// stop, a deploy) writes `interrupted`, frees the lock and exits at once, so
+/// a stopped job never lingers as `running`. [stops] and [exitFn] are test
+/// seams.
 Future<int> runLocked({
   required String job,
   required Config config,
   required StatusWriter status,
   required Future<void> Function(StageRef stage) body,
   int? ownerPid,
+  List<Stream<ProcessSignal>>? stops,
+  void Function(int code) exitFn = exit,
 }) async {
   final lock = JobLock(
     config.dataDir,
@@ -114,6 +120,14 @@ Future<int> runLocked({
     return JobExit.waiting;
   }
   final stage = StageRef();
+  final watches = [
+    for (final s in stops ?? _osStops())
+      s.listen((sig) {
+        status.write(stage.value, 0, 1, StageState.interrupted);
+        lock.release();
+        exitFn(sig == ProcessSignal.sigint ? 130 : 143);
+      }),
+  ];
   try {
     await body(stage);
     return JobExit.done;
@@ -131,9 +145,17 @@ Future<int> runLocked({
     status.write(stage.value, 0, 1, StageState.failed, error: '$e');
     return JobExit.failed;
   } finally {
+    for (final w in watches) {
+      await w.cancel();
+    }
     lock.release();
   }
 }
+
+List<Stream<ProcessSignal>> _osStops() => [
+  ProcessSignal.sigterm.watch(),
+  ProcessSignal.sigint.watch(),
+];
 
 /// Writes a job's `status.json`.
 class StatusWriter {
@@ -158,8 +180,8 @@ class StatusWriter {
   StageClock _clock = StageClock();
 
   /// Writes one status; the ETA comes from the stage's own progress. A
-  /// `waiting` status in the stage that last reported keeps that stage's
-  /// done/total, so the ring does not fall back to the stage's start.
+  /// `waiting` or `interrupted` status in the stage that last reported keeps
+  /// that stage's done/total, so the ring does not fall back to its start.
   void write(
     int stage,
     int done,
@@ -173,7 +195,9 @@ class StatusWriter {
       _done = _total = 0;
       _clock = StageClock();
     }
-    final held = state == StageState.waiting && _total > 0;
+    final held =
+        (state == StageState.waiting || state == StageState.interrupted) &&
+        _total > 0;
     if (!held) {
       _done = done;
       _total = total;

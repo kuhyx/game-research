@@ -214,8 +214,10 @@ class ResumeAll {
     } on Object catch (e) {
       stderr.writeln('resume: retention failed: $e');
     }
-    if (_recording.live || _lock.holder() != null) return JobExit.done;
+    // A dead `running` job is marked even when another job holds the lock:
+    // markInterrupted spares only the job that really holds it.
     markInterrupted();
+    if (_recording.live || _lock.holder() != null) return JobExit.done;
     final tried = <String>{};
     var crashed = false;
     while (!_recording.live) {
