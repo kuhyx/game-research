@@ -6,7 +6,7 @@
 # received into its window title. Chromium delivers files OR text per paste,
 # so the flow is two pastes: files, then text.
 #
-#   files  -> 8 files m_NN_<tag>.jpg        copy notes 1 files
+#   files  -> 8 files NN_<tag>.jpg, 01.. in order   copy notes 1 files
 #   text   -> starts with `**`              copy notes 1 text
 #   marker -> 1 file                        copy marker <session> 1
 #   short  -> <= 1900 chars, no `|`         copy short (on the draft)
@@ -87,7 +87,7 @@ start_paste_browser
 
 step "copy notes 1 files, paste: 8 stills"
 copy_tap "copy notes 1 files" 1
-paste_check 1 --files 8 --names 'm_0[1-8]_(good|bad|confusing|note)\.jpg'
+paste_check 1 --files 8 --ordered --names '0[1-8]_(good|bad|confusing|note)\.jpg'
 
 step "copy notes 1 text, paste: starts with **"
 copy_tap "copy notes 1 text" 2

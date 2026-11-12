@@ -92,6 +92,29 @@ class ShareHarness {
     stillOf('m_02_bad.jpg').writeAsBytesSync(_jpeg);
   }
 
+  /// A second Librarian session [id] (started 2026-11-09) with one marker
+  /// whose still is [cut]: its stills are also named `m_01_<tag>.jpg`.
+  Directory addEarlierSession(String id, {required bool cut}) {
+    final dir = Directory(p.join(s.h.config.dataDir, id))
+      ..createSync(recursive: true);
+    File(p.join(dir.path, 'session.json')).writeAsStringSync(
+      jsonEncode({
+        'game': 'Librarian',
+        'started_unix': DateTime(2026, 11, 9, 20).millisecondsSinceEpoch / 1e3,
+      }),
+    );
+    const marker = Marker(wallUnix: 1, offsetS: 10, tag: MarkerTag.good);
+    File(p.join(dir.path, 'markers.jsonl'))
+        .writeAsStringSync('${marker.toLine()}\n');
+    File(p.join(dir.path, 'recording.mkv')).writeAsStringSync('v');
+    if (cut) {
+      File(p.join(dir.path, 'analysis', 'clips', 'm_01_good.jpg'))
+        ..createSync(recursive: true)
+        ..writeAsBytesSync([0xFF, 0xD8, 9]);
+    }
+    return dir;
+  }
+
   /// `POST` [path].
   Future<Reply> post(String path) => s.hit('POST', path);
 

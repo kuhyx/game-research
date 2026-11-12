@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:game_research/app/api.dart';
 import 'package:game_research/app/copy_icon.dart';
 
 Future<void> pumpIcon(WidgetTester t, Future<void> Function()? onCopy) =>
@@ -43,7 +44,7 @@ void main() {
   testWidgets('a failure shows the error glyph until the next tap', (t) async {
     var fail = true;
     await pumpIcon(t, () async {
-      if (fail) throw Exception('409');
+      if (fail) throw const ApiError(409, 'stills not all cut yet');
     });
     await t.tap(label('copy it'));
     await t.pump();

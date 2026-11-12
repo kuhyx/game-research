@@ -73,8 +73,9 @@ class NotePart {
   /// The marker lines in it.
   final List<NoteMarker> markers;
 
-  /// Whether any still of the part exists (the files copy has something).
-  bool get hasStills => markers.any((m) => m.still);
+  /// Whether every still of the part exists (a files copy needs all: Discord
+  /// pairs images with note lines by order).
+  bool get hasStills => markers.every((m) => m.still);
 }
 
 /// The doc behind `GET /api/doc`.

@@ -38,6 +38,7 @@ def judge(
     text_prefix: str | None = None,
     text_max: int | None = None,
     text_forbid: str | None = None,
+    ordered: bool = False,
 ) -> list[str]:
     """Every rule `paste` breaks (empty = good)."""
     broken: list[str] = []
@@ -48,6 +49,13 @@ def judge(
         bad = [n for n in paste["names"] if not re.fullmatch(names, n)]
         if bad:
             broken.append(f"names do not match {names}: {bad}")
+    if ordered:
+        # Discord pairs images with note lines by order alone.
+        want = [f"{i:02d}_" for i in range(1, len(paste["names"]) + 1)]
+        if [n[:3] for n in paste["names"]] != want:
+            broken.append(
+                f"names not numbered 01_, 02_, ... in order: {paste['names']}"
+            )
     if text_prefix is not None and not text.startswith(text_prefix):
         broken.append(f"text starts {text[:20]!r}, not {text_prefix!r}")
     if text_max is not None and len(text) > text_max:
@@ -67,6 +75,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--text-prefix")
     ap.add_argument("--text-max", type=int)
     ap.add_argument("--text-forbid")
+    ap.add_argument(
+        "--ordered", action="store_true", help="names are 01_, 02_, ... in order"
+    )
     args = ap.parse_args(argv)
     try:
         n, paste = decode(args.title)
@@ -81,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         text_prefix=args.text_prefix,
         text_max=args.text_max,
         text_forbid=args.text_forbid,
+        ordered=args.ordered,
     )
     if n != args.n:
         broken.append(f"paste counter {n} != {args.n}")

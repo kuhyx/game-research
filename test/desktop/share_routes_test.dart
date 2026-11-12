@@ -70,11 +70,47 @@ void main() {
           '**Librarian** · my notes 1/1\n__2026-11-10__\n'
           '👍 `0:01:05` nice\n👎 `0:01:30`';
       expect(r.json, {'ok': true, 'files': 2, 'chars': text.length});
+      final dir = p.join(x.s.h.config.dataDir, 'share', 'librarian-1');
       expect(x.starts.single.$1, [
-        p.join(x.session.path, 'analysis', 'clips', 'm_01_good.jpg'),
-        p.join(x.session.path, 'analysis', 'clips', 'm_02_bad.jpg'),
+        p.join(dir, '01_good.jpg'),
+        p.join(dir, '02_bad.jpg'),
       ]);
+      expect(File(p.join(dir, '02_bad.jpg')).lengthSync(), 5);
       expect(x.starts.single.$2, text);
+    });
+
+    test(
+      'a part over two sessions stages unique, line-ordered names',
+      () async {
+        // Both sessions name their first still m_01_good.jpg.
+        final early = x.addEarlierSession(
+          '20261109-200000-librarian',
+          cut: true,
+        );
+        x.cutStills();
+        final r = await x.post('$_copy/1/copy?what=files');
+        expect(r.status, 200);
+        final dir = p.join(x.s.h.config.dataDir, 'share', 'librarian-1');
+        final names = x.starts.single.$1;
+        expect(names, [
+          p.join(dir, '01_good.jpg'),
+          p.join(dir, '02_good.jpg'),
+          p.join(dir, '03_bad.jpg'),
+        ]);
+        expect(File(names.first).readAsBytesSync(), [0xFF, 0xD8, 9]);
+        expect(early.existsSync(), isTrue);
+      },
+    );
+
+    test('a second copy replaces the staged folder', () async {
+      x.cutStills();
+      final stale = File(
+        p.join(x.s.h.config.dataDir, 'share', 'librarian-1', '09_old.jpg'),
+      )..createSync(recursive: true);
+      await x.post('$_copy/1/copy?what=files');
+      await x.post('$_copy/1/copy?what=files');
+      expect(stale.existsSync(), isFalse);
+      expect(x.starts, hasLength(2));
     });
 
     test('text: the text only', () async {
@@ -84,9 +120,22 @@ void main() {
       expect(x.starts.single.$1, isEmpty);
     });
 
-    test('files with no stills cut yet is 404', () async {
-      expect((await x.post('$_copy/1/copy?what=files')).status, 404);
+    test('files with no stills cut yet is 409', () async {
+      expect((await x.post('$_copy/1/copy?what=files')).status, 409);
       expect(x.starts, isEmpty);
+    });
+
+    test('files with only some stills cut is 409, nothing copied', () async {
+      x.stillOf('m_01_good.jpg')
+        ..createSync(recursive: true)
+        ..writeAsBytesSync([1]);
+      final r = await x.post('$_copy/1/copy?what=files');
+      expect(r.status, 409);
+      expect(x.starts, isEmpty);
+      expect(
+        Directory(p.join(x.s.h.config.dataDir, 'share')).existsSync(),
+        isFalse,
+      );
     });
 
     test('unknown game, part or mode', () async {
@@ -104,7 +153,12 @@ void main() {
       x.cutStills();
       await x.startRecording();
       expect((await x.post('$_copy/1/copy?what=text')).status, 409);
+      expect((await x.post('$_copy/1/copy?what=files')).status, 409);
       expect(x.starts, isEmpty);
+      expect(
+        Directory(p.join(x.s.h.config.dataDir, 'share')).existsSync(),
+        isFalse,
+      );
     });
 
     test('409 without a display, 500 when the helper fails', () async {

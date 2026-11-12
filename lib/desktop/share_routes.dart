@@ -16,6 +16,7 @@ import 'package:game_research/desktop/clip_owner.dart';
 import 'package:game_research/desktop/doc_files.dart';
 import 'package:game_research/desktop/notes_api.dart';
 import 'package:game_research/desktop/session_controller.dart';
+import 'package:game_research/desktop/share_stage.dart';
 import 'package:game_research/desktop/steam_library.dart';
 
 /// Notes, stills and copy endpoints.
@@ -113,15 +114,25 @@ class ShareRoutes {
       return _err(res, HttpStatus.notFound, 'no such part');
     }
     final part = all[k - 1];
-    final files = what == 'files'
-        ? [
-            for (final m in part.markers)
-              if (notes.still(m) case final f?) f.path,
-          ]
-        : <String>[];
-    if (what == 'files' && files.isEmpty) {
-      return _err(res, HttpStatus.notFound, 'no stills cut yet');
+    if (what == 'text') return await _copy(res, const [], part.text);
+    // Discord pairs images with note lines by order only, so a part with a
+    // missing still is not copied at all.
+    final cut = [for (final m in part.markers) notes.still(m)];
+    if (cut.contains(null)) {
+      return _err(res, HttpStatus.conflict, 'stills not all cut yet');
     }
+    if (controller.recording) {
+      return _err(res, HttpStatus.conflict, 'a session is recording');
+    }
+    final files = stageStills(
+      controller.parts.config.dataDir,
+      slugify(game.name),
+      k,
+      [
+        for (var i = 0; i < cut.length; i++)
+          (source: cut[i]!, tag: part.markers[i].tag.name),
+      ],
+    );
     await _copy(res, files, part.text);
   }
 
