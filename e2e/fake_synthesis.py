@@ -20,6 +20,13 @@ def fill(template: str) -> str:
     """Fills the template's placeholders and adds the status lines."""
     text = template.replace("{{GAME}}", "Dummy Game").replace("{{SESSION}}", "e2e")
     text = text.replace("_(pending)_", "e2e answer")
+    # The analyzer holds question text to 10 words; the real template's run 15-22.
+    text = re.sub(
+        r"^(### Q\d+(?:\.\d+)*)( .*)$",
+        lambda m: m.group(1) + " " + " ".join(m.group(2).split()[:10]),
+        text,
+        flags=re.MULTILINE,
+    )
     return re.sub(
         r"^(- \*\*Answer:\*\* .*)$",
         r"\1\n- **Status:** answered",

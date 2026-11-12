@@ -43,6 +43,12 @@ def test_fill_adds_a_status_line_after_every_answer() -> None:
     assert first[at + 1] == "- **Status:** answered"
 
 
+def test_fill_cuts_question_text_to_ten_words_and_keeps_the_id() -> None:
+    long = "### Q2.3 " + " ".join(f"w{i}" for i in range(20)) + "\n"
+    head = fs.fill(long).splitlines()[0]
+    assert head == "### Q2.3 " + " ".join(f"w{i}" for i in range(10))
+
+
 def test_a_session_synthesis_is_one_document(tmp_path: Path, capsys) -> None:
     assert fs.main(str(_prompt(tmp_path, finish=False))) == 0
     out = capsys.readouterr().out.splitlines()
