@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/analysis/finish.dart';
 import 'package:game_research/analysis/stage3.dart';
 import 'package:game_research/core/doc_cap.dart';
-import 'package:game_research/core/finish_doc.dart';
 import 'package:game_research/core/sampling.dart';
 import 'package:game_research/core/synthesis.dart';
 import 'package:game_research/desktop/config.dart';
@@ -45,7 +44,9 @@ void main() {
           prompts.add(File(c.args.last).readAsStringSync());
           return ok(answers.removeAt(0));
         }
-        return c.exe == 'faketodo' ? ok('t-1') : bad('no remote', 2);
+        return c.exe == 'faketodo'
+            ? ok('t-1')
+            : ok('git@github.com:kuhyx/cleanup-plate.git\n');
       };
   });
 
@@ -115,9 +116,10 @@ void main() {
     late String data;
     const report = '# Alpha report\nGood.\n';
 
-    String finishAnswer(int mergedExtra, int reportExtra) =>
-        '$kMergedMarker\n$kDraft${'m\n' * mergedExtra}'
-        '$kReportMarker\n$report${'r\n' * reportExtra}$kEndMarker\n';
+    String sized(int mergedExtra, int reportExtra) => finishAnswer(
+      merged: '$kDraft${'m\n' * mergedExtra}',
+      report: '$report${'r\n' * reportExtra}',
+    );
 
     Future<int> finish() => FinishRunner(
       'alpha',
@@ -137,7 +139,7 @@ void main() {
     });
 
     test('an overlong report is shortened once, both docs checked', () async {
-      answers = [finishAnswer(10, 300), finishAnswer(10, 40)];
+      answers = [sized(10, 300), sized(10, 40)];
       expect(await finish(), 0);
       expect(prompts, hasLength(2));
       expect(prompts[1], contains('report (30'));
@@ -149,7 +151,7 @@ void main() {
     });
 
     test('a second overflow fails the job with the reason', () async {
-      answers = [finishAnswer(300, 0), finishAnswer(290, 0)];
+      answers = [sized(300, 0), sized(290, 0)];
       expect(await finish(), 1);
       final status = File(p.join(data, 'games', 'alpha', 'status.json'))
           .readAsStringSync();

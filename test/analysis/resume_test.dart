@@ -82,7 +82,7 @@ void main() {
           case 'faketodo':
             return ok('task-1');
         }
-        return bad('no remote', 2);
+        return ok('git@github.com:kuhyx/cleanup-plate.git\n');
       };
   });
 
@@ -190,7 +190,7 @@ void main() {
         ..parent.createSync(recursive: true)
         ..writeAsStringSync(jsonEncode({'draft': draft, 'todo': 't'}));
       writeStatus(d, 'done');
-      opusAnswer = ok('@@@MERGED\n$kDraft@@@REPORT\n# Report\nok\n@@@END\n');
+      opusAnswer = ok(finishAnswer());
       final games = Directory(gameStateDir(data, 'alpha'))
         ..createSync(recursive: true);
       File(p.join(games.path, 'status.json')).writeAsStringSync(

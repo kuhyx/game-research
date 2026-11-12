@@ -57,6 +57,9 @@ def test_a_finish_answers_merged_and_report(tmp_path: Path, capsys) -> None:
     out = capsys.readouterr().out.splitlines()
     assert out[0] == "@@@MERGED"
     assert "@@@REPORT" in out
+    assert out[out.index("@@@TASK") + 1]
+    assert out[out.index("@@@CHECK") + 1] == "true"
+    assert out.index("@@@REPORT") < out.index("@@@TASK") < out.index("@@@CHECK")
     assert out[-1] == "@@@END"
     assert out[out.index("@@@REPORT") + 1].startswith("# ")
 

@@ -2,7 +2,7 @@
 
 Reads the prompt file, finds the template path it names and prints the filled
 template between marker lines (`@@@DOC` ... `@@@END` for a session, or
-`@@@MERGED` ... `@@@REPORT` ... `@@@END` for a finish), with `_(pending)_`
+`@@@MERGED` ... `@@@REPORT` ... `@@@TASK` ... `@@@CHECK` ... `@@@END` for a finish), with `_(pending)_`
 replaced and a `- **Status:** answered` line after every Answer line, so the
 analyzer's parser, status-line check and file writes run on a realistic answer.
 """
@@ -42,6 +42,10 @@ def main(prompt_file: str) -> int:
         print("@@@REPORT")
         print("# Dummy Game: what kuhy learned")
         print("e2e report")
+        print("@@@TASK")
+        print("Copy the dummy loop (e2e evidence).")
+        print("@@@CHECK")
+        print("true")
     else:
         print("@@@DOC")
         print(doc)

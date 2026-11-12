@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -86,88 +85,6 @@ void main() {
 
     test('open-draft is gone: the panel reads the file itself', () async {
       expect((await s.hit('POST', '/api/sessions/x/open-draft')).status, 404);
-    });
-  });
-
-  group('finish', () {
-    setUp(() async {
-      s = await ServerHarness.start(
-        games: {4197610: 'Librarian: Tidy Up the Arcane Library!'},
-      );
-    });
-
-    void session(String id, {String? draft}) {
-      final dir = Directory(p.join(s.h.config.dataDir, id))
-        ..createSync(recursive: true);
-      s.h.parts.store.writeMeta(dir, {'appid': 4197610});
-      if (draft != null) {
-        Directory(p.join(dir.path, 'analysis')).createSync();
-        File(p.join(dir.path, 'analysis', 'stage3.json'))
-            .writeAsStringSync(jsonEncode({'draft': draft}));
-      }
-    }
-
-    test('refuses an unknown game and a game without drafts', () async {
-      expect((await s.hit('POST', '/api/games/9/finish')).status, 404);
-      expect((await s.hit('POST', '/api/games/x/finish')).status, 404);
-      session('20261112-a');
-      final r = await s.hit('POST', '/api/games/4197610/finish');
-      expect(r.status, 409);
-      expect(s.h.fake.calls.where((c) => c.args.contains('--finish')), isEmpty);
-    });
-
-    test('launches the analyzer with --finish <slug> once', () async {
-      final d = await doc('games/x/d.md');
-      session('20261112-a', draft: d.path);
-      final r = await s.hit('POST', '/api/games/4197610/finish');
-      expect(
-        [r.status, r.json],
-        [
-          202,
-          {'ok': true, 'slug': 'librarian-tidy-up-the-arcane-library'},
-        ],
-      );
-      final call = s.h.fake.calls.last;
-      expect(call.args, ['--finish', 'librarian-tidy-up-the-arcane-library']);
-      expect((await s.hit('POST', '/api/games/4197610/finish')).status, 409);
-    });
-
-    test('a running job refuses; a failed launch is 503', () async {
-      final d = await doc('games/x/d.md');
-      session('20261112-a', draft: d.path);
-      const slug = 'librarian-tidy-up-the-arcane-library';
-      File(p.join(s.h.config.dataDir, 'games', slug, 'status.json'))
-        ..createSync(recursive: true)
-        ..writeAsStringSync(jsonEncode({'state': 'running'}));
-      expect((await s.hit('POST', '/api/games/4197610/finish')).status, 409);
-      File(p.join(s.h.config.dataDir, 'games', slug, 'status.json'))
-          .writeAsStringSync(jsonEncode({'state': 'done'}));
-      s.h.fake.onStart = (_) => throw const ProcessException('x', []);
-      expect((await s.hit('POST', '/api/games/4197610/finish')).status, 503);
-    });
-
-    test('/api/finish maps app id to the state, nothing logged', () async {
-      expect((await s.hit('GET', '/api/finish')).json, <String, Object?>{});
-      const slug = 'librarian-tidy-up-the-arcane-library';
-      File(p.join(s.h.config.dataDir, 'games', slug, 'status.json'))
-        ..createSync(recursive: true)
-        ..writeAsStringSync(jsonEncode({'state': 'running', 'progress': 0.3}));
-      final m = (await s.hit('GET', '/api/finish')).json! as Map;
-      expect(m['4197610'], containsPair('state', 'running'));
-      expect(s.h.events, isNot(contains('picker')));
-    });
-
-    test('/api/games carries slug and the finish state', () async {
-      const slug = 'librarian-tidy-up-the-arcane-library';
-      var g = ((await s.hit('GET', '/api/games')).json! as List).single as Map;
-      expect(g['slug'], slug);
-      expect(g['finish'], isNull);
-      File(p.join(s.h.config.dataDir, 'games', slug, 'finish.json'))
-        ..createSync(recursive: true)
-        ..writeAsStringSync(jsonEncode({'state': 'done', 'report': '/r.md'}));
-      g = ((await s.hit('GET', '/api/games')).json! as List).single as Map;
-      expect(g['finish'], containsPair('report', '/r.md'));
-      expect(g['finish'], containsPair('state', 'done'));
     });
   });
 

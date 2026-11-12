@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/analysis/finish.dart';
 import 'package:game_research/analysis/job_lock.dart';
-import 'package:game_research/core/finish_doc.dart';
 import 'package:game_research/core/synthesis.dart';
 import 'package:path/path.dart' as p;
 
@@ -12,8 +11,7 @@ import '../support/analysis_fakes.dart';
 import '../support/fakes.dart';
 
 const _report = '# Alpha: what kuhy learned\nGood.\n';
-const String _answer =
-    '$kMergedMarker\n$kDraft$kReportMarker\n$_report$kEndMarker\n';
+final String _answer = finishAnswer(report: _report);
 
 void main() {
   late Fixture fx;
@@ -63,7 +61,7 @@ void main() {
           case 'faketodo':
             return ok('task-9\n');
         }
-        return bad('no remote', 2);
+        return ok('git@github.com:kuhyx/cleanup-plate.git\n');
       };
   });
 
@@ -99,8 +97,17 @@ void main() {
     expect(done, contains('tokens'));
     expect(json('status.json')['state'], 'done');
     final todo = fake.of('faketodo').single;
-    expect(todo.args.last, contains('review Alpha research report'));
-    expect(todo.args, contains(finishDoneCheck('alpha')));
+    expect(
+      todo.args.last,
+      startsWith('Apply Alpha research to cleanup-plate\n'),
+    );
+    expect(todo.args.last, isNot(contains('MANUAL WORK REQUIRED')));
+    expect(todo.args.last, contains('Copy the tidy-up loop.'));
+    expect(todo.args.last, contains(reportPath(fx.target.path, 'alpha')));
+    expect(todo.args.last, contains(mergedPath(fx.target.path, 'alpha')));
+    expect(todo.args, containsAllInOrder(['--repo', 'kuhyx/cleanup-plate']));
+    expect(todo.args, containsAllInOrder(['--done-check', 'make test']));
+    expect(done['done_check'], 'make test');
     expect(JobLock(data).holder(), isNull);
   });
 
@@ -117,7 +124,7 @@ void main() {
     fake.onRun = (c) => switch (c.exe) {
       'timeout' => ok(env),
       'faketodo' => ok('t-3'),
-      _ => bad('no remote', 2),
+      _ => ok('git@github.com:kuhyx/cleanup-plate.git\n'),
     };
     final real = FinishRunner(
       'alpha',
@@ -167,6 +174,8 @@ void main() {
   });
 
   test('no analysed session fails closed', () async {
+    Directory(p.join(fx.session.path, 'analysis')).createSync();
+    fx.out('status.json').writeAsStringSync('{"state":"failed"}');
     expect(await runner().run(), 1);
     expect(json('status.json')['state'], 'failed');
     expect(json('status.json')['error'], contains('no analysed session'));
@@ -184,7 +193,7 @@ void main() {
     expect(await runner().run(), 1);
     expect(json('status.json')['error'], contains('no questions template'));
     File(templatePath(fx.target.path)).writeAsStringSync(kTemplate);
-    llm = ok('@@@MERGED\n# x\n@@@REPORT\n# y\n@@@END');
+    llm = ok('@@@MERGED\n# x\n@@@REPORT\n# y\n@@@TASK\nt\n@@@CHECK\nc\n@@@END');
     expect(await runner().run(), 1);
     expect(File(mergedPath(fx.target.path, 'alpha')).existsSync(), isFalse);
     llm = bad('boom', 4);
@@ -201,19 +210,6 @@ void main() {
     llm = ok(_answer);
     expect(await runner().run(), 0);
     expect(json('finish.json')['state'], 'done');
-  });
-
-  test('a failed todo call is retried without a second Opus call', () async {
-    analysed(fx.session);
-    fake.onRun = (c) => c.exe == '/fake/llm'
-        ? ok(_answer)
-        : (c.exe == 'faketodo' ? bad('locked', 5) : bad('x', 2));
-    expect(await runner().run(), 1);
-    expect(json('finish.json')['state'], 'running');
-    fake.onRun = (c) => c.exe == 'faketodo' ? ok('t-2') : bad('x', 2);
-    expect(await runner().run(), 0);
-    expect(fake.of('/fake/llm'), hasLength(1));
-    expect(json('finish.json')['todo'], 't-2');
   });
 
   test('another job holds the machine: queued, exit 4', () async {

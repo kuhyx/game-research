@@ -136,7 +136,12 @@ class WrapperServer {
         _json(res, {'stopping': controller.recording}, HttpStatus.accepted);
       case (true, ['autostart']):
         final ok = flow.arm(appid: int.tryParse(q['appid'] ?? ''));
-        _json(res, flow.state(), ok ? HttpStatus.ok : HttpStatus.conflict);
+        final nothingDue = ok || flow.skippedFinished;
+        _json(
+          res,
+          flow.state(),
+          nothingDue ? HttpStatus.ok : HttpStatus.conflict,
+        );
       case (true, ['autostart', 'cancel']):
         final ok = flow.cancel(q['src'] ?? 'esc');
         _json(res, flow.state(), ok ? HttpStatus.ok : HttpStatus.conflict);

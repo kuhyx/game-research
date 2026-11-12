@@ -14,26 +14,74 @@ const kReportMarker = '@@@REPORT';
 /// A session's draft (or markers file) with the session stamp it belongs to.
 typedef StampedPath = ({String stamp, String path});
 
-/// The merged answers and the report in Opus's answer [raw]. Every question
-/// of [template] must carry one valid status line in the merged answers.
-({String merged, String report}) parseFinish(String raw, {String? template}) {
-  final merged = sliceDoc(raw, kMergedMarker, [kReportMarker]);
-  if (template != null) checkStatusLines(merged, template);
-  return (merged: merged, report: sliceDoc(raw, kReportMarker, [kEndMarker]));
+/// The marker line before the todo task's body.
+const kTaskMarker = '@@@TASK';
+
+/// The marker line before the todo task's done check.
+const kCheckMarker = '@@@CHECK';
+
+/// Everything Opus's answer holds: the two documents and the todo task.
+typedef FinishAnswer = ({
+  String merged,
+  String report,
+  String task,
+  String check,
+});
+
+/// The trimmed, non-empty lines of [raw] between marker [from] and the next
+/// marker among [until]. Throws when a marker is missing or the text empty.
+String sliceText(String raw, String from, List<String> until) {
+  final lines = raw.split('\n').map((l) => l.trimRight()).toList();
+  final start = lines.indexOf(from);
+  if (start < 0) throw FormatException('finish answer lacks $from');
+  final end = lines.indexWhere(until.contains, start + 1);
+  if (end < 0) throw FormatException('finish answer lacks ${until.first}');
+  final text = lines.sublist(start + 1, end).join('\n').trim();
+  if (text.isEmpty) throw FormatException('finish $from section is empty');
+  return text;
 }
 
-/// The todo task's title for the report review.
-String finishTodoTitle(String game) =>
-    'MANUAL WORK REQUIRED: review $game research report';
+/// The merged answers, the report, the task body and its done check in
+/// Opus's answer [raw]. Every question of [template] must carry one valid
+/// status line in the merged answers; the done check is one line.
+FinishAnswer parseFinish(String raw, {String? template}) {
+  final merged = sliceDoc(raw, kMergedMarker, [kReportMarker]);
+  if (template != null) checkStatusLines(merged, template);
+  final check = sliceText(raw, kCheckMarker, [kEndMarker]);
+  if (check.contains('\n')) {
+    throw const FormatException('finish done check is not a single line');
+  }
+  return (
+    merged: merged,
+    report: sliceDoc(raw, kReportMarker, [kTaskMarker]),
+    task: sliceText(raw, kTaskMarker, [kCheckMarker]),
+    check: check,
+  );
+}
 
-/// The task's done check: the reviewed report is committed in the target.
-String finishDoneCheck(String gameSlug) =>
-    'git ls-files --error-unmatch '
-    'docs/research/games/$gameSlug/DOCS-research-$gameSlug-report.md';
+/// `owner/name` of a GitHub remote URL (https or scp style), null when the
+/// remote is missing or not that shape. The todo task needs the real repo.
+String? repoFromRemote(String? remote) {
+  final url = remote?.trim() ?? '';
+  if (url.startsWith('/') || url.startsWith('.')) return null; // a path
+  final parts = url.split(RegExp('[/:]')).where((s) => s.isNotEmpty).toList();
+  if (parts.length < 2) return null;
+  var name = parts.last;
+  if (name.endsWith('.git')) name = name.substring(0, name.length - 4);
+  final owner = parts[parts.length - 2];
+  final ok = RegExp(r'^[A-Za-z0-9_.-]+$');
+  if (!ok.hasMatch(owner) || !ok.hasMatch(name)) return null;
+  return '$owner/$name';
+}
+
+/// The todoImplementer task's title (its first line).
+String finishTodoTitle(String game, String repo) =>
+    'Apply $game research to ${repo.split('/').last}';
 
 /// The merge prompt. Paths only: Opus reads the files with its Read tool.
 String buildFinishPrompt({
   required String game,
+  required String target,
   required String template,
   required List<StampedPath> drafts,
   required List<StampedPath> markers,
@@ -50,7 +98,7 @@ ${drafts.map((d) => '  - ${d.stamp}: ${d.path}').join('\n')}
   note), where his own notes are:
 ${markers.map((m) => '  - ${m.stamp}: ${m.path}').join('\n')}
 
-Write two English documents.
+Write two English documents, then a task and a check.
 
 1. MERGED ANSWERS: the template filled in once. Keep every heading and
    question id; do NOT copy the "Why we ask:" lines (they stay in the
@@ -67,6 +115,16 @@ Write two English documents.
    What cleanup-plate should copy; What cleanup-plate should avoid; Open
    questions (the questions still open or partial, one line each).
 
+3. TASK: the body of one todo task for an implementer agent who works in
+   the target repo ($target) and has not read the report: the do and avoid
+   list for that repo from the report, each item with its evidence (session
+   stamp and mm:ss, or frame file). Plain text, no title line.
+
+4. CHECK: exactly one shell command line that verifies the change in the
+   target repo ($target). Read the target repo's CLAUDE.md and README.md
+   first and use the test command they name (for example a Godot test run);
+   do not invent a command.
+
 Each file stays at 250 lines or fewer (the target repo's commit gate): keep
 evidence short rather than dropping a question.
 
@@ -75,5 +133,9 @@ $kMergedMarker
 <the merged markdown>
 $kReportMarker
 <the report markdown>
+$kTaskMarker
+<the task body>
+$kCheckMarker
+<the one-line check command>
 $kEndMarker
 ''';

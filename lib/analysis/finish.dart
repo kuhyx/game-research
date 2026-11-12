@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:game_research/analysis/finish_sessions.dart';
+import 'package:game_research/analysis/finish_todo.dart';
 import 'package:game_research/analysis/job.dart';
 import 'package:game_research/analysis/line_cap.dart';
 import 'package:game_research/analysis/tiers.dart';
@@ -92,6 +93,16 @@ class FinishRunner {
       status: status,
       ownerPid: ownerPid,
       body: (stage) async {
+        // Their drafts feed this job: queue behind them (the lock is free
+        // again by then, so they run; the drain or the timer comes back).
+        final pending = pendingSessions(config.dataDir, slug);
+        if (pending.isNotEmpty) {
+          throw WaitingError(
+            'queued behind the analysis of ${pending.join(', ')}',
+            // Due again at once: the drain tries it after the sessions.
+            retryAfterS: 0,
+          );
+        }
         if (sessions.isEmpty) throw StateError('no analysed session of $slug');
         final stamps = [for (final s in sessions) s.stamp];
         var state = _read();
@@ -115,8 +126,19 @@ class FinishRunner {
         ).waitClear(recordingPoll);
         final last = sessions.last;
         state['sessions'] = stamps;
+        // Before any Opus spend: no repo slug, no task, fail closed.
+        final repo = await targetRepo(sys, last.target);
         if (state['merged'] == null) await _merge(state, sessions, last);
-        state['todo'] ??= await _todo(last);
+        state['todo'] ??= await createFinishTodo(
+          config: config,
+          sys: sys,
+          repo: repo,
+          game: last.game,
+          body: '${state['task']}',
+          check: '${state['done_check']}',
+          report: '${state['report']}',
+          merged: '${state['merged']}',
+        );
         state['state'] = 'done';
         state['finished_unix'] = sys.nowUnix();
         _write(state);
@@ -160,6 +182,7 @@ class FinishRunner {
     }
     final prompt = buildFinishPrompt(
       game: last.game,
+      target: last.target,
       template: template,
       drafts: [for (final s in sessions) (stamp: s.stamp, path: s.draft)],
       markers: [
@@ -175,11 +198,17 @@ class FinishRunner {
     final docs = await parseWithinCap(
       raw: raw.text,
       parse: (r) => parseFinish(r, template: templateText),
-      docs: (d) => {'merged answers': d.merged, 'report': d.report},
+      docs: (d) => {
+        'merged answers': d.merged,
+        'report': d.report,
+        'task': d.task,
+      },
       longFile: File(p.join(_dir, 'finish_long.txt')),
       format:
           '$kMergedMarker\n<the shortened merged markdown>\n'
-          '$kReportMarker\n<the shortened report markdown>\n$kEndMarker',
+          '$kReportMarker\n<the shortened report markdown>\n'
+          '$kTaskMarker\n<the task body, shortened if over>\n'
+          '$kCheckMarker\n<the same one-line check command>\n$kEndMarker',
       shorten: (q) async {
         final file = File(p.join(_dir, 'finish_shorten_prompt.txt'))
           ..writeAsStringSync(q);
@@ -195,42 +224,9 @@ class FinishRunner {
     state
       ..['merged'] = merged
       ..['report'] = report
+      ..['task'] = docs.task
+      ..['done_check'] = docs.check
       ..['model'] = raw.model;
     _write(state);
-  }
-
-  Future<String> _todo(FinishSession last) async {
-    final remote = await sys.run('git', [
-      '-C',
-      last.target,
-      'remote',
-      'get-url',
-      'origin',
-    ]);
-    final repo = repoSlugFromRemote(
-      remote.exitCode == 0 ? '${remote.stdout}' : null,
-      p.basename(last.target),
-    );
-    final cmd = config.todoCmd;
-    final text =
-        '${finishTodoTitle(last.game)}\n\nReport (uncommitted):\n'
-        '- ${reportPath(last.target, slug)}\n'
-        '- ${mergedPath(last.target, slug)}';
-    final r = await sys.run(cmd.first, [
-      ...cmd.skip(1),
-      '--repo',
-      repo,
-      '--new-note',
-      '--by',
-      'claude',
-      '--done-check',
-      finishDoneCheck(slug),
-      '--text',
-      text,
-    ], workingDirectory: p.join(config.home, 'src', 'todo'));
-    if (r.exitCode != 0) {
-      throw StateError('todo task failed (${r.exitCode}): ${r.stderr}');
-    }
-    return '${r.stdout}'.trim();
   }
 }

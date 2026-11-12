@@ -5,6 +5,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:game_research/core/finish_doc.dart';
 import 'package:game_research/core/markers.dart';
 import 'package:game_research/core/synthesis.dart';
 import 'package:path/path.dart' as p;
@@ -36,6 +37,16 @@ const kDraft = '''
 
 /// A well-formed synthesis answer.
 const kAnswer = '$kDocMarker\n$kDraft$kEndMarker\n';
+
+/// A well-formed finish answer: merged answers, report, task body, check.
+String finishAnswer({
+  String merged = kDraft,
+  String report = '# Report\nok\n',
+  String task = 'Copy the tidy-up loop.\nAvoid the menu maze.',
+  String check = 'make test',
+}) =>
+    '$kMergedMarker\n$merged$kReportMarker\n$report$kTaskMarker\n$task\n'
+    '$kCheckMarker\n$check\n$kEndMarker\n';
 
 /// An ffmpeg log with one scene cut at 15 s and one 3 s still stretch.
 const kScenesLog = '''

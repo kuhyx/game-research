@@ -130,8 +130,12 @@ class ResumeAll {
       for (final g in slugs) {
         final slug = p.basename(g.path);
         final status = File(p.join(g.path, 'status.json'));
-        // A finish job starts only when kuhy asks: no status, no resume.
-        if (!status.existsSync()) continue;
+        // A finish job starts only when kuhy asks: a status, or his queued
+        // request (`finish.json` state `queued`, written before any launch).
+        final queued =
+            readJsonObject(File(p.join(g.path, 'finish.json')))?['state'] ==
+            'queued';
+        if (!status.existsSync() && !queued) continue;
         out.add(
           _Candidate(
             'finish:$slug',

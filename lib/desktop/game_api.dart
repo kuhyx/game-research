@@ -44,8 +44,6 @@ class GameApi {
   /// Per-game finish state.
   final GameStore games;
 
-  final _launched = <String, DateTime>{};
-
   /// `/api/games`: each game, its slug, art flag and finish state.
   List<Map<String, Object?>> gamesJson() => [
     for (final g in library.games())
@@ -89,27 +87,31 @@ class GameApi {
     }
   }
 
-  /// `POST /api/games/<appid>/finish`: merge the game's session drafts.
+  /// `POST /api/games/<appid>/finish`: always records the request first
+  /// (`finish.json`, state `queued`), then starts the job unless it already
+  /// runs. The job waits behind the game's session analyses and the machine
+  /// lock itself; a launch that fails leaves the request for the resume
+  /// timer. Never refuses a known game.
   Future<ApiReply> finish(int appid) async {
     final game = library.find(appid);
     if (game == null) return _err(HttpStatus.notFound, 'no such game');
     final slug = slugify(game.name);
-    final drafts = controller.parts.store.list().where(
-      (s) => s['appid'] == appid && s['draft'] != null,
-    );
-    if (drafts.isEmpty) return _err(HttpStatus.conflict, 'no drafts yet');
-    final state = games.finish(slug)?['state'];
-    final recent = _launched[slug];
-    final justLaunched =
-        recent != null &&
-        DateTime.now().difference(recent) < const Duration(seconds: 20);
-    if (state == 'running' || state == 'waiting' || justLaunched) {
-      return _err(HttpStatus.conflict, 'already running');
-    }
-    if (!await controller.parts.analysis.launchFinish(slug)) {
-      return _err(HttpStatus.serviceUnavailable, 'could not start');
-    }
-    _launched[slug] = DateTime.now();
-    return ApiReply(HttpStatus.accepted, {'ok': true, 'slug': slug});
+    final now = controller.parts.sys.nowUnix();
+    final running = games.finish(slug)?['state'] == 'running';
+    games.request(slug, appid, now);
+    final started =
+        !running && await controller.parts.analysis.launchFinish(slug);
+    controller.parts.log.event('finish_request', {
+      'appid': appid,
+      'slug': slug,
+      'started': started,
+      'running': running,
+    });
+    return ApiReply(HttpStatus.accepted, {
+      'ok': true,
+      'slug': slug,
+      'queued': true,
+      'started': started,
+    });
   }
 }

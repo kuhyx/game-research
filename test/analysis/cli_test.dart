@@ -52,7 +52,7 @@ void main() {
           case 'faketodo':
             return ok('task-1');
         }
-        return bad('no remote', 2);
+        return ok('git@github.com:kuhyx/cleanup-plate.git\n');
       };
   });
 
@@ -86,9 +86,11 @@ void main() {
 
   test('--finish runs the finish job of the game', () async {
     expect(await run([fx.session.path]), 0);
-    fake.onRun = (c) => c.exe == '/fake/llm'
-        ? ok('@@@MERGED\n$kDraft@@@REPORT\n# R\n@@@END\n')
-        : ok('t-1');
+    fake.onRun = (c) => switch (c.exe) {
+      '/fake/llm' => ok(finishAnswer()),
+      'git' => ok('git@github.com:kuhyx/cleanup-plate.git\n'),
+      _ => ok('t-1'),
+    };
     expect(await run(['--finish', 'alpha']), 0);
     final finish = jsonDecode(
       File(p.join(data, 'games', 'alpha', 'finish.json')).readAsStringSync(),

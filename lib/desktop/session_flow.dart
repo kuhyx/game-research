@@ -10,8 +10,10 @@ library;
 
 import 'dart:async';
 
+import 'package:game_research/core/slug.dart';
 import 'package:game_research/core/steam.dart';
 import 'package:game_research/core/xrandr.dart';
+import 'package:game_research/desktop/game_store.dart';
 import 'package:game_research/desktop/recorder.dart';
 import 'package:game_research/desktop/session_controller.dart';
 import 'package:game_research/desktop/session_parts.dart';
@@ -90,11 +92,25 @@ class SessionFlow {
     };
   }
 
+  /// Whether the last [arm] refused because the game's research is finished
+  /// (nothing is wrong: the wrapper answers 200, not 409).
+  bool skippedFinished = false;
+
   /// Arms the autostart of [appid] (default [lastAppid]); false when a
-  /// session is pending or recording.
+  /// session is pending or recording, or when the game's research was
+  /// flagged finished (`autostart_skip` in the log; starting it by hand
+  /// from the picker still works).
   bool arm({int? appid}) {
+    skippedFinished = false;
     if (_pending || controller.recording) return false;
     final id = appid ?? lastAppid();
+    final game = library.find(id);
+    if (game != null &&
+        GameStore(_parts.config).requested(slugify(game.name))) {
+      skippedFinished = true;
+      _parts.log.event('autostart_skip', {'appid': id, 'reason': 'finished'});
+      return false;
+    }
     final secs = _parts.config.autostartS;
     _phase = Phase.armed;
     _appid = id;

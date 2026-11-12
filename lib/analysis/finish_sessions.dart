@@ -61,3 +61,35 @@ List<FinishSession> analysedSessions(String dataDir, String slug) {
   }
   return byDraft.values.toList()..sort((a, b) => a.dir.compareTo(b.dir));
 }
+
+/// Session folders of [slug] whose analysis is not over yet: running,
+/// waiting, interrupted, idle, or never started (a stopped recording with no
+/// status and no draft). `done` and `failed` are over; a session still
+/// recording or one that failed to start has nothing to analyse. The finish
+/// job queues behind these because their drafts feed it.
+List<String> pendingSessions(String dataDir, String slug) {
+  final root = Directory(dataDir);
+  if (!root.existsSync()) return const [];
+  final out = <String>[];
+  final dirs = root.listSync().whereType<Directory>().toList()
+    ..sort((a, b) => a.path.compareTo(b.path));
+  for (final d in dirs) {
+    final m = readJsonObject(File(p.join(d.path, 'session.json')));
+    if (m == null || m['slug'] != slug || m['duration_s'] == null) continue;
+    final status = readJsonObject(
+      File(p.join(d.path, 'analysis', 'status.json')),
+    );
+    final state = status?['state'];
+    final bool pending;
+    if (status != null) {
+      pending = state != 'done' && state != 'failed';
+    } else {
+      pending =
+          !m.containsKey('error') &&
+          File(p.join(d.path, 'recording.mkv')).existsSync() &&
+          !File(p.join(d.path, 'analysis', 'stage3.json')).existsSync();
+    }
+    if (pending) out.add(p.basename(d.path));
+  }
+  return out;
+}
