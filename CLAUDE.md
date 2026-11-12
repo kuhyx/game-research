@@ -33,6 +33,7 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
 - Text-free UI (textgate): icons, colours, numbers; accessibility labels live
   on lines containing `semantic` (`final semanticLabel = ...`).
   One exception (kuhy, 2026-11-11: "put them as text I allow it in this case"): each control's global hotkey as a key legend (`Super+F1`) from `kHotkeys`, `lib/app/shortcut_label.dart`.
+  Second exception (kuhy, 2026-11-12: "in this case I want one word text"): one word under each session-row stat (tokens, cost, scan, captions, draft), all in `kStatWords`, `lib/app/stat_words.dart`.
 - No LLM adjudicates anything: tier skips, stage results and the synthesis
   JSON are checked by code; a missing caption or a malformed draft fails the
   stage (fail closed).

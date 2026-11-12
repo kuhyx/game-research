@@ -31,7 +31,7 @@ void main() {
     expect(ring(t).value, closeTo(0.079, 1e-9));
     expect(find.text('237/1000'), findsNothing);
     expect(label('items'), findsNothing);
-    expect(label('stage'), findsOneWidget);
+    expect(label('scan'), findsOneWidget);
     expect(find.text('2'), findsOneWidget, reason: 'minutes left');
     await endHome(t);
   });
@@ -97,7 +97,7 @@ void main() {
     await pumpHome(t, w);
     expect(ring(t).value, closeTo(0.43, 1e-9));
     expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
-    expect(find.text('1 000'), findsOneWidget, reason: 'token total');
+    expect(find.text('1k'), findsOneWidget, reason: 'token total');
     expect(label('items'), findsNothing);
     expect(label('analysis interrupted'), findsOneWidget);
     await endHome(t);

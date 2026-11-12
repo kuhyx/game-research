@@ -56,13 +56,6 @@ void main() {
     });
   });
 
-  test('grouped writes digits with spaces, no letters', () {
-    expect(grouped(0), '0');
-    expect(grouped(999), '999');
-    expect(grouped(1234), '1 234');
-    expect(grouped(1234567), '1 234 567');
-  });
-
   test('SessionRow reads the job, fps and keeps the old getters', () {
     final row = SessionRow.fromJson(const {
       'id': 's',

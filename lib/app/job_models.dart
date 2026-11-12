@@ -109,14 +109,3 @@ class JobStatus {
     return e == null || e <= 0 ? null : (e / 60).ceil();
   }
 }
-
-/// [n] with a space between thousands: digits only, no unit letters.
-String grouped(int n) {
-  final digits = '$n';
-  final out = StringBuffer();
-  for (var i = 0; i < digits.length; i++) {
-    if (i > 0 && (digits.length - i) % 3 == 0) out.write(' ');
-    out.write(digits[i]);
-  }
-  return '$out';
-}

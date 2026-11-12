@@ -100,7 +100,11 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final state = await _api.state();
       final sessions = await _api.sessions();
-      final finishes = await _finishes(); // null: an older wrapper
+      // null: an older wrapper without /api/finish
+      final finishes = await _api.finishes().then<Map<int, Finish>?>(
+        (m) => m,
+        onError: (Object _) => null,
+      );
       if (!mounted) return;
       final ended = _state.recording && !state.recording;
       // A game or Steam window opened or closed over this one.
@@ -118,14 +122,6 @@ class _HomeScreenState extends State<HomeScreen> {
       if (ended) unawaited(_loadAll());
     } on Exception {
       if (mounted) setState(() => _offline = true);
-    }
-  }
-
-  Future<Map<int, Finish>?> _finishes() async {
-    try {
-      return await _api.finishes();
-    } on ApiError {
-      return null;
     }
   }
 
@@ -171,6 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
               api: _api,
               guard: _guard,
               sessions: _sessions,
+              games: _games,
               act: _act,
               builder: (actions) => Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -239,6 +236,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   capsuleUrl: _api.capsuleUrl,
                   onRerun: actions.rerun,
                   onOpenDraft: actions.openDraft,
+                  reportReady: actions.reportReady,
+                  onOpenReport: actions.openReport,
                 ),
               ),
             ],

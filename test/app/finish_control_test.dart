@@ -37,15 +37,6 @@ void main() {
       await endHome(t);
     });
 
-    testWidgets('no draft yet: the control does nothing', (t) async {
-      final w = wrapper(null, draft: false);
-      await pumpHome(t, w);
-      await t.tap(label('finished 1'));
-      await t.pump();
-      expect(w.calls.where((c) => c.startsWith('POST /api/games')), isEmpty);
-      await endHome(t);
-    });
-
     testWidgets('running: a ring with progress; tap does not restart', (
       t,
     ) async {
@@ -58,7 +49,7 @@ void main() {
       });
       await pumpHome(t, w);
       expect(find.byType(CircularProgressIndicator), findsWidgets);
-      expect(find.text('2 000'), findsOneWidget);
+      expect(find.text('2k'), findsOneWidget);
       expect(find.text('1.50'), findsOneWidget);
       expect(find.text('10'), findsOneWidget);
       await t.tap(label('finished 1'));

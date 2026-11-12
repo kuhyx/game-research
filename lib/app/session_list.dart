@@ -18,6 +18,8 @@ class SessionList extends StatelessWidget {
     required this.capsuleUrl,
     required this.onRerun,
     required this.onOpenDraft,
+    this.reportReady = const {},
+    this.onOpenReport,
     super.key,
   });
 
@@ -33,6 +35,12 @@ class SessionList extends StatelessWidget {
   /// Open draft pressed for a session id.
   final ValueChanged<String> onOpenDraft;
 
+  /// App ids whose game report is finished and can be opened.
+  final Set<int> reportReady;
+
+  /// Report pressed on a row of app id.
+  final ValueChanged<int>? onOpenReport;
+
   @override
   Widget build(BuildContext context) => ListView.separated(
     itemCount: sessions.length,
@@ -42,6 +50,9 @@ class SessionList extends StatelessWidget {
       capsuleUrl: capsuleUrl,
       onRerun: onRerun,
       onOpenDraft: onOpenDraft,
+      onOpenReport: reportReady.contains(sessions[i].appid)
+          ? onOpenReport
+          : null,
     ),
   );
 }
@@ -59,12 +70,14 @@ class _Row extends StatelessWidget {
     required this.capsuleUrl,
     required this.onRerun,
     required this.onOpenDraft,
+    required this.onOpenReport,
   });
 
   final SessionRow row;
   final String Function(int) capsuleUrl;
   final ValueChanged<String> onRerun;
   final ValueChanged<String> onOpenDraft;
+  final ValueChanged<int>? onOpenReport;
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +91,7 @@ class _Row extends StatelessWidget {
     final rerunSemantic = 'rerun ${row.id}';
     final draftSemantic = 'draft ${row.id}';
     final ringSemantic = 'analysis ${row.state}';
+    final reportSemantic = 'report ${row.id}';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.sm),
@@ -123,7 +137,7 @@ class _Row extends StatelessWidget {
                         ),
                     ],
                   ),
-                  StatChips(job: row.job, fpsAvg: row.fpsAvg),
+                  StatChips(job: row.job, fpsAvg: row.fpsAvg, words: true),
                 ],
               ),
             ),
@@ -180,6 +194,16 @@ class _Row extends StatelessWidget {
               ),
               iconSize: 32,
             ),
+            if (onOpenReport != null)
+              IconButton(
+                onPressed: () => onOpenReport!(row.appid),
+                icon: Icon(
+                  Icons.summarize_rounded,
+                  color: AppPalette.success,
+                  semanticLabel: reportSemantic,
+                ),
+                iconSize: 32,
+              ),
           ],
         ),
       ),

@@ -19,6 +19,8 @@ class PanelActions {
     required this.openDraft,
     required this.rerun,
     required this.finish,
+    required this.openReport,
+    required this.reportReady,
   });
 
   /// Opens the draft of session id.
@@ -27,8 +29,14 @@ class PanelActions {
   /// Reruns the analysis of session id.
   final ValueChanged<String> rerun;
 
-  /// The flag of a game tile: open its report, or merge its drafts.
+  /// The flag of a game tile: open its report, or queue the finish job.
   final ValueChanged<Game> finish;
+
+  /// Opens the finished report of app id (a session row's button).
+  final ValueChanged<int> openReport;
+
+  /// App ids whose finished report can be opened.
+  final Set<int> reportReady;
 }
 
 /// The host.
@@ -38,6 +46,7 @@ class PanelHost extends StatefulWidget {
     required this.api,
     required this.guard,
     required this.sessions,
+    required this.games,
     required this.act,
     required this.builder,
     super.key,
@@ -51,6 +60,9 @@ class PanelHost extends StatefulWidget {
 
   /// Past sessions (draft paths, which games have drafts).
   final List<SessionRow> sessions;
+
+  /// Installed games with their finish state.
+  final List<Game> games;
 
   /// Runs a call and refreshes the screen afterwards.
   final Future<void> Function(Future<void> Function()) act;
@@ -77,17 +89,29 @@ class _PanelHostState extends State<PanelHost> {
     () => unawaited(widget.act(() => widget.api.analyze(id))),
   );
 
-  void _finish(Game g) => widget.guard.run(() {
-    final f = g.finish;
-    if (f != null && f.state == 'done' && f.report != null) {
-      setState(() => _panel = (path: f.report!, finishAppid: g.appid));
-    } else if (!(f?.job.active ?? false) && _hasDraft(g.appid)) {
-      unawaited(widget.act(() => widget.api.finish(g.appid)));
-    }
+  /// The report of a finished game, behind the tap guard (a stray click
+  /// must not open a panel).
+  bool _canOpen(Game g) =>
+      g.finish?.state == 'done' && g.finish?.report != null;
+
+  void _openReport(Game g) => widget.guard.run(() {
+    setState(() => _panel = (path: g.finish!.report!, finishAppid: g.appid));
   });
 
-  bool _hasDraft(int appid) =>
-      widget.sessions.any((r) => r.appid == appid && r.draft != null);
+  /// Done: open the report. Otherwise always send the request (the wrapper
+  /// records it durably and queues the job); not behind the guard: queuing
+  /// is harmless, and a click eaten there once lost kuhy's request. A job
+  /// that already works or waits needs no second request.
+  void _finish(Game g) {
+    if (_canOpen(g)) return _openReport(g);
+    if (g.finish?.job.active ?? false) return;
+    unawaited(widget.act(() => widget.api.finish(g.appid)));
+  }
+
+  void _report(int appid) {
+    final g = widget.games.where((g) => g.appid == appid).firstOrNull;
+    if (g != null && _canOpen(g)) _openReport(g);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +119,16 @@ class _PanelHostState extends State<PanelHost> {
     return Stack(
       children: [
         widget.builder(
-          PanelActions(openDraft: _openDraft, rerun: _rerun, finish: _finish),
+          PanelActions(
+            openDraft: _openDraft,
+            rerun: _rerun,
+            finish: _finish,
+            openReport: _report,
+            reportReady: {
+              for (final g in widget.games)
+                if (_canOpen(g)) g.appid,
+            },
+          ),
         ),
         if (panel != null)
           Positioned.fill(

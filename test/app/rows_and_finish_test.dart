@@ -32,7 +32,7 @@ void main() {
         }),
       ];
     await pumpHome(t, w);
-    expect(find.text('1 234'), findsOneWidget, reason: 'token total');
+    expect(find.text('1.2k'), findsOneWidget, reason: 'token total');
     expect(find.text('0.40'), findsOneWidget, reason: 'cost');
     expect(find.text('5/40'), findsOneWidget, reason: 'done/total');
     expect(find.text('3'), findsOneWidget, reason: 'minutes left');
