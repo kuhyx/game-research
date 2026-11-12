@@ -29,7 +29,9 @@ void main() {
 
   setUp(() {
     fx = Fixture();
-    fake = FakeSys()..onRun = ffmpegFake;
+    fake = FakeSys()
+      ..onRun = ffmpegFake
+      ..onStart = ffmpegStart;
     stage = Stage1(fx.session.path, fake.sys, stillS: 2);
   });
 

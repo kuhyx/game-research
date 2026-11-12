@@ -1,15 +1,20 @@
 /// Which frames stage 1 extracts, and which of those stage 3 shows Opus.
 ///
 /// Stage 1: every marker gets a frame; scene cuts get one at most every
-/// [kSceneGapS] seconds, and the first frame of the recording always counts
-/// as a scene. Stage 3: at most [kSynthesisFramesPerHour] frames per session
-/// hour, rounded up and never below one, marker frames first.
+/// [kSceneGapS] seconds. The recording opens on a black lead-in, so the first
+/// scene frame is taken at [kLeadInS] and no scene frame earlier. Stage 3: at
+/// most [kSynthesisFramesPerHour] frames per session hour, rounded up and
+/// never below one, marker frames first. Stage 2 captions only those.
 library;
 
 import 'package:game_research/core/markers.dart';
 
 /// Minimum spacing of scene frames, seconds.
 const kSceneGapS = 10.0;
+
+/// The black start-up of a recording: no scene frame before this second
+/// (a marker frame may be earlier).
+const kLeadInS = 2.0;
 
 /// Stage 3's frame budget per hour of recording.
 const kSynthesisFramesPerHour = 60;
@@ -73,14 +78,20 @@ List<SampleFrame> sampleFrames({
   double minGapS = kSceneGapS,
 }) {
   final picks = <(double, FrameKind, MarkerTag?)>[];
+  final lastFrame = durationS > 0.1 ? durationS - 0.1 : 0.0;
+  // The first scene frame sits just after the lead-in (or at the very end of
+  // a recording shorter than that).
+  final first = kLeadInS <= lastFrame ? kLeadInS : lastFrame;
   double? last;
-  for (final t in {0.0, ...scenes}.toList()..sort()) {
+  for (final t in {
+    first,
+    ...scenes.where((t) => t >= kLeadInS),
+  }.toList()..sort()) {
     if (t > durationS) continue;
     if (last != null && t - last < minGapS) continue;
     picks.add((t, FrameKind.scene, null));
     last = t;
   }
-  final lastFrame = durationS > 0.1 ? durationS - 0.1 : 0.0;
   for (final m in markers) {
     final t = m.offsetS > lastFrame ? lastFrame : m.offsetS;
     picks.add((t, FrameKind.marker, m.tag));

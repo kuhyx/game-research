@@ -14,9 +14,28 @@ import 'fakes.dart';
 /// A caption a tier can answer with.
 const kCaptionJson = '{"screen":"menu","action":"waiting","prompt":""}';
 
+/// The questions template of the fixture target (two questions).
+const kTemplate = '''
+# Research questions: {{GAME}}
+### Q1.1 First?
+- **Answer:** _(pending)_
+### Q1.2 Second?
+- **Answer:** _(pending)_
+''';
+
+/// A draft that answers [kTemplate].
+const kDraft = '''
+# Research questions: Alpha
+### Q1.1 First?
+- **Answer:** a
+- **Status:** answered
+### Q1.2 Second?
+- **Answer:** b
+- **Status:** open
+''';
+
 /// A well-formed synthesis answer.
-const kAnswer =
-    '$kEnMarker\n# English\nbody\n$kPlMarker\n# Polski\ntresc\n$kEndMarker\n';
+const kAnswer = '$kDocMarker\n$kDraft$kEndMarker\n';
 
 /// An ffmpeg log with one scene cut at 15 s and one 3 s still stretch.
 const kScenesLog = '''
@@ -25,8 +44,8 @@ const kScenesLog = '''
 [freezedetect @ 0x56] lavfi.freezedetect.freeze_end: 6.5
 ''';
 
-/// Plays ffmpeg: the detect pass (`-f null -`) logs [log] on stderr, every
-/// other call writes its output file (a `%03d` pattern becomes `001`).
+/// Plays ffmpeg's `run` calls: every one writes its output file (a `%03d`
+/// pattern becomes `001`). The detect pass goes through [ffmpegStart].
 ProcessResult? ffmpegFake(Call c, {String log = kScenesLog}) {
   if (c.exe != 'ffmpeg') return null;
   final out = c.args.last;
@@ -37,6 +56,26 @@ ProcessResult? ffmpegFake(Call c, {String log = kScenesLog}) {
   return null;
 }
 
+/// ffmpeg's `-progress` output for a decode that is 25 % and then 100 % done
+/// of a 40 s recording (times are absolute: `-copyts`).
+const kProgress = '''
+out_time_us=10000000
+progress=continue
+out_time_us=40000000
+progress=end
+''';
+
+/// Plays the detect pass, which runs through `start` so its progress can be
+/// read while it works: [progress] on stdout, [log] on stderr.
+FakeProcess? ffmpegStart(
+  Call c, {
+  String log = kScenesLog,
+  String progress = kProgress,
+  int exit = 0,
+}) => c.exe == 'ffmpeg'
+    ? FakeProcess(exit: exit, stdoutText: progress, stderrText: log)
+    : null;
+
 /// A session folder with a target repo that has the questions templates.
 class Fixture {
   /// Builds it under a fresh temp dir; [duration] null leaves it out.
@@ -44,14 +83,12 @@ class Fixture {
     root = tempDir();
     target = Directory(p.join(root.path, 'src', 'cleanup-plate'))
       ..createSync(recursive: true);
-    session = Directory(p.join(root.path, 'data', '2026-alpha'))
+    session = Directory(p.join(root.path, 'data', '20261112-090025-alpha'))
       ..createSync(recursive: true);
     if (templates) {
-      final t = templatePaths(target.path);
-      File(t.en)
+      File(templatePath(target.path))
         ..parent.createSync(recursive: true)
-        ..writeAsStringSync('# Q\n');
-      File(t.pl).writeAsStringSync('# P\n');
+        ..writeAsStringSync(kTemplate);
     }
     meta = {
       'game': 'Alpha',

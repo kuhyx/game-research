@@ -14,16 +14,34 @@ void main() {
         durationS: 40,
       );
       final scenes = frames.where((f) => f.kind == FrameKind.scene);
-      expect(scenes.map((f) => f.t), [0, 10.5, 30]);
+      expect(scenes.map((f) => f.t), [2, 12, 30]);
       final marks = frames.where((f) => f.kind == FrameKind.marker);
       expect(marks.map((f) => f.t), [4, 4.2]);
       expect(marks.first.tag, MarkerTag.good);
     });
 
-    test('always has a first frame even with no scene cut', () {
-      final frames = sampleFrames(scenes: const [], markers: [], durationS: 5);
-      expect(frames.single.t, 0);
+    test('the black lead-in gets no frame: the first one is at 2 s', () {
+      final frames = sampleFrames(
+        scenes: const [0.3, 1.9],
+        markers: [],
+        durationS: 30,
+      );
+      expect(frames.single.t, kLeadInS);
       expect(frames.single.kind, FrameKind.scene);
+    });
+
+    test('a marker inside the lead-in keeps its frame', () {
+      final frames = sampleFrames(
+        scenes: const [],
+        markers: [_m(0.5)],
+        durationS: 30,
+      );
+      expect(frames.map((f) => f.t), [0.5, kLeadInS]);
+    });
+
+    test('a recording shorter than the lead-in still gets one frame', () {
+      final frames = sampleFrames(scenes: const [], markers: [], durationS: 1);
+      expect(frames.single.t, closeTo(0.9, 1e-9));
     });
 
     test('frames are in time order and named in that order', () {
@@ -32,7 +50,7 @@ void main() {
         markers: [_m(15)],
         durationS: 30,
       );
-      expect(frames.map((f) => f.t), [0, 15, 20]);
+      expect(frames.map((f) => f.t), [2, 15, 20]);
       expect(frames.map((f) => f.file), [
         'f_0001.png',
         'f_0002.png',
@@ -46,17 +64,17 @@ void main() {
         markers: [_m(12)],
         durationS: 10,
       );
-      expect(frames.map((f) => f.t), [0, closeTo(9.9, 1e-9)]);
+      expect(frames.map((f) => f.t), [2, closeTo(9.9, 1e-9)]);
     });
 
     test('a custom gap is honoured', () {
       final frames = sampleFrames(
-        scenes: const [0, 2, 4, 6],
+        scenes: const [2, 4, 6, 8],
         markers: [],
         durationS: 10,
         minGapS: 4,
       );
-      expect(frames.map((f) => f.t), [0, 4]);
+      expect(frames.map((f) => f.t), [2, 6]);
     });
   });
 

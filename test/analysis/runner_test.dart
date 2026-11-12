@@ -15,7 +15,7 @@ void main() {
   late FakeSys fake;
   var llmFails = false;
 
-  AnalysisRunner runner({int? ownerPid}) => AnalysisRunner(
+  AnalysisRunner runner({int? ownerPid, String? proc}) => AnalysisRunner(
     fx.session.path,
     testConfig(
       fx.root,
@@ -23,6 +23,7 @@ void main() {
         'GAME_RESEARCH_FAKE_LLM': '/fake/llm',
         'GAME_RESEARCH_TODO_CMD': 'faketodo',
         'GAME_RESEARCH_STILL_S': '2',
+        'GAME_RESEARCH_PROC': ?proc,
       },
     ),
     fake.sys,
@@ -34,6 +35,7 @@ void main() {
     fx = Fixture(duration: duration, templates: templates);
     llmFails = false;
     fake = FakeSys()
+      ..onStart = ffmpegStart
       ..onRun = (c) {
         switch (c.exe) {
           case 'ffmpeg':
@@ -59,14 +61,37 @@ void main() {
     );
   });
 
-  test('a lock held by a live pid is exit 3 and stays', () async {
+  test('a lock held by a live analyzer is exit 3 and stays', () async {
     final lock = fx.out('lock')
       ..createSync(recursive: true)
-      ..writeAsStringSync('$pid');
-    expect(await runner().run(), 3);
-    expect(lock.readAsStringSync(), '$pid');
+      ..writeAsStringSync('4242');
+    // An analyzer process by its cmdline (a bare live pid proves nothing:
+    // after a reboot it may be any program).
+    final proc = Directory(p.join(fx.root.path, 'proc', '4242'))
+      ..createSync(recursive: true);
+    File(p.join(proc.path, 'cmdline')).writeAsStringSync(
+      '/x/bin/game_research_analyze\u0000${fx.session.path}\u0000',
+    );
+    expect(await runner(proc: p.dirname(proc.path)).run(), 3);
+    expect(lock.readAsStringSync(), '4242');
     expect(fake.calls, isEmpty);
   });
+
+  test(
+    'a stale lock whose pid now runs another program is taken over',
+    () async {
+      // kuhy, 2026-11-12: three jobs died with the 23:10 shutdown and left
+      // lock files; after the reboot those pids may belong to anything.
+      fx.out('lock')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('$pid');
+      expect(
+        await runner().run(),
+        0,
+        reason: 'this test process is no analyzer',
+      );
+    },
+  );
 
   test('a stale or garbled lock is taken over', () async {
     final lock = fx.out('lock')
@@ -75,16 +100,28 @@ void main() {
     expect(await runner(ownerPid: 123).run(), 0);
     lock.writeAsStringSync('not a pid');
     expect(await runner().run(), 0);
-    expect(lock.existsSync(), isFalse, reason: 'released at the end');
+    expect(
+      Link(p.join(fx.root.path, 'data', 'analysis.lock')).existsSync(),
+      isFalse,
+      reason: 'released at the end',
+    );
   });
 
   test('all three stages: exit 0, status done, drafts, no lock', () async {
     expect(await runner().run(), 0);
     expect(fx.status, containsPair('state', 'done'));
     expect(fx.status, containsPair('stage', 3));
-    expect(fx.out('lock').existsSync(), isFalse);
-    expect(fx.out('captions.jsonl').readAsLinesSync(), hasLength(3));
-    expect(File(draftPaths(fx.target.path, 'alpha').en).existsSync(), isTrue);
+    expect(fx.out('captions.jsonl').readAsLinesSync(), hasLength(1));
+    expect(
+      File(
+        draftPath(
+          fx.target.path,
+          'alpha',
+          sessionStamp(p.basename(fx.session.path)),
+        ),
+      ).existsSync(),
+      isTrue,
+    );
   });
 
   test('a rerun resumes: nothing left to do, nothing run', () async {
@@ -116,7 +153,10 @@ void main() {
     expect(fx.status, containsPair('state', 'failed'));
     expect(fx.status, containsPair('stage', 1));
     expect(fx.status['error'], contains('no duration_s'));
-    expect(fx.out('lock').existsSync(), isFalse);
+    expect(
+      Link(p.join(fx.root.path, 'data', 'analysis.lock')).existsSync(),
+      isFalse,
+    );
   });
 
   test('a session without markers still runs', () async {
@@ -125,7 +165,7 @@ void main() {
   });
 
   test('ffmpeg failing fails stage 1', () async {
-    fake.onRun = (_) => bad('corrupt');
+    fake.onStart = (_) => FakeProcess(exit: 1, stderrText: 'corrupt');
     expect(await runner().run(), 1);
     expect(fx.status, containsPair('stage', 1));
     expect(fx.status['error'], contains('corrupt'));

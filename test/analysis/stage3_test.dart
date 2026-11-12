@@ -11,6 +11,8 @@ import 'package:path/path.dart' as p;
 import '../support/analysis_fakes.dart';
 import '../support/fakes.dart';
 
+final String _stamp = sessionStamp('20261112-090025-alpha');
+
 const frames = [
   SampleFrame(t: 0, kind: FrameKind.scene, file: 'f_0001.png'),
   SampleFrame(t: 12, kind: FrameKind.marker, file: 'f_0002.png'),
@@ -63,10 +65,20 @@ void main() {
 
   test('fake model: drafts written, one todo task, state saved', () async {
     final state = await run();
-    final drafts = draftPaths(fx.target.path, 'alpha');
-    expect(File(drafts.en).readAsStringSync(), '# English\nbody\n');
-    expect(File(drafts.pl).readAsStringSync(), '# Polski\ntresc\n');
-    expect(state, containsPair('draft_en', drafts.en));
+    final draft = draftPath(fx.target.path, 'alpha', _stamp);
+    expect(File(draft).readAsStringSync(), kDraft);
+    expect(
+      draft,
+      endsWith('docs/research/games/alpha/DOCS-research-alpha-$_stamp.md'),
+    );
+    expect(state, containsPair('draft', draft));
+    expect(state.containsKey('draft_en'), isFalse);
+    expect(state.containsKey('draft_pl'), isFalse);
+    expect(
+      Directory(p.dirname(draft)).listSync(),
+      hasLength(1),
+      reason: 'no -pl',
+    );
     expect(state, containsPair('model', 'fake:opus'));
     expect(state, containsPair('frames', 1));
     expect(state, containsPair('todo', 'task-17'));
@@ -83,6 +95,11 @@ void main() {
     );
     expect(todo.args, containsAllInOrder(['--new-note', '--by', 'claude']));
     expect(todo.args.last, contains('review Alpha research draft'));
+    expect(todo.args.last, contains('DOCS-research-alpha-$_stamp.md'));
+    expect(
+      todo.args,
+      containsAllInOrder(['--done-check', todoDoneCheck('alpha', _stamp)]),
+    );
     expect(todo.cwd, p.join(fx.root.path, 'src', 'todo'));
     expect(
       jsonDecode(fx.out('stage3.json').readAsStringSync()),
@@ -128,7 +145,7 @@ void main() {
   );
 
   test('missing templates fail before any model call', () async {
-    File(templatePaths(fx.target.path).pl).deleteSync();
+    File(templatePath(fx.target.path)).deleteSync();
     await expectLater(run(), throwsA(isA<StateError>()));
     expect(fake.calls, isEmpty);
   });
@@ -144,7 +161,21 @@ void main() {
     llmExit = 0;
     llmAnswer = '# no markers';
     await expectLater(run(), throwsA(isA<FormatException>()));
-    expect(File(draftPaths(fx.target.path, 'alpha').en).existsSync(), isFalse);
+    llmAnswer = kAnswer.replaceAll('- **Status:** open\n', '');
+    await expectLater(
+      run(),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('Q1.2 has 0 status lines'),
+        ),
+      ),
+    );
+    expect(
+      File(draftPath(fx.target.path, 'alpha', _stamp)).existsSync(),
+      isFalse,
+    );
   });
 
   test(

@@ -4,7 +4,7 @@
 # tick sound, the family icon and the .desktop launcher (StartupWMClass =
 # the Chrome window's --class). Never starts the app.
 #
-# Usage: install.sh [--step deps|build|tick|desktop|bin|hooks|fps]  (default: all
+# Usage: install.sh [--step deps|build|tick|desktop|bin|resume|hooks|fps]  (default: all
 #   but `fps`, which edits the desktop session's environment: run it on purpose)
 #   Each step stays well under a minute except `build` (~40 s).
 # ============================================================================
@@ -18,6 +18,9 @@ readonly APPS_DIR="${SHARE}/applications"
 readonly ICON_DIR="${SHARE}/icons/hicolor"
 readonly TICK="${SHARE}/game-research/tick.wav"
 readonly BIN_DIR="${HOME}/.local/bin"
+# The resume timer's units (the env seams are for the unit test: a scratch
+# folder, and no systemctl).
+readonly UNIT_DIR="${GAME_RESEARCH_UNIT_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user}"
 readonly CAPPED="${HOME}/.claude/scripts/capped.sh"
 readonly DATA="${GAME_RESEARCH_DATA:-${HOME}/data/game-research}"
 readonly ENV_D="${XDG_CONFIG_HOME:-${HOME}/.config}/environment.d/60-game-research-mangohud.conf"
@@ -108,6 +111,21 @@ step_bin() {
 	echo "bin: ${BIN_DIR}/playstudy, ${BIN_DIR}/game-research"
 }
 
+# The systemd user timer that relaunches unfinished analysis jobs (shutdown,
+# crash, usage limit): 2 min after boot, then every 15 min.
+step_resume() {
+	mkdir -p "$UNIT_DIR"
+	sed -e "s|@REPO@|${REPO}|g" -e "s|@HOME@|${HOME}|g" \
+		"${REPO}/tool/systemd/game-research-resume.service.in" \
+		>"${UNIT_DIR}/game-research-resume.service"
+	install -m0644 "${REPO}/tool/systemd/game-research-resume.timer" "$UNIT_DIR/"
+	if [[ -z ${GAME_RESEARCH_NO_SYSTEMCTL:-} ]]; then
+		systemctl --user daemon-reload
+		systemctl --user enable --now game-research-resume.timer
+	fi
+	echo "resume: ${UNIT_DIR}/game-research-resume.timer"
+}
+
 step_hooks() {
 	(cd "$REPO" && pre-commit install --install-hooks >/dev/null)
 	echo "hooks: ok"
@@ -138,12 +156,12 @@ step_fps() {
 
 main() {
 	case "${1:-}" in
-	"") for s in deps build tick desktop hooks; do "step_${s}"; done ;;
+	"") for s in deps build tick desktop resume hooks; do "step_${s}"; done ;;
 	--step)
 		[[ $(type -t "step_${2:-}") == function ]] || die "unknown step '${2:-}'"
 		"step_$2"
 		;;
-	*) die "usage: install.sh [--step deps|build|tick|desktop|bin|hooks|fps]" ;;
+	*) die "usage: install.sh [--step deps|build|tick|desktop|bin|resume|hooks|fps]" ;;
 	esac
 }
 

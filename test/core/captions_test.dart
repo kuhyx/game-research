@@ -15,6 +15,10 @@ class _Tier implements CaptionTier {
     calls++;
     return answer();
   }
+
+  @override
+  Future<TierResult> captionMany(List<String> imagePaths, String prompt) =>
+      caption(imagePaths.first, prompt);
 }
 
 const _good = '{"screen":"a shelf","action":"placing a book","prompt":""}';

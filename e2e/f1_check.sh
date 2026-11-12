@@ -2,7 +2,7 @@
 # F1 check: waits for the analysis job of the newest session, then asserts the
 # MKV (chapters), markers.jsonl offsets (+-0.5 s of the fired input), the
 # flash in the recorded frames, frames, clips, contact sheet, captions (which
-# tier answered), both drafts in the scratch target and the todo call.
+# tier answered), the single draft in the scratch target and the todo call.
 
 # shellcheck source=e2e/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"

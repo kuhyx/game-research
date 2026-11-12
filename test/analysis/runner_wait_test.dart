@@ -37,6 +37,7 @@ void main() {
     flag = RecordingFlag(p.join(fx.root.path, 'data'));
     onLlm = null;
     fake = FakeSys()
+      ..onStart = ffmpegStart
       ..onRun = (c) {
         switch (c.exe) {
           case 'ffmpeg':

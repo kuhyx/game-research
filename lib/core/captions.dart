@@ -8,6 +8,8 @@ library;
 
 import 'dart:convert';
 
+import 'package:game_research/core/usage.dart';
+
 /// What every tier is asked, per frame.
 const kCaptionPrompt =
     'You are looking at one frame of a video game recording. Describe it '
@@ -18,11 +20,16 @@ const kCaptionPrompt =
 
 /// A tier's raw answer.
 class TierResult {
-  /// An answer [text] from [model].
-  const new ok(this.text, this.model) : error = null;
+  /// An answer [text] from [model], costing [usage].
+  const new ok(this.text, this.model, [this.usage = Usage.zero]) : error = null;
 
-  /// A failure, with why.
-  const new fail(String this.error) : text = '', model = null;
+  /// A failure, with why ([usage]: what the failed call still cost).
+  const new fail(String this.error, [this.usage = Usage.zero])
+    : text = '',
+      model = null;
+
+  /// Tokens and cost of the call.
+  final Usage usage;
 
   /// The answer text ('' on failure).
   final String text;
@@ -41,6 +48,10 @@ abstract interface class CaptionTier {
 
   /// Captions the image at [imagePath] with [prompt].
   Future<TierResult> caption(String imagePath, String prompt);
+
+  /// Captions several images in one call: [prompt] asks for one JSON array
+  /// with an object per image (`parseBatch` checks the answer).
+  Future<TierResult> captionMany(List<String> imagePaths, String prompt);
 }
 
 /// A parsed caption.
@@ -95,7 +106,8 @@ Caption? parseCaption(String raw) {
 // A bare "429" only counts as an HTTP status: after error/status/http or at
 // the very start, never as a number inside prose.
 final _rateLimit = RegExp(
-  'rate.?limit|usage limit|too many requests|quota|top.?up|cooling down|'
+  'rate.?limit|usage limit|limit reached|too many requests|quota|top.?up|'
+  'cooling down|'
   r'\b(error|status|http)\s*:?\s*429\b|^\s*429\b',
   caseSensitive: false,
 );
@@ -113,6 +125,7 @@ class CaptionRecord {
     this.model,
     this.caption,
     this.skipped = const [],
+    this.usage = Usage.zero,
   });
 
   /// Reads one decoded line.
@@ -125,6 +138,7 @@ class CaptionRecord {
       model: json['model'] as String?,
       caption: c is Map ? parseCaption(jsonEncode(c)) : null,
       skipped: [...?(json['skipped'] as List?)?.cast<String>()],
+      usage: Usage.fromJson(json['usage']),
     );
   }
 
@@ -146,6 +160,10 @@ class CaptionRecord {
   /// `tier: why` for each tier skipped before the answer.
   final List<String> skipped;
 
+  /// What the calls behind this row cost: a batch's spend sits on the first
+  /// row of the batch only, so the rows sum to the total.
+  final Usage usage;
+
   /// Whether a tier captioned the frame.
   bool get ok => caption != null;
 
@@ -157,6 +175,7 @@ class CaptionRecord {
     'model': model,
     'caption': caption?.toJson(),
     'skipped': skipped,
+    if (!usage.isEmpty) 'usage': usage.toJson(),
   };
 }
 
@@ -192,6 +211,7 @@ Future<CaptionRecord> captionWithFallback(
         model: result.model,
         caption: caption,
         skipped: skipped,
+        usage: result.usage,
       );
     }
   }

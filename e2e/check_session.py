@@ -13,6 +13,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from check_analysis import check_analysis, check_outputs
+from check_common import Checker, ffprobe, jsonl
 from video_pixels import border_pixels
 
 # Flash colours, the same as MarkerTag.flashHex in lib/core/markers.dart.
@@ -20,20 +22,6 @@ FLASH = {"good": "3cb043", "bad": "e2302f", "confusing": "f0c020", "note": "2f6f
 TOLERANCE_S = 0.5
 PIXEL_TOLERANCE = 64
 WINDOW_S = 0.6  # --flash-only: the flash may land this long after the marker
-
-
-def ffprobe(*args: str) -> dict:
-    """Runs ffprobe with JSON output."""
-    done = subprocess.run(
-        ["ffprobe", "-v", "error", "-of", "json", *args],
-        capture_output=True, text=True, check=True, timeout=30,
-    )  # fmt: skip
-    return json.loads(done.stdout)
-
-
-def jsonl(path: Path) -> list[dict]:
-    """Every non-blank line of a JSONL file."""
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
 def pixel(video: Path, t: float, x: int, y: int) -> tuple[int, int, int]:
@@ -52,21 +40,6 @@ def close_to(got: bytes, want: bytes) -> bool:
     return len(got) == len(want) and all(
         abs(a - b) <= PIXEL_TOLERANCE for a, b in zip(got, want, strict=True)
     )
-
-
-class Checker:
-    """Collects failures instead of stopping at the first."""
-
-    def __init__(self) -> None:
-        self.failed = 0
-
-    def check(self, name: str, ok: bool, why: str = "") -> None:
-        """Records one check."""
-        if ok:
-            print(f"ok   {name}")
-        else:
-            self.failed += 1
-            print(f"FAIL {name}: {why}")
 
 
 def check_markers(c: Checker, session: Path, art: Path, expect: int) -> list[dict]:
@@ -131,81 +104,6 @@ def check_flash(
         c.check(f"flash {i} {m['tag']}", close_to(bytes(got), want), f"pixel {got}")
 
 
-def check_analysis(c: Checker, session: Path, expect: int) -> None:
-    """Stage outputs: frames, clips, contact sheet, stills, captions."""
-    a = session / "analysis"
-    status = json.loads((a / "status.json").read_text())
-    c.check("status done", status["state"] == "done", json.dumps(status))
-    frames = json.loads((a / "frames.json").read_text())
-    c.check(
-        "marker frames",
-        sum(f["kind"] == "marker" for f in frames) == expect,
-        "marker frames",
-    )
-    missing = [f["file"] for f in frames if not (a / "frames" / f["file"]).is_file()]
-    c.check("frame files", not missing and len(frames) > expect, f"missing {missing}")
-    width = ffprobe("-show_streams", str(a / "frames" / frames[0]["file"]))["streams"][
-        0
-    ]["width"]
-    c.check("frame width", int(width) <= 1280, f"width {width}")
-    clips = sorted((a / "clips").glob("*.mkv"))
-    c.check("clips", len(clips) == expect, f"{len(clips)} clips")
-    for clip in clips:
-        d = float(
-            ffprobe("-show_entries", "format=duration", str(clip))["format"]["duration"]
-        )
-        c.check(f"clip {clip.name} length", 1.0 <= d <= 11.6, f"{d} s")
-    c.check("contact sheet", any((a / "contact").glob("*.png")), "no contact/*.png")
-    c.check("scenes", (a / "scenes.json").is_file(), "no scenes.json")
-    stills = jsonl(a / "still.jsonl")
-    c.check("still stretch", len(stills) >= 1, "no still span found")
-    captions = jsonl(a / "captions.jsonl")
-    c.check(
-        "captions per frame",
-        len(captions) == len(frames),
-        f"{len(captions)} vs {len(frames)}",
-    )
-    c.check(
-        "caption tier",
-        all(x.get("model") == "fake:omniroute" for x in captions),
-        "model",
-    )
-    c.check(
-        "haiku skipped",
-        all(any(s.startswith("haiku") for s in x["skipped"]) for x in captions),
-        "skipped",
-    )
-
-
-def check_outputs(c: Checker, art: Path, expect: int) -> None:
-    """Drafts in the scratch target, the todo call, ticks."""
-    research = art / "target" / "docs" / "research"
-    for name in ("DOCS-research-dummy-game.md", "DOCS-research-dummy-game-pl.md"):
-        doc = research / name
-        ok = (
-            doc.is_file()
-            and "_(pending)_" not in doc.read_text()
-            and "e2e answer" in doc.read_text()
-        )
-        c.check(f"draft {name}", ok, "missing or unfilled")
-    todo = (art / "todo.log").read_text() if (art / "todo.log").is_file() else ""
-    c.check(
-        "todo task",
-        "review Dummy Game research draft" in todo and "--new-note" in todo,
-        todo[:200],
-    )
-    ticks = (
-        (art / "tick.log").read_text().splitlines()
-        if (art / "tick.log").is_file()
-        else []
-    )
-    c.check("ticks", len(ticks) == expect, f"{len(ticks)} ticks")
-    llm = (art / "llm.log").read_text().splitlines()
-    c.check(
-        "one opus call", sum(line.startswith("opus") for line in llm) == 1, "opus calls"
-    )
-
-
 def main() -> int:
     """Parses arguments and runs the checks."""
     p = argparse.ArgumentParser()
@@ -233,7 +131,7 @@ def main() -> int:
     markers = check_markers(c, args.session, args.art, args.expect_markers)
     check_flash(c, args.session, markers)
     check_analysis(c, args.session, args.expect_markers)
-    check_outputs(c, args.art, args.expect_markers)
+    check_outputs(c, args.session, args.art, args.expect_markers)
     return min(c.failed, 100)
 
 
