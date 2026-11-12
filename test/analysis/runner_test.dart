@@ -15,7 +15,7 @@ void main() {
   late FakeSys fake;
   var llmFails = false;
 
-  AnalysisRunner runner({int? ownerPid}) => AnalysisRunner(
+  AnalysisRunner runner({int? ownerPid, String? proc}) => AnalysisRunner(
     fx.session.path,
     testConfig(
       fx.root,
@@ -23,6 +23,7 @@ void main() {
         'GAME_RESEARCH_FAKE_LLM': '/fake/llm',
         'GAME_RESEARCH_TODO_CMD': 'faketodo',
         'GAME_RESEARCH_STILL_S': '2',
+        'GAME_RESEARCH_PROC': ?proc,
       },
     ),
     fake.sys,
@@ -64,10 +65,34 @@ void main() {
     final lock = fx.out('lock')
       ..createSync(recursive: true)
       ..writeAsStringSync('$pid');
-    expect(await runner().run(), 3);
+    // An analyzer process by its cmdline (a bare live pid proves nothing:
+    // after a reboot it may be any program).
+    final proc = Directory(p.join(fx.root.path, 'proc', '$pid'))
+      ..createSync(recursive: true);
+    File(p.join(proc.path, 'cmdline')).writeAsStringSync(
+      '/x/bin/game_research_analyze\u0000${fx.session.path}\u0000',
+    );
+    final procRoot = p.dirname(proc.path);
+    expect(await runner(proc: procRoot).run(), 3);
     expect(lock.readAsStringSync(), '$pid');
     expect(fake.calls, isEmpty);
   });
+
+  test(
+    'a stale lock whose pid now runs another program is taken over',
+    () async {
+      // kuhy, 2026-11-12: three jobs died with the 23:10 shutdown and left
+      // lock files; after the reboot those pids may belong to anything.
+      fx.out('lock')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('$pid');
+      expect(
+        await runner().run(),
+        0,
+        reason: 'this test process is no analyzer',
+      );
+    },
+  );
 
   test('a stale or garbled lock is taken over', () async {
     final lock = fx.out('lock')

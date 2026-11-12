@@ -85,6 +85,9 @@ void main() {
 
   test('a session lock file of an old job counts while its pid lives', () {
     alive(300, '7000');
+    File(p.join(proc.path, '300', 'cmdline')).writeAsStringSync(
+      '/x/build/analyze/bundle/bin/game_research_analyze\u0000/d/s\u0000',
+    );
     final session = Directory(
       p.join(data.path, '20261112-090025-g', 'analysis'),
     )..createSync(recursive: true);
@@ -96,6 +99,9 @@ void main() {
     expect(l.holder(), isNull, reason: 'dead pid');
     file.writeAsStringSync('junk');
     expect(l.holder(), isNull, reason: 'garbled');
+    alive(400, '8000');
+    file.writeAsStringSync('400');
+    expect(l.holder(), isNull, reason: 'a live pid of another program');
     expect(l.acquire('x'), isTrue);
   });
 

@@ -5,7 +5,7 @@
 /// it exists, so two jobs never both win. The start time (field 22 of
 /// `/proc/<pid>/stat`) tells the owner from an unrelated process that reused
 /// its pid after a reboot. Older analyzer builds wrote `analysis/lock` (a bare
-/// pid) in the session folder; a live one still counts.
+/// pid) in the session folder; one whose pid is a live analyzer still counts.
 library;
 
 import 'dart:io';
@@ -77,6 +77,18 @@ class JobLock {
     return JobHolder(owner, parts[1], parts.skip(2).join(':'));
   }
 
+  /// Whether [ownerPid] is an analyzer process: an old lock has no start
+  /// time, and after a reboot its pid may belong to anything.
+  bool _isAnalyzer(int ownerPid) {
+    try {
+      return File('$procRoot/$ownerPid/cmdline')
+          .readAsStringSync()
+          .contains('game_research_analyze');
+    } on FileSystemException {
+      return false;
+    }
+  }
+
   JobHolder? _legacy() {
     final root = Directory(dataDir);
     if (!root.existsSync()) return null;
@@ -84,7 +96,7 @@ class JobLock {
       final file = File(p.join(d.path, 'analysis', 'lock'));
       if (!file.existsSync()) continue;
       final owner = int.tryParse(file.readAsStringSync().trim());
-      if (owner != null && Directory('$procRoot/$owner').existsSync()) {
+      if (owner != null && _isAnalyzer(owner)) {
         return JobHolder(owner, '', p.basename(d.path));
       }
     }
