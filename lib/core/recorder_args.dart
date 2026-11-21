@@ -122,7 +122,7 @@ List<String> _audio(String audio) {
     throw ArgumentError.value(audio, 'audio', 'only a .monitor source');
   }
   final source = audio == 'default' ? '@DEFAULT_MONITOR@' : audio;
-  return ['-thread_queue_size', '1024', '-f', 'pulse', '-i', source];
+  return ['-f', 'pulse', '-i', source];
 }
 
 /// The recording argv. SIGINT makes ffmpeg finalise the file.
@@ -133,8 +133,7 @@ List<String> ffmpegRecordArgs(RecordSpec s) => [
   'warning',
   '-nostdin',
   '-y',
-  '-thread_queue_size',
-  '1024',
+  // No -thread_queue_size: ffmpeg 9.1 rejects it on an input.
   '-use_wallclock_as_timestamps',
   '1',
   '-itsoffset',

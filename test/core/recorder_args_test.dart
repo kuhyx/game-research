@@ -39,6 +39,17 @@ void main() {
     expect(a.join(' '), isNot(contains('mp3')));
   });
 
+  // ffmpeg 9.1 made -thread_queue_size a muxer (output) option: before an
+  // -i it aborts with "cannot be applied to input url" and nothing records.
+  test('no input option that ffmpeg 9.1 rejects', () {
+    for (final audio in ['default', 'lavfi']) {
+      expect(
+        ffmpegRecordArgs(spec(audio: audio)),
+        isNot(contains('-thread_queue_size')),
+      );
+    }
+  });
+
   test('game audio comes from the default sink monitor, never a mic', () {
     final a = ffmpegRecordArgs(spec());
     expect(a, containsAllInOrder(['-f', 'pulse', '-i', '@DEFAULT_MONITOR@']));
