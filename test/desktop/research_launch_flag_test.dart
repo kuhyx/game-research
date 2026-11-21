@@ -62,6 +62,15 @@ void main() {
     await h.untilStopped();
   });
 
+  test('up while waiting on a game Steam already runs', () async {
+    // Steam's first-run setup (Proton, install scripts) carries the game's
+    // SteamAppId: the enforcer must not kill it, nor the game it hands to.
+    h.gameRuns(librarian);
+    await flow.start(librarian);
+    expect(h.events, contains('already_running'));
+    expect(flag().readAsStringSync(), '$pid');
+  });
+
   test('down on cancel', () async {
     await flow.start(librarian);
     expect(flow.cancel('esc'), isTrue);
