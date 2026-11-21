@@ -42,7 +42,10 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
   enforcer's `research_game` socket op, then `steam://install/<id>`). The
   enforcer keeps it installed and visible while it is listed and spares its
   process only while `<data>/recording.pid` or `<data>/research_launch.pid`
-  (raised before the Steam launch) names this live wrapper.
+  (raised before the Steam launch) names this live wrapper. Test mode keeps the approval file in `<data>`
+  (never kuhy's); E2E fakes: `e2e/fake_steam.sh steam://install/<id>` stages
+  an install (`<art>/install_s`, `install_name`), `e2e/fake_enforcer.py
+  <sock> <log>` answers the socket ops.
 - No LLM adjudicates anything: tier skips, stage results and the synthesis
   JSON are checked by code; a missing caption or a malformed draft fails the
   stage (fail closed).

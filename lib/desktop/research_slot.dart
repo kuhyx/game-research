@@ -35,12 +35,16 @@ class ResearchSlot {
   new(this.config)
     : file = File(
         _env(config, 'APPROVAL') ??
-            p.join(
-              config.home,
-              '.config',
-              'game-research',
-              'research_game.json',
-            ),
+            // Test mode keeps it in the data dir: with the real HOME an E2E
+            // add would overwrite (and roll back) kuhy's live research game.
+            (config.testMode
+                ? p.join(config.dataDir, 'research_game.json')
+                : p.join(
+                    config.home,
+                    '.config',
+                    'game-research',
+                    'research_game.json',
+                  )),
       ),
       enforcerDir =
           _env(config, 'ENFORCER_DIR') ??

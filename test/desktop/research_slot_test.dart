@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/core/research_game.dart';
+import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/research_slot.dart';
 import 'package:path/path.dart' as p;
 
@@ -23,10 +24,17 @@ void main() {
   });
 
   test('defaults: approval file under ~/.config/game-research', () {
+    final env = {'HOME': root.path, 'GAME_RESEARCH_DATA': '${root.path}/d'};
     expect(
-      slot.file.path,
+      ResearchSlot(Config.fromEnv(env, cwd: root.path)).file.path,
       p.join(root.path, '.config', 'game-research', 'research_game.json'),
     );
+  });
+
+  test("test mode never defaults to kuhy's approval file", () {
+    // An E2E add with the real HOME would overwrite, then delete on the
+    // missing socket, kuhy's live research game.
+    expect(slot.file.path, p.join(root.path, 'data', 'research_game.json'));
   });
 
   test('test mode has no enforcer socket unless one is given', () async {

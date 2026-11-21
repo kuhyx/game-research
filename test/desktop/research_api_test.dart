@@ -15,9 +15,7 @@ void main() {
   late ServerHarness s;
   late FakeEnforcer enforcer;
 
-  File approval() => File(
-    p.join(s.h.root.path, '.config', 'game-research', 'research_game.json'),
-  );
+  File approval() => File(p.join(s.h.config.dataDir, 'research_game.json'));
 
   setUp(() async {
     final sockDir = tempDir();
