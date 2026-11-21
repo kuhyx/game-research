@@ -44,6 +44,7 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
 ## Commands (heavy ones through `~/.claude/scripts/capped.sh`)
 
 - `./install.sh [--step deps|build|tick|desktop|hooks]`
+- deploy: `scripts/deploy.sh` (fast-forwards `~/src/game-research`, runs `install.sh` build/tick/desktop/resume, then health-checks the new wrapper `--serve-only` in test mode on :18899: `/api/state`, page, logo; non-zero unless healthy; never restarts a running wrapper; `--check` = health check only)
 - `scripts/test.sh core|desktop|analysis|app|coverage|py`
 - `e2e/run.sh build|up|F1|F1-check|F2|down`, `e2e/screenshot.sh <dir>`
 - `dart run tool/smoke_tier.dart <haiku|omniroute|ollama> <frame.png>`: one
