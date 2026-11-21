@@ -54,7 +54,9 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
 
 - `./install.sh [--step deps|build|tick|desktop|hooks]`
 - deploy: `scripts/deploy.sh` (fast-forwards `~/src/game-research`, runs `install.sh` build/tick/desktop/resume, then health-checks the new wrapper `--serve-only` in test mode on :18899: `/api/state`, page, logo; non-zero unless healthy; never restarts a running wrapper; `--check` = health check only)
-- `scripts/test.sh core|desktop|analysis|app|coverage|py`
+- `scripts/test.sh core|desktop|analysis|app|coverage|py`; inner loop
+  `scripts/test.sh files <test.dart>...` (no coverage, killed at 55 s;
+  temp files in `.dart_tool/tmp`, never `/tmp`)
 - `e2e/run.sh build|up|F1|F1-check|F2|down`, `e2e/screenshot.sh <dir>`
 - `dart run tool/smoke_tier.dart <haiku|omniroute|ollama> <frame.png>`: one
   real caption call (synthetic frames only for OmniRoute: free providers log
