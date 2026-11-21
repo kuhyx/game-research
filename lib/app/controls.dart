@@ -5,13 +5,13 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/app/marker_style.dart';
 import 'package:game_research/app/models.dart';
 import 'package:game_research/app/note_field.dart';
 import 'package:game_research/app/shortcut_label.dart';
 import 'package:game_research/app/start_ring.dart';
 import 'package:game_research/core/hotkeys.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The session controls.
 class Controls extends StatelessWidget {

@@ -1,9 +1,9 @@
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/app/doc_page_view.dart';
 import 'package:game_research/app/reader_toolbar.dart';
 import 'package:game_research/app/report_panel.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'fake_wrapper.dart';
 

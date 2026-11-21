@@ -4,11 +4,11 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/app/game_picker.dart';
 import 'package:game_research/app/marker_style.dart';
 import 'package:game_research/app/models.dart';
 import 'package:game_research/app/stat_chips.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The list.
 class SessionList extends StatelessWidget {

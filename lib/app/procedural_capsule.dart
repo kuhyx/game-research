@@ -2,7 +2,7 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A capsule drawn from the app id: a hue band and a gamepad glyph.
 class ProceduralCapsule extends StatelessWidget {

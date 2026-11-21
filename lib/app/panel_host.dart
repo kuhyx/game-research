@@ -5,12 +5,12 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:game_research/app/api.dart';
 import 'package:game_research/app/models.dart';
 import 'package:game_research/app/notes_panel.dart';
 import 'package:game_research/app/report_panel.dart';
 import 'package:game_research/app/tap_guard.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// What the screen can ask of the host.
 class PanelActions {

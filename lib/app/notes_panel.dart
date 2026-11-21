@@ -7,12 +7,12 @@ library;
 import 'dart:async';
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:game_research/app/api.dart';
 import 'package:game_research/app/doc_style.dart';
 import 'package:game_research/app/notes_card.dart';
 import 'package:game_research/app/notes_models.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The notes of game [appid]; fills the window.
 class NotesPanel extends StatefulWidget {

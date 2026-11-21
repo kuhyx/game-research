@@ -7,7 +7,6 @@ library;
 import 'dart:async';
 
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:game_research/app/api.dart';
 import 'package:game_research/app/doc_blocks.dart';
@@ -16,6 +15,7 @@ import 'package:game_research/app/doc_pager.dart';
 import 'package:game_research/app/doc_style.dart';
 import 'package:game_research/app/reader_body.dart';
 import 'package:game_research/app/reader_toolbar.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The panel for the document at [path]; fills the window.
 class ReportPanel extends StatefulWidget {

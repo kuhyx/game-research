@@ -3,11 +3,11 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/app/finish_button.dart';
 import 'package:game_research/app/models.dart';
 import 'package:game_research/app/procedural_capsule.dart';
 import 'package:game_research/app/stat_chips.dart';
+import 'package:material_ui/material_ui.dart';
 
 export 'package:game_research/app/procedural_capsule.dart';
 

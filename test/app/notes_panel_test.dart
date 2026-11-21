@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/app/marker_style.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'fake_wrapper.dart';
 import 'notes_fixtures.dart';

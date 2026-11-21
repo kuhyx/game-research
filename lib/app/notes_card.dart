@@ -4,12 +4,12 @@
 /// notes kuhy typed himself; no labels.
 library;
 
-import 'package:flutter/material.dart';
 import 'package:game_research/app/api.dart';
 import 'package:game_research/app/copy_icon.dart';
 import 'package:game_research/app/doc_style.dart';
 import 'package:game_research/app/notes_models.dart';
 import 'package:game_research/app/notes_row.dart';
+import 'package:material_ui/material_ui.dart';
 
 const _tabular = [FontFeature.tabularFigures()];
 

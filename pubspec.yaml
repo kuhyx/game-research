@@ -13,16 +13,20 @@ dependencies:
   design_system:
     git:
       url: https://github.com/kuhyx/utils
-      ref: design_system-v0.3.1
+      ref: design_system-v0.5.1
       path: design_system
   flutter:
     sdk: flutter
   # The page talks to the wrapper; the wrapper talks to OmniRoute and ollama.
   http: 1.6.0
+  # Backwards-compat shim for deprecated package:flutter/material.dart.
+  material_ui: 1.11.1
   path: 1.9.1
 
 dev_dependencies:
   flutter_launcher_icons: 0.14.4
+  # Tests check the logo asset key resolves (design_system KLogo).
+  flutter_svg: 2.5.0
   flutter_test:
     sdk: flutter
   very_good_analysis: ^11.0.0

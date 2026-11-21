@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_research/app/game_picker.dart';
 import 'package:game_research/app/home_screen.dart';
 import 'package:game_research/main.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'fake_wrapper.dart';
 
@@ -194,6 +196,18 @@ void main() {
     await t.tap(_label('stop'));
     await t.pump();
     expect(w.calls, contains('POST /api/stop'));
+    await _end(t);
+  });
+
+  testWidgets('shows the kuhy logo', (t) async {
+    final w = FakeWrapper();
+    await _pump(t, w);
+    expect(find.byType(KLogoMedium), findsOneWidget);
+    // The asset the logo asks for must be in the bundle, or it paints nothing.
+    final svg = t.widget<SvgPicture>(find.byType(SvgPicture));
+    final loader = svg.bytesLoader as SvgAssetLoader;
+    final key = 'packages/${loader.packageName}/${loader.assetName}';
+    expect((await rootBundle.load(key)).lengthInBytes, greaterThan(0));
     await _end(t);
   });
 

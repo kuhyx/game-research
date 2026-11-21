@@ -6,8 +6,8 @@ library;
 import 'dart:async';
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/app/doc_style.dart';
+import 'package:material_ui/material_ui.dart';
 
 enum _Phase { idle, busy, done, failed }
 

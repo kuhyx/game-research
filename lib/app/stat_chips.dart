@@ -5,9 +5,9 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/app/job_models.dart';
 import 'package:game_research/app/stat_words.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The stages in order: video = scan, eye = captions, page = draft.
 const List<(String, IconData)> _stages = [

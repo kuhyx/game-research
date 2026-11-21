@@ -6,8 +6,8 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/core/hotkeys.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The hotkey of [action] (a marker tag or `stop`); empty when [action] is
 /// null or unbound.

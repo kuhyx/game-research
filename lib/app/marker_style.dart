@@ -1,7 +1,7 @@
 /// How each marker kind looks: its icon and its flash colour.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// One marker kind's look.
 class MarkerStyle {

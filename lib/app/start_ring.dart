@@ -4,8 +4,8 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/app/models.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Wraps [child] (the 96 px button) in the phase ring.
 class StartRing extends StatelessWidget {

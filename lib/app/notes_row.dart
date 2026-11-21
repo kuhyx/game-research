@@ -4,13 +4,13 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/app/api.dart';
 import 'package:game_research/app/copy_icon.dart';
 import 'package:game_research/app/doc_style.dart';
 import 'package:game_research/app/marker_note_field.dart';
 import 'package:game_research/app/marker_style.dart';
 import 'package:game_research/app/notes_models.dart';
+import 'package:material_ui/material_ui.dart';
 
 const _tabular = [FontFeature.tabularFigures()];
 

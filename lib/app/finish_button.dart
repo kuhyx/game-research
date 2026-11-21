@@ -4,8 +4,8 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/app/models.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The round control for [game].
 class FinishButton extends StatelessWidget {

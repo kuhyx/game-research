@@ -4,10 +4,10 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/app/api.dart';
 import 'package:game_research/app/home_screen.dart';
 import 'package:http/http.dart' as http;
+import 'package:material_ui/material_ui.dart';
 
 // coverage:ignore-start
 // The browser entry point: tests build GameResearchApp directly.

@@ -6,7 +6,6 @@ library;
 import 'dart:async';
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:game_research/app/api.dart';
 import 'package:game_research/app/controls.dart';
@@ -16,6 +15,7 @@ import 'package:game_research/app/panel_host.dart';
 import 'package:game_research/app/session_list.dart';
 import 'package:game_research/app/tap_guard.dart';
 import 'package:game_research/app/target_picker.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The home screen.
 class HomeScreen extends StatefulWidget {
@@ -206,6 +206,8 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const KLogoMedium(),
+              const SizedBox(height: AppSpacing.sm),
               Controls(
                 state: _state,
                 canStart: _picked != null,

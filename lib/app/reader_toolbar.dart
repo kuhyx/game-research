@@ -5,9 +5,9 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/app/copy_icon.dart';
 import 'package:game_research/app/doc_style.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Key of the bar itself (its position tells whether it is out).
 const kReaderToolbarKey = ValueKey<String>('reader-toolbar');

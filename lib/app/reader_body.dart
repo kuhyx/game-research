@@ -3,8 +3,8 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
 import 'package:game_research/app/doc_style.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The ring while loading, the error glyph after a failed load.
 class ReaderPlaceholder extends StatelessWidget {
