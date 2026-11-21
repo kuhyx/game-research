@@ -218,6 +218,7 @@ class ReaderBar extends StatelessWidget {
                 ),
               ),
             const Spacer(),
+            KLogo(size: size),
             IconButton(
               onPressed: onClose,
               color: DocStyle.body,

@@ -109,14 +109,19 @@ class _NotesPanelState extends State<NotesPanel> {
                 Positioned(
                   top: style.px(24),
                   right: style.px(48),
-                  child: IconButton(
-                    onPressed: widget.onClose,
-                    color: DocStyle.body,
-                    iconSize: style.px(64),
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      semanticLabel: 'close',
-                    ),
+                  child: Row(
+                    children: [
+                      KLogo(size: style.px(64)),
+                      IconButton(
+                        onPressed: widget.onClose,
+                        color: DocStyle.body,
+                        iconSize: style.px(64),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          semanticLabel: 'close',
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

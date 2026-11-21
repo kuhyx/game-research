@@ -1,3 +1,4 @@
+import 'package:design_system/design_system.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -126,7 +127,10 @@ void main() {
       ..docs['/t/a.md'] = '# Big\n\n${words(3, 2500)}\n\nend';
     await openReader(t, w);
     expect(t.takeException(), isNull);
-    expect(find.byType(FittedBox), findsOneWidget);
+    // The toolbar logo's SvgPicture brings its own FittedBox.
+    final fits = find.byType(FittedBox);
+    final logoFits = find.descendant(of: find.byType(KLogo), matching: fits);
+    expect(fits.evaluate().length - logoFits.evaluate().length, 1);
   });
 
   testWidgets('a new path loads the new document', (t) async {
