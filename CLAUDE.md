@@ -75,7 +75,8 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
   unit, then `systemd-run --user --collect --unit <name> tool/game_research_app.sh
   --display :N` (the window call blocks). Port 18800+N, data
   `~/data/claude-scratch/playstudy/display-N`, its own Chrome profile, muted
-  Chrome/Steam/game (dead audio and D-Bus sockets), silent recording, no
+  Chrome/Steam/game (private D-Bus and a null-sink
+  PipeWire: units `playstudy-{bus,pw,pulse}-N`; stop them after), silent recording, no
   analysis, Proton on wined3d. Steam is single-instance: check
   `~/.steam/steam.pid` is dead first and `steam -shutdown` (DISPLAY=:N) after.
 - Control (same `--display :N` or `--port P`): `playstudy --status`,

@@ -107,6 +107,32 @@ start_wrapper() {
 	die "wrapper did not answer on :${PORT}; see journalctl --user -u ${unit}"
 }
 
+# Starts user unit $1 running $3.. unless it is up, then waits for socket $2.
+ensure_unit() {
+	local unit="$1" sock="$2" _
+	shift 2
+	systemctl --user is-active --quiet "$unit" ||
+		systemd-run --user --collect --quiet --unit "$unit" "$@"
+	for _ in $(seq 50); do
+		[[ -S $sock ]] && return 0
+		sleep 0.1
+	done
+	die "${unit} did not open ${sock}"
+}
+
+# Private bus and silent PipeWire for display :$2 under runtime dir $1.
+private_session() {
+	local rt="$1" n="$2"
+	mkdir -p "$rt" && chmod 700 "$rt"
+	local env=(-E "XDG_RUNTIME_DIR=${rt}" -E "PIPEWIRE_RUNTIME_DIR=${rt}"
+		-E "DBUS_SESSION_BUS_ADDRESS=unix:path=${rt}/bus")
+	ensure_unit "playstudy-bus-${n}" "${rt}/bus" \
+		dbus-daemon --session --nofork "--address=unix:path=${rt}/bus"
+	ensure_unit "playstudy-pw-${n}" "${rt}/pipewire-0" "${env[@]}" pipewire
+	ensure_unit "playstudy-pulse-${n}" "${rt}/pulse/native" "${env[@]}" \
+		pipewire-pulse
+}
+
 # Off-screen mode: everything on display $1, nothing on kuhy's screen,
 # speakers or data. Explicit GAME_RESEARCH_* values still win.
 offscreen() {
@@ -122,14 +148,15 @@ offscreen() {
 	# No analysis job: it would call real models and write drafts and a
 	# todo task for kuhy's target repo from a test session.
 	: "${GAME_RESEARCH_ANALYZE:=off}"
-	# Steam and the game get no audio server and no session bus (its tray
-	# icon, notifications and portals would reach kuhy's desktop): both point
-	# at a plain file. It must exist, since Steam's runtime (bwrap)
-	# bind-mounts those paths, but nothing can connect to it. Proton draws
-	# through wined3d (OpenGL): Xvfb offers no Vulkan presentation.
-	local dead="${XDG_RUNTIME_DIR:-/tmp}/playstudy-nosock"
-	: >"$dead"
-	: "${GAME_RESEARCH_STEAM_ENV:=PULSE_SERVER=unix:${dead} PIPEWIRE_REMOTE=${dead} SDL_AUDIODRIVER=dummy PROTON_USE_WINED3D=1 DBUS_SESSION_BUS_ADDRESS=unix:path=${dead}}"
+	# Steam and the game get a private session bus and a private PipeWire
+	# with no session manager, so its only sink is a silent null sink: tray
+	# icons, notifications and sound never reach kuhy's desktop. A dead
+	# socket is not enough: steamrt3 refuses to start without a bus and the
+	# client crashes in libpulse. Proton draws through wined3d (OpenGL):
+	# Xvfb offers no Vulkan presentation.
+	local rt="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/playstudy-${n}"
+	private_session "$rt" "$n"
+	: "${GAME_RESEARCH_STEAM_ENV:=PULSE_SERVER=unix:${rt}/pulse/native PIPEWIRE_REMOTE=${rt}/pipewire-0 SDL_AUDIODRIVER=dummy PROTON_USE_WINED3D=1 DBUS_SESSION_BUS_ADDRESS=unix:path=${rt}/bus}"
 	export GAME_RESEARCH_DATA GAME_RESEARCH_TICK_CMD \
 		GAME_RESEARCH_AUDIO GAME_RESEARCH_STEAM_ENV GAME_RESEARCH_ANALYZE
 	unset XAUTHORITY
