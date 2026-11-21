@@ -1,6 +1,5 @@
-/// The one window: games on the left; controls, target and past sessions on
-/// the right. Polls the wrapper once a second (state, sessions, finish
-/// states); games and targets load once, on session end and during installs.
+/// The one window: games left; controls, target, sessions right. Polls the
+/// wrapper each second; games and targets load on session end and installs.
 library;
 
 import 'dart:async';
@@ -15,6 +14,7 @@ import 'package:game_research/app/panel_host.dart';
 import 'package:game_research/app/session_list.dart';
 import 'package:game_research/app/tap_guard.dart';
 import 'package:game_research/app/target_picker.dart';
+import 'package:kuhy_credit/kuhy_credit.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The home screen.
@@ -204,8 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(width: AppSpacing.lg),
         SizedBox(
-          // 760: room for icon, count and hotkey legend per marker.
-          width: 760,
+          width: 760, // room for icon, count and hotkey legend per marker
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -241,6 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onOpenReport: actions.openReport,
                 ),
               ),
+              const Align(alignment: Alignment.centerLeft, child: KuhyCredit()),
             ],
           ),
         ),
