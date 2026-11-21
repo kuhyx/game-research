@@ -46,9 +46,10 @@ class GameLauncher {
   /// The Steam unit PlayStudy starts, one per wrapper port.
   String get unit => 'playstudy-steam-${config.port}';
 
-  /// The argv that launches [appid] given the client's [pid] (null = down).
-  List<String> command(int appid, int? pid) {
-    final uri = runGameUri(appid);
+  /// The argv that launches [appid] given the client's [pid] (null = down);
+  /// [uri] replaces the rungameid one (the research game's install).
+  List<String> command(int appid, int? pid, {String? uri}) {
+    uri ??= runGameUri(appid);
     if (pid != null) return [config.steamCmd, uri];
     return [
       'systemd-run',
@@ -66,11 +67,12 @@ class GameLauncher {
     ];
   }
 
-  /// Launches [appid]; throws [StartError] when the command fails.
-  Future<void> launch(int appid) async {
+  /// Launches [appid] (or hands Steam [uri]); throws [StartError] when the
+  /// command fails.
+  Future<void> launch(int appid, {String? uri}) async {
     final pid = scan.steamClient(config.steamPidFile);
     log.event('steam_client', {'pid': pid});
-    final cmd = command(appid, pid);
+    final cmd = command(appid, pid, uri: uri);
     final ProcessResult r;
     try {
       r = await sys

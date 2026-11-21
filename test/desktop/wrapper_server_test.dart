@@ -97,7 +97,7 @@ void main() {
 
   test('games list marks which have a cached capsule', () async {
     final games = (await hit('GET', '/api/games')).json! as List;
-    const installed = {'state': 'installed', 'progress': 1.0};
+    const installed = {'state': 'installed', 'progress': 1.0, 'lock': 'open'};
     Map<String, Object?> none(String slug) => {'slug': slug, 'finish': null};
     expect(games, [
       {

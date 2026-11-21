@@ -1,6 +1,6 @@
 /// The one window: games on the left; controls, target and past sessions on
 /// the right. Polls the wrapper once a second (state, sessions, finish
-/// states); games and targets load once and on each session end.
+/// states); games and targets load once, on session end and during installs.
 library;
 
 import 'dart:async';
@@ -75,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Future<void> _loadAll() async {
+  Future<void> _loadAll({bool refresh = true}) async {
     final first = _games.isEmpty && _sessions.isEmpty && !_state.recording;
     try {
       final games = await _api.games();
@@ -89,12 +89,14 @@ class _HomeScreenState extends State<HomeScreen> {
     } on Exception {
       if (mounted) setState(() => _offline = true);
     }
-    await _refresh();
+    if (refresh) await _refresh();
     if (first && widget.autostart && !_armed && _state.phase == 'idle') {
       _armed = true;
       await _act(_api.autostart);
     }
   }
+
+  Future<void> _reload() => _loadAll(refresh: false);
 
   Future<void> _refresh() async {
     try {
@@ -119,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _picked = state.appid ?? state.pendingAppid ?? _picked;
         if (!state.recording) _hold = null;
       });
-      if (ended) unawaited(_loadAll());
+      if (ended || _games.any((g) => g.installing)) unawaited(_reload());
     } on Exception {
       if (mounted) setState(() => _offline = true);
     }
@@ -169,6 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
               sessions: _sessions,
               games: _games,
               act: _act,
+              reload: _reload,
               builder: (actions) => Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: _columns(started, actions),
@@ -196,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
               for (final r in _sessions)
                 if (r.draft != null) r.appid,
             },
-            onFinish: actions.finish,
+            actions: actions,
           ),
         ),
         const SizedBox(width: AppSpacing.lg),
@@ -225,11 +228,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 current: _state.target.isEmpty
                     ? _targets.current
                     : _state.target,
-                onPick: (path) => _act(() async {
-                  await _api.pickTarget(path);
-                  final targets = await _api.targets();
-                  if (mounted) setState(() => _targets = targets);
-                }),
+                onPick: (path) =>
+                    _act(() => _api.pickTarget(path)).then((_) => _reload()),
               ),
               const SizedBox(height: AppSpacing.md),
               Expanded(

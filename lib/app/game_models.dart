@@ -1,17 +1,25 @@
-/// An installed game and its "research finished" job, from `/api/games`.
+/// A library game, its enforcer lock and its "research finished" job, from
+/// `/api/games`.
 library;
 
 import 'package:game_research/app/job_models.dart';
+import 'package:game_research/core/research_game.dart';
+
+export 'package:game_research/core/research_game.dart' show TileLock;
+
+TileLock _lock(Object? v) => TileLock.values.asNameMap()[v] ?? TileLock.open;
 
 int _int(Object? v) => (v as num?)?.toInt() ?? 0;
 
-/// One installed game.
+/// One library game.
 class Game {
   /// Creates a game.
   const new({
     required this.appid,
     required this.name,
     this.capsule = false,
+    this.installed = true,
+    this.lock = TileLock.open,
     this.updating = false,
     this.progress = 1,
     this.slug = '',
@@ -23,6 +31,8 @@ class Game {
     appid: _int(j['appid']),
     name: '${j['name'] ?? ''}',
     capsule: j['capsule'] == true,
+    installed: j['state'] != 'absent',
+    lock: _lock(j['lock']),
     updating: j['state'] == 'updating',
     progress: (j['progress'] as num?)?.toDouble() ?? 1,
     slug: '${j['slug'] ?? ''}',
@@ -37,6 +47,15 @@ class Game {
 
   /// Whether a capsule image exists.
   final bool capsule;
+
+  /// Has a Steam manifest (installed or downloading); false: owned only.
+  final bool installed;
+
+  /// What the enforcer does with it.
+  final TileLock lock;
+
+  /// The research game, not on disk yet or still downloading.
+  bool get installing => lock == TileLock.research && (!installed || updating);
 
   /// Steam stopped mid-download; starting it lets Steam finish first.
   final bool updating;
@@ -55,6 +74,8 @@ class Game {
     appid: appid,
     name: name,
     capsule: capsule,
+    installed: installed,
+    lock: lock,
     updating: updating,
     progress: progress,
     slug: slug,

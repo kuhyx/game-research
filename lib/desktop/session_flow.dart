@@ -13,30 +13,16 @@ import 'dart:async';
 import 'package:game_research/core/slug.dart';
 import 'package:game_research/core/steam.dart';
 import 'package:game_research/core/xrandr.dart';
+import 'package:game_research/desktop/flow_phase.dart';
 import 'package:game_research/desktop/game_store.dart';
 import 'package:game_research/desktop/recorder.dart';
+import 'package:game_research/desktop/recording_flag.dart';
 import 'package:game_research/desktop/session_controller.dart';
 import 'package:game_research/desktop/session_parts.dart';
 import 'package:game_research/desktop/steam_launch.dart';
 import 'package:game_research/desktop/steam_library.dart';
 
-/// Where the flow is.
-enum Phase {
-  /// Nothing pending, nothing recording.
-  idle,
-
-  /// The autostart ring is draining.
-  armed,
-
-  /// The Steam command runs.
-  launching,
-
-  /// Waiting for the game window.
-  waiting,
-
-  /// A session records.
-  recording,
-}
+export 'package:game_research/desktop/flow_phase.dart';
 
 /// The flow over one controller.
 class SessionFlow {
@@ -126,9 +112,15 @@ class SessionFlow {
     return true;
   }
 
+  /// Up from the Steam launch until recording: the enforcer spares a
+  /// research game only while this or the recording flag names us.
+  RecordingFlag get _launchFlag =>
+      RecordingFlag(_parts.config.dataDir, name: 'research_launch.pid');
+
   /// Cancels a pending phase; false when nothing was pending.
   bool cancel(String by) {
     if (!_pending) return false;
+    _launchFlag.lower();
     _timer?.cancel();
     _gen++;
     _parts.log.event('cancel', {'phase': phase.name, 'by': by});
@@ -139,6 +131,7 @@ class SessionFlow {
   Never _fail(String step, String message) {
     error = message;
     _phase = Phase.idle;
+    _launchFlag.lower();
     _parts.log.event('error', {'step': step, 'message': message});
     throw StartError(message);
   }
@@ -164,6 +157,7 @@ class SessionFlow {
       _parts.log.event('already_running', {'appid': appid});
     } else {
       _parts.fps.prepareLaunch(appid);
+      _launchFlag.raise();
       try {
         await _parts.launcher.launch(appid);
       } on StartError catch (e) {
@@ -196,6 +190,7 @@ class SessionFlow {
     _phase = Phase.idle;
     try {
       await controller.start(game, window: hit.rect);
+      _launchFlag.lower(); // the recording flag holds from here
       error = '';
       return true;
     } on StartError catch (e) {
@@ -245,6 +240,7 @@ class SessionFlow {
   void _giveUp(String step, String message) {
     error = message;
     _phase = Phase.idle;
+    _launchFlag.lower();
     _parts.log.event('error', {'step': step, 'message': message});
   }
 }

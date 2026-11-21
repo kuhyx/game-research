@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:game_research/core/markers.dart';
 import 'package:game_research/desktop/game_api.dart';
 import 'package:game_research/desktop/recorder.dart';
+import 'package:game_research/desktop/research_api.dart';
 import 'package:game_research/desktop/session_controller.dart';
 import 'package:game_research/desktop/session_flow.dart';
 import 'package:game_research/desktop/share_routes.dart';
@@ -21,6 +22,7 @@ class WrapperServer {
   /// Creates the server.
   new({required this.webRoot, required this.flow})
     : api = GameApi(flow.controller, flow.library),
+      research = ResearchApi(flow.controller, flow.library),
       share = ShareRoutes(flow.controller, flow.library);
 
   /// The Flutter web build.
@@ -37,6 +39,9 @@ class WrapperServer {
 
   /// Games, finish and document endpoints.
   final GameApi api;
+
+  /// The research game (`/api/research`) and the tiles' enforcer locks.
+  final ResearchApi research;
 
   /// Notes, stills and clipboard copies for Discord.
   final ShareRoutes share;
@@ -104,14 +109,20 @@ class WrapperServer {
       case (false, ['state']):
         _json(res, flow.state());
       case (false, ['games']):
-        final games = api.gamesJson();
+        final games = research.games(api.gamesJson());
         controller.parts.log.event('picker', {
           'steam_root': library.steamRoot,
           'games': [
-            for (final g in games) {...g}..remove('finish'),
+            for (final g in games)
+              if (g['state'] != 'absent') {...g}..remove('finish'),
           ],
+          'absent': games.where((g) => g['state'] == 'absent').length,
         });
         _json(res, games);
+      case (true, ['research']):
+        _reply(res, await research.add(int.tryParse(q['appid'] ?? '') ?? -1));
+      case (true, ['research', 'remove']):
+        _reply(res, await research.remove());
       case (false, ['finish']):
         _json(res, api.finishJson());
       case (false, ['doc']):

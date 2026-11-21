@@ -112,3 +112,6 @@ List<String> libraryPaths(String vdf) => [
 
 /// What `steam` is given to launch [appid].
 String runGameUri(int appid) => 'steam://rungameid/$appid';
+
+/// The URI that asks Steam to install [appid].
+String installUri(int appid) => 'steam://install/$appid';

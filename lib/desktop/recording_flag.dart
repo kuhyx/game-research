@@ -12,7 +12,14 @@ import 'package:path/path.dart' as p;
 /// The flag file in [dataDir].
 class RecordingFlag {
   /// Creates the flag; [procRoot] is where pids are looked up.
-  const new(this.dataDir, {this.procRoot = '/proc'});
+  const new(
+    this.dataDir, {
+    this.procRoot = '/proc',
+    this.name = 'recording.pid',
+  });
+
+  /// The file name (`research_launch.pid`: the research game's launch).
+  final String name;
 
   /// The data folder (`GAME_RESEARCH_DATA`).
   final String dataDir;
@@ -21,7 +28,7 @@ class RecordingFlag {
   final String procRoot;
 
   /// The file.
-  File get file => File(p.join(dataDir, 'recording.pid'));
+  File get file => File(p.join(dataDir, name));
 
   /// Up, owned by this process.
   void raise() {

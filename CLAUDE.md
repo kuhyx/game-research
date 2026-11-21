@@ -22,7 +22,9 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
 - Every side effect has an env seam (`lib/desktop/config.dart`):
   `GAME_RESEARCH_{DATA,STEAM_ROOT,STEAM_CMD,DISPLAY,OUTPUT,AUDIO,TICK_CMD,
   FAKE_LLM,ART,TODO_CMD,TARGET,SRC,ANALYZE,PORT,LOG,AUTOSTART_S,DEFAULT_APPID,
-  WINDOW_TIMEOUT_S,RELAUNCH_S,STEAM_PID,STEAM_ENV,PROC,CAPTURE,CLIP_CMD,CAPTION_CMD}`. `ANALYZE=off`
+  WINDOW_TIMEOUT_S,RELAUNCH_S,STEAM_PID,STEAM_ENV,PROC,CAPTURE,CLIP_CMD,CAPTION_CMD,
+  APPROVAL,ENFORCER_SOCK,ENFORCER_DIR}` (the last three: `lib/desktop/research_slot.dart`;
+  test mode has no enforcer socket unless `ENFORCER_SOCK` is set). `ANALYZE=off`
   starts no analysis job. `CAPTURE=auto` records with gpu-screen-recorder
   (GPU capture + encode); it cannot run under Xvfb, so E2E and off-screen
   runs always take the x11grab fallback. Analysis jobs wait while
@@ -34,6 +36,13 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
   on lines containing `semantic` (`final semanticLabel = ...`).
   One exception (kuhy, 2026-11-11: "put them as text I allow it in this case"): each control's global hotkey as a key legend (`Super+F1`) from `kHotkeys`, `lib/app/shortcut_label.dart`.
   Second exception (kuhy, 2026-11-12: "in this case I want one word text"): one word under each session-row stat (tokens, cost, scan, captions, draft), all in `kStatWords`, `lib/app/stat_words.dart`.
+- Research game (kuhy, 2026-11-21): the picker lists every owned game
+  (steam-backlog-enforcer's `owned_app_ids_cache.json`); one blocked game at a
+  time may be added (`~/.config/game-research/research_game.json` + the
+  enforcer's `research_game` socket op, then `steam://install/<id>`). The
+  enforcer keeps it installed and visible while it is listed and spares its
+  process only while `<data>/recording.pid` or `<data>/research_launch.pid`
+  (raised before the Steam launch) names this live wrapper.
 - No LLM adjudicates anything: tier skips, stage results and the synthesis
   JSON are checked by code; a missing caption or a malformed draft fails the
   stage (fail closed).
@@ -75,7 +84,8 @@ runner) | `lib/app/` the Flutter UI | `bin/` two entry points |
   `--log [N]`, `--wait idle|armed|launching|waiting|recording [--timeout S]`.
   JSON out; exit 0 ok, 1 refused/timeout, 2 usage, 3 no wrapper.
 - HTTP: `GET /api/state|games|sessions`, `POST /api/start[?appid]`,
-  `/api/stop`, `/api/autostart[?appid]`, `/api/autostart/cancel`,
+  `/api/stop`, `/api/autostart[?appid]`, `/api/autostart/cancel`, `/api/research?appid=` (409 slot taken, 502
+  enforcer refused), `/api/research/remove`,
   `/api/marker?tag=`, `GET /api/games/<appid>/notes`,
   `GET /api/sessions/<stamp>/still/<i>`, `POST /api/games/<appid>/notes/<n>/copy?what=files|text`,
   `POST /api/sessions/<stamp>/markers/<i>/copy`, `POST /api/sessions/<stamp>/markers/<i>/note`

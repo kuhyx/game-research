@@ -20,7 +20,15 @@ class PanelActions {
     required this.finish,
     required this.openReport,
     required this.reportReady,
+    required this.research,
+    required this.unresearch,
   });
+
+  /// Adds the app id as the research game.
+  final ValueChanged<int> research;
+
+  /// Removes the research game.
+  final VoidCallback unresearch;
 
   /// Opens the draft of session id.
   final ValueChanged<String> openDraft;
@@ -45,8 +53,14 @@ class PanelHost extends StatefulWidget {
     required this.games,
     required this.act,
     required this.builder,
+    this.reload = _noReload,
     super.key,
   });
+
+  static Future<void> _noReload() async {}
+
+  /// Loads the games list again (after a research game change).
+  final Future<void> Function() reload;
 
   /// The wrapper client.
   final ResearchApi api;
@@ -112,6 +126,13 @@ class _PanelHostState extends State<PanelHost> {
     unawaited(widget.act(() => widget.api.finish(g.appid)));
   }
 
+  void _research(int appid) => unawaited(
+    widget.act(() => widget.api.research(appid)).then((_) => widget.reload()),
+  );
+
+  void _unresearch() =>
+      unawaited(widget.act(widget.api.unresearch).then((_) => widget.reload()));
+
   void _report(int appid) {
     final g = widget.games.where((g) => g.appid == appid).firstOrNull;
     if (g != null && _canOpen(g)) _openReport(g);
@@ -129,6 +150,8 @@ class _PanelHostState extends State<PanelHost> {
             openDraft: _openDraft,
             finish: _finish,
             openReport: _report,
+            research: _research,
+            unresearch: _unresearch,
             reportReady: {
               for (final g in widget.games)
                 if (_canOpen(g)) g.appid,

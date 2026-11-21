@@ -52,7 +52,14 @@ class ResearchApi {
   Future<AppState> state() async =>
       AppState.fromJson((await _get('state'))! as Map<String, Object?>);
 
-  /// Installed games.
+  /// Adds [appid] as the research game (approved at once; Steam installs).
+  Future<void> research(int appid) =>
+      _post('research', query: {'appid': '$appid'});
+
+  /// Removes the research game.
+  Future<void> unresearch() => _post('research/remove');
+
+  /// Every library game.
   Future<List<Game>> games() async => [
     for (final g in (await _get('games'))! as List)
       Game.fromJson(g as Map<String, Object?>),

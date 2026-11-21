@@ -1,10 +1,15 @@
-/// Installed games as capsule images, no text. A game without a cached
+/// Library games as capsule images, no text. A game without a cached
 /// capsule gets a procedural tile: a hue from its app id and a pad glyph.
+/// Games the enforcer blocks are dimmed under a [LockBadge]; tapping one
+/// asks (icons only) to add it as the research game.
 library;
 
 import 'package:design_system/design_system.dart';
 import 'package:game_research/app/finish_button.dart';
+import 'package:game_research/app/install_bar.dart';
+import 'package:game_research/app/lock_badge.dart';
 import 'package:game_research/app/models.dart';
+import 'package:game_research/app/panel_host.dart';
 import 'package:game_research/app/procedural_capsule.dart';
 import 'package:game_research/app/stat_chips.dart';
 import 'package:material_ui/material_ui.dart';
@@ -21,7 +26,7 @@ class GamePicker extends StatelessWidget {
     required this.capsuleUrl,
     this.enabled = true,
     this.finishReady = const {},
-    this.onFinish,
+    this.actions,
     this.offline = false,
     super.key,
   });
@@ -32,8 +37,8 @@ class GamePicker extends StatelessWidget {
   /// App ids with at least one session draft (the finish control works).
   final Set<int> finishReady;
 
-  /// The finish control of a game was pressed.
-  final ValueChanged<Game>? onFinish;
+  /// Finish and research game actions (null: no finish control, no adds).
+  final PanelActions? actions;
 
   /// Games to show.
   final List<Game> games;
@@ -87,7 +92,7 @@ class GamePicker extends StatelessWidget {
         url: capsuleUrl(games[i].appid),
         onTap: () => onPick(games[i].appid),
         finishReady: finishReady.contains(games[i].appid),
-        onFinish: onFinish == null ? null : () => onFinish!(games[i]),
+        actions: actions,
       ),
     );
   }
@@ -101,7 +106,7 @@ class _Capsule extends StatelessWidget {
     required this.url,
     required this.onTap,
     required this.finishReady,
-    required this.onFinish,
+    required this.actions,
   });
 
   final Game game;
@@ -110,10 +115,20 @@ class _Capsule extends StatelessWidget {
   final String url;
   final VoidCallback onTap;
   final bool finishReady;
-  final VoidCallback? onFinish;
+  final PanelActions? actions;
 
   @override
   Widget build(BuildContext context) {
+    final onFinish = actions == null || !game.installed
+        ? null
+        : () => actions!.finish(game);
+    final tap = enabled ? tileTap(context, game, actions, onPick: onTap) : null;
+    final dim = game.lock == TileLock.blocked || game.lock == TileLock.taken;
+    final semanticLabel = [
+      game.name,
+      if (game.updating) 'updating',
+      if (game.lock != TileLock.open) game.lock.name,
+    ].join(', ');
     final art = game.capsule
         ? Image.network(
             url,
@@ -124,13 +139,13 @@ class _Capsule extends StatelessWidget {
     final tile = Semantics(
       button: true,
       selected: picked,
-      label: game.updating ? '${game.name}, updating' : game.name,
-      onTap: enabled ? onTap : null,
+      label: semanticLabel,
+      onTap: tap,
       excludeSemantics: true,
       child: Opacity(
-        opacity: enabled || picked ? 1 : 0.35,
+        opacity: (enabled || picked) && !dim ? 1 : 0.45,
         child: InkWell(
-          onTap: enabled ? onTap : null,
+          onTap: tap,
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: AnimatedContainer(
             duration: AppDuration.fast,
@@ -148,7 +163,9 @@ class _Capsule extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   art,
-                  if (game.updating) _Updating(progress: game.progress),
+                  if (game.updating) InstallBar(progress: game.progress),
+                  if (!game.installed && game.lock == TileLock.research)
+                    const InstallBar(progress: null),
                   if (picked)
                     const Align(
                       alignment: Alignment.topRight,
@@ -168,13 +185,30 @@ class _Capsule extends StatelessWidget {
         ),
       ),
     );
-    if (onFinish == null) return tile;
-    final job = game.finish?.job;
     // Beside the tile's semantics, not inside it: that node hides its
     // children from assistive tech.
+    final badge = Positioned.fill(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xs),
+        child: LockBadge(
+          lock: game.lock,
+          onRemove: () => removeResearch(context, actions),
+        ),
+      ),
+    );
+    if (onFinish == null) {
+      return Stack(
+        children: [
+          Positioned.fill(child: tile),
+          badge,
+        ],
+      );
+    }
+    final job = game.finish?.job;
     return Stack(
       children: [
         Positioned.fill(child: tile),
+        badge,
         Positioned(
           left: AppSpacing.md,
           right: AppSpacing.md,
@@ -197,44 +231,11 @@ class _Capsule extends StatelessWidget {
                       ),
               ),
               const SizedBox(width: AppSpacing.xs),
-              FinishButton(
-                game: game,
-                ready: finishReady,
-                onPressed: onFinish!,
-              ),
+              FinishButton(game: game, ready: finishReady, onPressed: onFinish),
             ],
           ),
         ),
       ],
     );
   }
-}
-
-/// Steam stopped this game mid-download: a download glyph and how far it
-/// got. Starting it still works; Steam finishes the download first.
-class _Updating extends StatelessWidget {
-  const new({required this.progress});
-
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Padding(
-        padding: EdgeInsets.all(AppSpacing.sm),
-        child: Icon(
-          Icons.downloading_rounded,
-          color: AppPalette.textOnDark,
-          size: 36,
-        ),
-      ),
-      const Spacer(),
-      LinearProgressIndicator(
-        value: progress,
-        minHeight: 8,
-        color: AppPalette.accent,
-      ),
-    ],
-  );
 }

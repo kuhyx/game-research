@@ -39,9 +39,10 @@ class ServerHarness {
   static Future<ServerHarness> start({
     SteamArt? art,
     Map<int, String> games = const {},
+    Map<String, String> env = const {},
   }) async {
     HttpOverrides.global = null;
-    final s = ServerHarness._(Harness());
+    final s = ServerHarness._(Harness(extra: env));
     final web = Directory(p.join(s.h.root.path, 'web'))..createSync();
     File(p.join(web.path, 'index.html')).writeAsStringSync('<html>app</html>');
     s.server = WrapperServer(
