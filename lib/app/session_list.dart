@@ -175,6 +175,7 @@ class _Row extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             IconButton(
               onPressed: row.draft == null ? null : () => onOpenDraft(row.id),
+              tooltip: 'Draft',
               icon: Icon(
                 Icons.description_rounded,
                 semanticLabel: draftSemantic,
@@ -184,6 +185,7 @@ class _Row extends StatelessWidget {
             if (onOpenReport != null)
               IconButton(
                 onPressed: () => onOpenReport!(row.appid),
+                tooltip: 'Report',
                 icon: Icon(
                   Icons.summarize_rounded,
                   color: AppPalette.success,

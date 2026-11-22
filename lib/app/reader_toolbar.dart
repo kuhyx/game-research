@@ -167,6 +167,7 @@ class ReaderBar extends StatelessWidget {
           children: [
             IconButton(
               onPressed: loaded ? onEdit : null,
+              tooltip: editing ? 'View' : 'Edit',
               color: DocStyle.body,
               iconSize: size,
               icon: Icon(
@@ -176,6 +177,7 @@ class ReaderBar extends StatelessWidget {
             ),
             IconButton(
               onPressed: editing && canSave ? onSave : null,
+              tooltip: 'Save',
               color: DocStyle.body,
               iconSize: size,
               icon: const Icon(Icons.save_rounded, semanticLabel: saveSemantic),
@@ -184,6 +186,7 @@ class ReaderBar extends StatelessWidget {
             if (onNotes != null)
               IconButton(
                 onPressed: onNotes,
+                tooltip: 'Notes',
                 color: DocStyle.body,
                 iconSize: size,
                 icon: const Icon(
@@ -221,6 +224,7 @@ class ReaderBar extends StatelessWidget {
             KLogo(size: size),
             IconButton(
               onPressed: onClose,
+              tooltip: 'Close',
               color: DocStyle.body,
               iconSize: size,
               icon: const Icon(

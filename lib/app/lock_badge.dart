@@ -67,6 +67,7 @@ class LockBadge extends StatelessWidget {
         ),
         IconButton(
           onPressed: onRemove,
+          tooltip: 'Remove',
           icon: const Icon(
             Icons.remove_circle_rounded,
             color: AppPalette.textOnDark,
@@ -88,10 +89,12 @@ Future<bool> confirmIcon(BuildContext context, IconData icon) async =>
         actions: [
           IconButton(
             onPressed: () => Navigator.pop(context, false),
+            tooltip: 'Cancel',
             icon: const Icon(Icons.close_rounded, semanticLabel: 'cancel'),
           ),
           IconButton(
             onPressed: () => Navigator.pop(context, true),
+            tooltip: 'Confirm',
             icon: const Icon(Icons.check_rounded, semanticLabel: 'confirm'),
           ),
         ],

@@ -80,6 +80,7 @@ class _CopyIconState extends State<CopyIcon> {
     final idle = _phase == _Phase.idle || _phase == _Phase.failed;
     return IconButton(
       onPressed: idle && widget.onCopy != null ? _run : null,
+      tooltip: 'Copy',
       color: widget.color,
       iconSize: size,
       icon: switch (_phase) {

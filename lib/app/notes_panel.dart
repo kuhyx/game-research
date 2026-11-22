@@ -114,6 +114,7 @@ class _NotesPanelState extends State<NotesPanel> {
                       KLogo(size: style.px(64)),
                       IconButton(
                         onPressed: widget.onClose,
+                        tooltip: 'Close',
                         color: DocStyle.body,
                         iconSize: style.px(64),
                         icon: const Icon(
