@@ -4,8 +4,7 @@
 # tick sound, the family icon and the .desktop launcher (StartupWMClass =
 # the Chrome window's --class). Never starts the app.
 #
-# Usage: install.sh [--step deps|build|tick|desktop|bin|resume|hooks|fps]  (default: all
-#   but `fps`, which edits the desktop session's environment: run it on purpose)
+# Usage: install.sh [--step deps|build|tick|desktop|bin|resume|hooks|fps]  (default: all)
 #   Each step stays well under a minute except `build` (~40 s).
 # ============================================================================
 
@@ -23,6 +22,7 @@ readonly BIN_DIR="${HOME}/.local/bin"
 readonly UNIT_DIR="${GAME_RESEARCH_UNIT_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user}"
 readonly CAPPED="${HOME}/.claude/scripts/capped.sh"
 readonly DATA="${GAME_RESEARCH_DATA:-${HOME}/data/game-research}"
+# Left by the old session-wide MangoHud setup; removed by step_fps.
 readonly ENV_D="${XDG_CONFIG_HOME:-${HOME}/.config}/environment.d/60-game-research-mangohud.conf"
 readonly XPROFILE="${HOME}/.xprofile"
 readonly XP_BEGIN="# >>> game-research mangohud >>>"
@@ -137,32 +137,34 @@ step_hooks() {
 	echo "hooks: ok"
 }
 
-# MangoHud frame-time logging for the whole desktop session: the layer is on
-# (MANGOHUD=1) with the app-owned config (no HUD, CSVs into <data>/fps-spool).
-# Three places, because a Steam client inherits the env of whatever started it:
-# environment.d + set-environment for systemd --user (a Steam the app starts),
-# ~/.xprofile for the X session (i3 -> a Steam kuhy starts by hand). Takes
-# effect for a Steam started after the next login; the researched game also
-# gets a launch option from the app while Steam is down.
+# MangoHud frame-time logging for games only: the package plus the app-owned
+# config (no HUD, CSVs into <data>/fps-spool). The wrapper puts the layer into
+# each installed game's Steam launch options (lib/desktop/fps_launch.dart).
+# Never session-wide: the layer in every Vulkan program aborted sd-cli,
+# llama-server and Steam at exit, so the old setup is removed here.
 step_fps() {
 	local conf="${DATA}/mangohud.conf" spool="${DATA}/fps-spool"
 	pacman -Qq mangohud lib32-mangohud >/dev/null 2>&1 ||
 		sudo pacman -S --needed --noconfirm mangohud lib32-mangohud
 	mkdir -p "$spool"
 	sed -e "s|@SPOOL@|${spool}|" "${REPO}/tool/mangohud.conf.in" >"$conf"
-	install -d "$(dirname "$ENV_D")"
-	printf 'MANGOHUD=1\nMANGOHUD_CONFIGFILE=%s\n' "$conf" >"$ENV_D"
-	systemctl --user set-environment MANGOHUD=1 "MANGOHUD_CONFIGFILE=${conf}"
-	touch "$XPROFILE"
-	sed -i "/^${XP_BEGIN}\$/,/^${XP_END}\$/d" "$XPROFILE"
-	printf '%s\nexport MANGOHUD=1\nexport MANGOHUD_CONFIGFILE=%q\n%s\n' \
-		"$XP_BEGIN" "$conf" "$XP_END" >>"$XPROFILE"
-	echo "fps: ${conf}, ${ENV_D}, ${XPROFILE} (log out and in, then restart Steam)"
+	remove_session_mangohud
+	echo "fps: ${conf} (games get it through their Steam launch options)"
+}
+
+# Undoes the old session-wide layer: environment.d file, the systemd --user
+# environment and the ~/.xprofile block. Idempotent; never creates .xprofile.
+remove_session_mangohud() {
+	rm -f "$ENV_D"
+	if [[ -f $XPROFILE ]]; then
+		sed -i --follow-symlinks "/^${XP_BEGIN}\$/,/^${XP_END}\$/d" "$XPROFILE"
+	fi
+	systemctl --user unset-environment MANGOHUD MANGOHUD_CONFIGFILE 2>/dev/null || true
 }
 
 main() {
 	case "${1:-}" in
-	"") for s in deps build tick desktop resume hooks; do "step_${s}"; done ;;
+	"") for s in deps build tick desktop resume hooks fps; do "step_${s}"; done ;;
 	--step)
 		[[ $(type -t "step_${2:-}") == function ]] || die "unknown step '${2:-}'"
 		"step_$2"

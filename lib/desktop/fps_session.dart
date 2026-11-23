@@ -1,12 +1,9 @@
 /// Game frame rate per session, from MangoHud.
 ///
-/// Two mechanisms feed one spool (`<data>/fps-spool/`, one CSV per game run,
-/// set by the app-owned `<data>/mangohud.conf`): the MangoHud layer loaded
-/// for the whole desktop session (`install.sh --step fps`), and a Steam
-/// launch option for the researched game, written into `localconfig.vdf`
-/// before the launch, and only while no Steam client runs (Steam rewrites the
-/// file on exit and would drop the edit). At session stop the logs that
-/// overlap the session move into `<session>/fps/` and their figures go into
+/// MangoHud loads only through Steam launch options (`fps_launch.dart`) and
+/// writes one CSV per game run into `<data>/fps-spool/` (set by the
+/// app-owned `<data>/mangohud.conf`). At session stop the logs that overlap
+/// the session move into `<session>/fps/` and their figures go into
 /// `session.json`.
 library;
 
@@ -14,10 +11,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:game_research/core/fps.dart';
-import 'package:game_research/core/steam_vdf.dart';
 import 'package:game_research/desktop/config.dart';
 import 'package:game_research/desktop/event_log.dart';
-import 'package:game_research/desktop/proc_scan.dart';
+import 'package:game_research/desktop/fps_launch.dart';
 import 'package:game_research/desktop/sys.dart';
 import 'package:path/path.dart' as p;
 
@@ -38,74 +34,24 @@ class FpsSession {
   /// Event log.
   final EventLog log;
 
+  FpsLaunch get _launch => FpsLaunch(config, log);
+
   /// Where MangoHud writes its CSVs.
-  String get spoolDir => p.join(config.dataDir, 'fps-spool');
+  String get spoolDir => _launch.spoolDir;
 
   /// The MangoHud config this app owns (kuhy's own is never touched).
-  String get confPath => p.join(config.dataDir, 'mangohud.conf');
+  String get confPath => _launch.confPath;
 
-  void _launchEvent(int appid, String result, [String? message]) => log.event(
-    'fps_launch_option',
-    {'appid': appid, 'result': result, 'message': ?message},
-  );
+  /// Puts MangoHud logging into the launch options of every installed game
+  /// and [appid] (before its launch). Never throws.
+  void prepareLaunch(int appid) => _launch.prepare(appid);
 
-  /// Renders `tool/mangohud.conf.in` into [confPath].
-  void _writeConf() {
-    final template = File(p.join(config.repo, 'tool', 'mangohud.conf.in'))
-        .readAsStringSync();
-    final text = template.replaceAll('@SPOOL@', spoolDir);
-    Directory(spoolDir).createSync(recursive: true);
-    final conf = File(confPath);
-    if (!conf.existsSync() || conf.readAsStringSync() != text) {
-      conf.writeAsStringSync(text);
-    }
-  }
-
-  /// Puts MangoHud logging into [appid]'s Steam launch options (before the
-  /// launch). Never throws: every outcome is an `fps_launch_option` event.
-  void prepareLaunch(int appid) {
-    final steam = ProcScan(config.procRoot).steamClient(config.steamPidFile);
-    if (steam != null) return _launchEvent(appid, 'skipped steam running');
-    final users = Directory(p.join(config.steamRoot, 'userdata'));
-    final files =
-        [
-            if (users.existsSync())
-              for (final d in users.listSync().whereType<Directory>())
-                File(p.join(d.path, 'config', 'localconfig.vdf')),
-          ].where((f) => f.existsSync()).toList()
-          ..sort((a, b) => a.path.compareTo(b.path));
-    if (files.isEmpty) return _launchEvent(appid, 'skipped no localconfig');
-    try {
-      _writeConf();
-    } on FileSystemException catch (e) {
-      return _launchEvent(appid, 'error', 'mangohud.conf: ${e.message}');
-    }
-    for (final f in files) {
-      try {
-        final edit = addMangoHud(f.readAsStringSync(), appid, confPath);
-        if (edit.result == 'added') _replace(f, edit.text);
-        _launchEvent(appid, edit.result);
-      } on FormatException catch (e) {
-        _launchEvent(appid, 'error', e.message);
-      } on FileSystemException catch (e) {
-        _launchEvent(appid, 'error', e.message);
-      }
-    }
-  }
-
-  /// Writes [text] over [file] through a rename, keeping the first original
-  /// as `<file>.game-research.bak`.
-  void _replace(File file, String text) {
-    final bak = File('${file.path}.game-research.bak');
-    if (!bak.existsSync()) file.copySync(bak.path);
-    File('${file.path}.game-research.tmp')
-      ..writeAsStringSync(text)
-      ..renameSync(file.path);
-  }
+  /// The same for every installed game, at wrapper start.
+  void prepareAll() => _launch.prepare();
 
   /// Moves the spool logs that overlap [from]..[to] (unix seconds) into
-  /// `<[session]>/fps/` and returns the figures of the busiest one (the
-  /// game: other Vulkan programs log too); null when there is none. Deletes
+  /// `<[session]>/fps/` and returns the figures of the busiest one (a
+  /// launcher or a second game may log too); null when there is none. Deletes
   /// spool logs older than [kSpoolKeepS]. Logs one `fps` event.
   Map<String, Object?>? collect(
     Directory session, {

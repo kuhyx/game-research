@@ -53,6 +53,8 @@ Future<WrapperServer> serve(Config config, Sys sys, {int? port}) async {
     'steam_cmd': config.steamCmd,
     'pid': pid,
   });
+  // Launch options are only written while Steam is down: catch that now.
+  controller.parts.fps.prepareAll();
   if (interrupted.isNotEmpty) {
     controller.parts.log.event('jobs_interrupted', {'jobs': interrupted});
   }

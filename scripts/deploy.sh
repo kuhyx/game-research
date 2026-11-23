@@ -2,7 +2,8 @@
 # ============================================================================
 # Deploys game-research to this PC: fast-forwards the live checkout (the one
 # the .desktop launcher and ~/.local/bin/playstudy point at) to origin/main,
-# rebuilds it (install.sh build), refreshes launcher, tick and resume timer,
+# rebuilds it (install.sh build), refreshes launcher, tick, resume timer and
+# the MangoHud config (games only: removes the old session-wide layer),
 # then health-checks the NEW wrapper binary off-screen.
 #
 #   scripts/deploy.sh            pull + install + health check
@@ -41,7 +42,7 @@ pull() {
 
 install_live() {
 	local s
-	for s in build tick desktop resume; do
+	for s in build tick desktop resume fps; do
 		bash "${LIVE}/install.sh" --step "$s" >/dev/null
 	done
 }

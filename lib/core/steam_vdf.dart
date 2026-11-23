@@ -171,20 +171,29 @@ String? setLaunchOption(String vdf, int appid, String value) {
   return vdf.replaceRange(lineStart, lineStart, text);
 }
 
+/// Our own option at the front of launch options: the app-owned config
+/// (`.../mangohud.conf`, lowercase, plain or single-quoted) at any path.
+final _ownPrefix = RegExp(
+  r"^MANGOHUD=1 MANGOHUD_CONFIGFILE=('[^']*/mangohud\.conf'|\S*/mangohud\.conf)(?=\s|$)",
+);
+
 /// [existing] launch options with MangoHud logging in front, or null when
 /// they already use MangoHud (ours, or kuhy's own: not touched).
 String? mangoOptions(String existing, String conf) {
   if (RegExp(r'(^|\s)(MANGOHUD\w*=|mangohud(\s|$))').hasMatch(existing)) {
     return null;
   }
-  final path = conf.contains(' ') ? "'$conf'" : conf;
-  final mango = 'MANGOHUD=1 MANGOHUD_CONFIGFILE=$path';
+  final mango = _mangoPrefix(conf);
   final rest = existing.trim();
   if (rest.isEmpty) return '$mango %command%';
   return rest.contains('%command%') ? '$mango $rest' : '$mango %command% $rest';
 }
 
-/// What [addMangoHud] did: `added`, `present` (ours already there) or
+String _mangoPrefix(String conf) =>
+    'MANGOHUD=1 MANGOHUD_CONFIGFILE=${conf.contains(' ') ? "'$conf'" : conf}';
+
+/// What [addMangoHud] did: `added`, `present` (ours already there),
+/// `updated` (ours, pointing at another data dir's config: repointed) or
 /// `user mangohud` (kuhy's own MangoHud option, left alone).
 typedef MangoEdit = ({String text, String result});
 
@@ -192,11 +201,19 @@ typedef MangoEdit = ({String text, String result});
 MangoEdit addMangoHud(String vdf, int appid, String conf) {
   final existing = launchOption(vdf, appid) ?? '';
   final next = mangoOptions(existing, conf);
-  if (next == null) {
-    final ours =
-        existing.contains('MANGOHUD_CONFIGFILE=$conf') ||
-        existing.contains("MANGOHUD_CONFIGFILE='$conf'");
-    return (text: vdf, result: ours ? 'present' : 'user mangohud');
+  if (next != null) {
+    return (text: setLaunchOption(vdf, appid, next)!, result: 'added');
   }
-  return (text: setLaunchOption(vdf, appid, next)!, result: 'added');
+  if (existing.contains('MANGOHUD_CONFIGFILE=$conf') ||
+      existing.contains("MANGOHUD_CONFIGFILE='$conf'")) {
+    return (text: vdf, result: 'present');
+  }
+  final own = _ownPrefix.firstMatch(existing.trimLeft());
+  if (own == null) return (text: vdf, result: 'user mangohud');
+  final repointed = existing.trimLeft().replaceRange(
+    0,
+    own.end,
+    _mangoPrefix(conf),
+  );
+  return (text: setLaunchOption(vdf, appid, repointed)!, result: 'updated');
 }
