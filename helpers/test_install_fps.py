@@ -66,6 +66,9 @@ def test_the_old_session_wide_setup_is_removed(tmp_path: Path) -> None:
     assert (home / ".xprofile").read_text() == "xset s off\nsetxkbmap pl\n"
     log = (tmp_path / "systemctl.log").read_text()
     assert "--user unset-environment MANGOHUD MANGOHUD_CONFIGFILE" in log
+    # The environment.d generator's copy survives unset-environment: only a
+    # reload (generators rerun without the file) drops it.
+    assert "--user daemon-reload" in log
     assert "set-environment MANGOHUD" not in log.replace("unset-", "")
     conf = (home / "data" / "mangohud.conf").read_text()
     assert f"output_folder={home / 'data' / 'fps-spool'}\n" in conf

@@ -154,12 +154,15 @@ step_fps() {
 
 # Undoes the old session-wide layer: environment.d file, the systemd --user
 # environment and the ~/.xprofile block. Idempotent; never creates .xprofile.
+# unset-environment drops only the set-environment copy; the copy the
+# environment.d generator made at login goes on the reload (file now gone).
 remove_session_mangohud() {
 	rm -f "$ENV_D"
 	if [[ -f $XPROFILE ]]; then
 		sed -i --follow-symlinks "/^${XP_BEGIN}\$/,/^${XP_END}\$/d" "$XPROFILE"
 	fi
 	systemctl --user unset-environment MANGOHUD MANGOHUD_CONFIGFILE 2>/dev/null || true
+	systemctl --user daemon-reload 2>/dev/null || true
 }
 
 main() {
