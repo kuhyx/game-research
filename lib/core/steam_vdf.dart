@@ -177,6 +177,15 @@ final _ownPrefix = RegExp(
   r"^MANGOHUD=1 MANGOHUD_CONFIGFILE=('[^']*/mangohud\.conf'|\S*/mangohud\.conf)(?=\s|$)",
 );
 
+/// The apps whose launch options start with our own option (any config
+/// path); empty when [vdf] has no `apps` block.
+List<int> ownMangoApps(String vdf) => [
+  for (final e in _apps(_Parser(vdf).block(top: true))?.entries ?? <_Entry>[])
+    if (int.tryParse(e.key.text) case final id?)
+      if (e.block?.find('LaunchOptions')?.value?.text case final o?)
+        if (_ownPrefix.hasMatch(o.trimLeft())) id,
+];
+
 /// [existing] launch options with MangoHud logging in front, or null when
 /// they already use MangoHud (ours, or kuhy's own: not touched).
 String? mangoOptions(String existing, String conf) {

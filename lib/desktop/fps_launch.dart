@@ -37,7 +37,8 @@ class FpsLaunch {
   String get confPath => p.join(config.dataDir, 'mangohud.conf');
 
   /// Puts MangoHud logging into the launch options of every installed game
-  /// and of [appid] (the game about to launch; null at wrapper start). Never
+  /// and of [appid] (the game about to launch; null at wrapper start), and
+  /// repoints our option wherever it names another config. Never
   /// throws: each account file gets one `fps_launch_option` event whose
   /// `result` is [appid]'s outcome (`all` without one) and whose `games`
   /// counts the outcomes.
@@ -57,7 +58,7 @@ class FpsLaunch {
     } on FileSystemException catch (e) {
       return event('error', {'message': 'mangohud.conf: ${e.message}'});
     }
-    final ids = {
+    final installed = {
       ?appid,
       for (final g in SteamLibrary(config.steamRoot).games()) g.appid,
     };
@@ -65,6 +66,8 @@ class FpsLaunch {
       try {
         final before = f.readAsStringSync();
         var text = before;
+        // Uninstalled games too: our option there may point at a stale config.
+        final ids = {...installed, ...ownMangoApps(before)};
         final games = <String, int>{};
         String? mine;
         for (final id in ids) {

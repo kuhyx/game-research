@@ -67,4 +67,18 @@ void main() {
       });
     }
   });
+
+  test('ownMangoApps lists the apps that carry our option, any path', () {
+    final text =
+        vdf('MANGOHUD=1 MANGOHUD_CONFIGFILE=/s/mangohud.conf %command%')
+            .replaceFirst(
+              '\t\t\t\t}\n\t\t\t}',
+              '\t\t\t\t\t"8"\n\t\t\t\t\t{\n'
+                  '\t\t\t\t\t\t"LaunchOptions"\t\t"mangohud %command%"\n'
+                  '\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}',
+            );
+    expect(launchOption(text, 8), 'mangohud %command%');
+    expect(ownMangoApps(text), [7]);
+    expect(ownMangoApps('"UserLocalConfigStore"\n{\n}\n'), isEmpty);
+  });
 }

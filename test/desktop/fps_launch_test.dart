@@ -104,6 +104,29 @@ void main() {
     expect(File(fps.confPath).existsSync(), true);
   });
 
+  test('an uninstalled game with our stale option is repointed', () {
+    final c = configWith({});
+    stage(c);
+    localconfig(c).writeAsStringSync(
+      vdf.replaceFirst(
+        '"20"',
+        '"99"\n\t\t\t\t\t{\n\t\t\t\t\t\t"LaunchOptions"\t\t'
+            '"MANGOHUD=1 MANGOHUD_CONFIGFILE=/s/mangohud.conf %command%"\n'
+            '\t\t\t\t\t}\n\t\t\t\t\t"20"',
+      ),
+    );
+    final fps = fpsOf(c)..prepareAll();
+    expect(
+      launchOption(localconfig(c).readAsStringSync(), 99),
+      'MANGOHUD=1 MANGOHUD_CONFIGFILE=${fps.confPath} %command%',
+    );
+    expect(events(c).single['games'], {
+      'added': 2,
+      'user mangohud': 1,
+      'updated': 1,
+    });
+  });
+
   test('prepareLaunch covers the other installed games too', () {
     final c = configWith({});
     stage(c);
