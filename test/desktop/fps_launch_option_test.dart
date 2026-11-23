@@ -89,7 +89,10 @@ void main() {
       );
       final conf = File(fps.confPath).readAsStringSync();
       expect(conf, contains('output_folder=${fps.spoolDir}\n'));
-      expect(conf, contains('\nno_display\n'));
+      // An invisible HUD, not no_display: MangoHud 0.8.4 stops its logger
+      // with no_display, so no CSV was ever written.
+      expect(conf, contains('\nalpha=0\nbackground_alpha=0\n'));
+      expect(conf, isNot(contains('\nno_display\n')));
       expect(conf, contains('\nautostart_log='));
       expect(Directory(fps.spoolDir).existsSync(), true);
       expect(events('fps_launch_option').single['result'], 'added');
