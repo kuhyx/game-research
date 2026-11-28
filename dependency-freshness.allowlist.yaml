@@ -1,13 +1,13 @@
 # Repo-local additions to the fleet-wide allowlist in ~/src/utils.
+# `transitive:` entries are predicates: they clear themselves when the
+# blocker moves, so they carry no `expires`.
 exceptions:
-  - ecosystem: toolchain
-    package: flutter
-    pinned: "3.47.9"
-    latest_known: "3.50.0"
+  - ecosystem: pub
+    package: flutter_svg
+    pinned: "2.5.0"
+    latest_known: "2.5.1"
     reason: >-
-      The SDK is the AUR package flutter-bin (/usr/bin/flutter), still
-      3.47.9-1 there on 2026-11-12. Bumping .fvmrc alone would claim a
-      version the tests never run on. When the package lands:
-      yay -S flutter-bin, then bump .fvmrc and drop this entry.
-    blocked_by: aur:flutter-bin
-    expires: "2026-11-26"
+      design_system 0.5.1 (its newest tag) pins flutter_svg 2.5.0 exactly, so
+      pub cannot resolve 2.5.1 next to it. The shared theme waits for a
+      design_system tag that takes flutter_svg 2.5.1.
+    blocked_by: transitive:design_system@0.5.1

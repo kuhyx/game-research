@@ -47,7 +47,7 @@ uncommitted, plus one todo task to review it.
 
 ffmpeg with NVENC (falls back to H.264 NVENC, then libx264), PipeWire/Pulse,
 sxhkd, dmenu, xrandr, Tk for the flash helper, a Chrome-family browser,
-Flutter 3.47.9. Captions: `claude` (subscription), the OmniRoute gateway on
+Flutter 3.50.1. Captions: `claude` (subscription), the OmniRoute gateway on
 `127.0.0.1:20128` (key read from `~/.config/omniroute/api_key` at run time),
 ollama with `qwen3-vl:30b-a3b-instruct`.
 

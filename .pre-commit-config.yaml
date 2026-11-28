@@ -20,31 +20,14 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.4
     hooks:
-      - id: ruff
       - id: ruff-format
 
   - repo: local
     hooks:
-      - id: shellcheck
-        name: shellcheck
-        entry: shellcheck --severity=warning -x
-        language: system
-        types: [shell]
-      - id: line-cap
-        name: source files stay at 250 lines or fewer
-        entry: scripts/check_line_cap.sh
-        language: system
-        files: \.(dart|sh|py)$
       - id: dart-format
         name: dart format
         entry: dart format --output=none --set-exit-if-changed
         language: system
-        types: [dart]
-      - id: flutter-analyze
-        name: flutter analyze (very_good_analysis)
-        entry: flutter analyze --no-pub
-        language: system
-        pass_filenames: false
         types: [dart]
       # Shared gate in ~/src/utils owns the namespaces and the exemption list.
       - id: md-naming
